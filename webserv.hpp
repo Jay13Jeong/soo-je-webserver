@@ -11,6 +11,9 @@
 #include <sys/socket.h> //socket
 // #include <sys/un.h>
 #include <sys/event.h> //kqueue
+#include <stdexcept>
+
+#define DETECT_SIZE 1024; //한 횟차에 처리할 최대 이벤트 갯수.
 
 class Webserv
 {
@@ -108,8 +111,93 @@ public:
     //서버를 실행하는 메소드.
     void start()
     {
-        int kq_fd;
+        int kq_fd; //커널큐 fd.
+        int detected_count; //감지된 이벤트 갯수.
+        std::vector<struct kevent> detecteds; //감지 된 이벤트벡터.
+        detecteds.resize(DETECT_SIZE); //오버헤드 방지.
+
+        // struct kevent k_set;
+        /**
+        EV_SET(이벤트구조체 &k_set, 
+            감지할fd, 
+            감지되면 설정될 플래그 EVFILT_READ 또는 EVFILT_WRITE, 
+            "이벤트추가" 및 "이벤트반환"매크로 EV_ADD | EV_ENABLE, 
+            필터플레그값 0, 
+            필터 데이터값 0, 
+            사용자 정의 데이터 NULL);
+        **/
 
         kq_fd = kqueue();
+        while ("soo-je-webserv")
+        {
+            try
+            {
+                detected_count = kevent(kq_fd, g_detects, g_detects.size(), detecteds, DETECT_SIZE, NULL);
+                for (int i(0); i < detected_count; i++)
+                {
+                    if (detecteds[i].flags & EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
+                    {
+                        if (detecteds[i].ident == "server_fd") //감지된 fd가 서버쪽 일 때.(map활용예정)
+                        {
+                            //accept하고 나온 클라이언트 소켓으로 클라이언트 객체 생성.
+                            //fcntl(socket_fd, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정 (이외에 파일FD에도 해준다.)
+                            
+                            //클라이언트 객체에서 읽기,쓰기 모두 감지하도록 g_detects에 초기화해서 추가.
+                            EV_SET(g_detects, client_fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL); //클라이언트객체로
+                            EV_SET(g_detects, client_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, NULL); //클라이언트객체로
+                            
+                        }
+                        else if (detecteds[i].ident == "client_fd") //감지된 fd가 클라쪽 일 때.(map활용예정)
+                        {
+                            /*클라이언트 객체로 이관예정*/     
+                            char buf[1024];
+                            int n = recv(detecteds[i].ident, buf, sizeof(buf)); //소켓데이터를 버퍼만큼 읽는다.
+
+                            if (n <= 0)
+                            {
+                                //데이터를 읽을 수 없다면 브라우저와 socket연결을 close하고 객체도 지운다.
+                                //감지목록에서도 지운다.
+                            }
+                            else
+                            {
+                                //"client 객체에 recv한 데이터 저장" += std::string(buf, n);
+                                //**클라객체에서 추가적으로 수신 완료여부 검사 필요.
+                            }
+                        }
+                        else if (detecteds[i].ident == "file_fd") //감지된 fd가 파일쪽 일 때.(map활용예정)
+                        {
+                            //파일 구조체에 담긴 정보로 파일을 읽는다.
+                            //**파일 구조체: 클라이언트FD, 파일FD, 경로 및 파일이름, 읽기완료 여부, 쓰기완료 여부.
+                            //읽기가 완료되면 주인 클라이언트객체에게 알린다.
+                        }
+                    }
+                    else if (detecteds[i].flags & EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
+                    {
+                        if (detecteds[i].ident == "client_fd") //감지된 fd가 서버쪽 일 때.(map활용예정)
+                        {
+                            //클라이언트 객체가 완성된 response데이터를 전송.
+                            //**버퍼를 사용해서 BLOCK되지 않도록 한다. (나눠보내기)
+                        }
+                        else if (detecteds[i].ident == "file_fd") //감지된 fd가 파일쪽 일 때.(map활용예정)
+                        {
+                            //파일 구조체에 담긴 정보로 파일을 작성한다.
+                            //쓰기가 완료되면 주인 클라이언트객체에게 알린다.
+                        }
+                    }
+                    else
+                    {
+                        //error
+                    }
+                }
+            }
+            catch(const std::exception& e)
+            {
+                std::cerr << e.what() << '\n';
+            }
+        }
+        
     }
+
+
+
 };

@@ -1,4 +1,21 @@
+#include <signal.h>
 #include "webserv.hpp"
+
+std::vector<struct kevent> g_detects; //감지 할 이벤트벡터.
+
+//인터럽트가 발생하면 fd를 모두 닫고 종료.
+void my_sig(int signal)
+{
+    if (signal == SIGINT)
+    {
+        while (!g_detects.empty())
+        {
+            close(g_detects.back().ident);
+            g_detects.pop_back();
+        }
+    }
+    exit(0);
+}
 
 int main(int ac, char* av[])
 {
@@ -17,6 +34,7 @@ int main(int ac, char* av[])
         std::cout << "ERROR : ARGS OVER" << std::endl;
         return(-1);
     }
+    signal(SIGINT, &my_sig);
     webserv.start();
     return 0;
 }
