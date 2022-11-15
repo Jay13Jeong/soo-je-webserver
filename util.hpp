@@ -67,6 +67,35 @@ private:
 		return (src_strlen);
 	}
 
+	char	**ft_split_trim(char **s)
+	{
+		int str_count;
+		int i;
+		char *temp;
+		char **dst;
+
+		i = 0;
+		str_count = 0;
+		while (s[i] != NULL)
+		{
+			if (ft_strlen(s[i]) != 0)
+				str_count++;
+			i++;
+		}
+
+
+
+
+		i = 0;
+		while (s[i] != NULL)
+		{
+			free(s[i]);
+			i++;
+		}
+		free(s);
+		return (dst);
+	}
+
 public:
 	char	**ft_split(char const *s, char c)
 	{
@@ -94,6 +123,6 @@ public:
 			else
 				s++;
 		}
-		return (dst[dst_index] = NULL, dst);
+		return (dst[dst_index] = NULL, ft_split_trim(dst));
 	}
 };

@@ -68,11 +68,11 @@ public:
     //conf파일을 인자를 받아 파싱 메소드.
     bool    parsing(std::string conf_file)
     {
-        ifstream    config_fd;
+        std::ifstream config_fd;
     	std::string line;
         std::string options[5] = {"server", "listen", "root", "index", "location"};
 
-    	config_fd = open(argv[2], O_RDONLY);
+    	config_fd = open(conf_file, O_RDONLY);
         // ifstream 실패했을 경우 -> good() false
         if (config_fd.good() == false)
             return (false);
@@ -118,12 +118,12 @@ public:
 
         // struct kevent k_set;
         /**
-        EV_SET(이벤트구조체 &k_set, 
-            감지할fd, 
-            감지되면 설정될 플래그 EVFILT_READ 또는 EVFILT_WRITE, 
-            "이벤트추가" 및 "이벤트반환"매크로 EV_ADD | EV_ENABLE, 
-            필터플레그값 0, 
-            필터 데이터값 0, 
+        EV_SET(이벤트구조체 &k_set,
+            감지할fd,
+            감지되면 설정될 플래그 EVFILT_READ 또는 EVFILT_WRITE,
+            "이벤트추가" 및 "이벤트반환"매크로 EV_ADD | EV_ENABLE,
+            필터플레그값 0,
+            필터 데이터값 0,
             사용자 정의 데이터 NULL);
         **/
 
@@ -137,19 +137,40 @@ public:
                 {
                     if (detecteds[i].flags & EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
                     {
+                        //감지된 fd가 정규파일인지 서버인지 클라이언트꺼인지 검사한다.
+                        std::string type = "file_fd";
+                        for (int j(0); j < get_server_list().size(); j++)
+                        {
+                            if (detecteds[i].ident == get_server_list()[j]->fd)
+                            {
+                                type = "server_fd";
+                                break;
+                            }
+                        }
+                        for (int j(0); j < get_client_list().size(); j++)
+                        {
+                            if (detecteds[i].ident == get_client_list()[j]->fd)
+                            {
+                                type = "client_fd";
+                                break;
+                            }
+                        }
                         if (detecteds[i].ident == "server_fd") //감지된 fd가 서버쪽 일 때.(map활용예정)
                         {
+                            Client *new_client = new Client();
+                            new_client->setSocket_fd(detecteds[i].ident);
+                            new_client
                             //accept하고 나온 클라이언트 소켓으로 클라이언트 객체 생성.
                             //fcntl(socket_fd, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정 (이외에 파일FD에도 해준다.)
-                            
+
                             //클라이언트 객체에서 읽기,쓰기 모두 감지하도록 g_detects에 초기화해서 추가.
                             EV_SET(g_detects, client_fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL); //클라이언트객체로
                             EV_SET(g_detects, client_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, NULL); //클라이언트객체로
-                            
+
                         }
                         else if (detecteds[i].ident == "client_fd") //감지된 fd가 클라쪽 일 때.(map활용예정)
                         {
-                            /*클라이언트 객체로 이관예정*/     
+                            /*클라이언트 객체로 이관예정*/
                             char buf[1024];
                             int n = recv(detecteds[i].ident, buf, sizeof(buf)); //소켓데이터를 버퍼만큼 읽는다.
 
@@ -195,9 +216,5 @@ public:
                 std::cerr << e.what() << '\n';
             }
         }
-        
     }
-
-
-
 };
