@@ -23,7 +23,7 @@ void my_sig(int signal)
 
 int main(int ac, char* av[])
 {
-    Webserv webserv();
+    Webserv webserv;
 
     if (ac == 1)
     {

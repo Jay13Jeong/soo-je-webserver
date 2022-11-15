@@ -25,8 +25,8 @@ private:
     // std::vector<Client*> _client_list;
 
 public:
-    Webserv(/* args */);
-    ~Webserv();
+    Webserv(/* args */){};
+    ~Webserv(){};
     std::vector<Server*> get_server_list()
     {
         return this->_server_list;
