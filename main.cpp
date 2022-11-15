@@ -1,5 +1,9 @@
 #include <signal.h>
-#include "webserv.hpp"
+//#include "Client.hpp"
+//#include "location.hpp"
+// #include ".hpp"
+#include "Webserv.hpp"
+
 
 std::vector<struct kevent> g_detects; //감지 할 이벤트벡터.
 
@@ -34,7 +38,7 @@ int main(int ac, char* av[])
         std::cout << "ERROR : ARGS OVER" << std::endl;
         return(-1);
     }
-    signal(SIGINT, &my_sig);
-    webserv.start();
+    // signal(SIGINT, &my_sig);
+    // webserv.start();
     return 0;
 }
