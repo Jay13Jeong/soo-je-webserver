@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <sys/event.h>
 #include "location.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
@@ -81,6 +82,7 @@ public:
         else //읽은 데이터 char[] -> string으로 변환해서 저장.
         {
             this->data += std::string(buffer, read_size);
+            //**클라객체에서 추가적으로 수신 완료여부 검사 필요.
         }
         return 0;
     }
