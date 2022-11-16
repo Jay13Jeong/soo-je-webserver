@@ -7,7 +7,9 @@
 #include <unistd.h>
 #include <algorithm>
 #include "server.hpp"
+
 #include "client.hpp"
+
 #include <sys/socket.h> //socket
 // #include <sys/un.h>
 #include <sys/event.h> //kqueue
@@ -150,8 +152,12 @@ public:
             }
             else if (split_result[0] == "error_page")
             {
+                int status_code;
                 util::remove_last_semicolon(split_result[1]);
-                _server_list.back()->default_error_page = split_result[1];
+                ss.str(split_result[1]);
+                ss >> status_code;
+                util::remove_last_semicolon(split_result[2]);
+                _server_list.back()->default_error_pages.insert(std::make_pair(status_code, split_result[2]));
             }
             else if (split_result[0] == "cgi")
             {
