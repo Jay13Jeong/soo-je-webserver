@@ -1,8 +1,8 @@
 #include <signal.h>
-//#include "Client.hpp"
+//#include "client.hpp"
 //#include "location.hpp"
 // #include ".hpp"
-#include "Webserv.hpp"
+#include "webserv.hpp"
 
 
 std::vector<struct kevent> g_detects; //감지 할 이벤트벡터.

@@ -7,7 +7,9 @@
 #include <unistd.h>
 #include <algorithm>
 #include "server.hpp"
-// #include "Client.hpp"
+
+#include "client.hpp"
+
 #include <sys/socket.h> //socket
 // #include <sys/un.h>
 #include <sys/event.h> //kqueue
@@ -35,14 +37,14 @@ public:
     {
         this->_server_list.push_back(new_server);
     };
-    // std::vector<Client*> get_client_list()
-    // {
-    //     return this->_client_list;
-    // };
-    // void set_client_list(Client *new_client)
-    // {
-    //     this->_client_list.push_back(new_client);
-    // };
+    std::vector<Client*> get_client_list()
+    {
+        return this->_client_list;
+    };
+    void set_client_list(Client *new_client)
+    {
+        this->_client_list.push_back(new_client);
+    };
 
     /*
         - check bracket
@@ -214,111 +216,103 @@ public:
     }
 
     //서버를 실행하는 메소드.
-    // void start()
-    // {
-    //     int kq_fd; //커널큐 fd.
-    //     int detected_count; //감지된 이벤트 갯수.
-    //     std::vector<struct kevent> detecteds; //감지 된 이벤트벡터.
-    //     detecteds.resize(DETECT_SIZE); //오버헤드 방지.
+    void start()
+    {
+        int kq_fd; //커널큐 fd.
+        int detected_count; //감지된 이벤트 갯수.
+        std::vector<struct kevent> detecteds; //감지 된 이벤트벡터.
+        detecteds.resize(DETECT_SIZE); //오버헤드 방지.
 
-    //     // struct kevent k_set;
-    //     /**
-    //     EV_SET(이벤트구조체 &k_set,
-    //         감지할fd,
-    //         감지되면 설정될 플래그 EVFILT_READ 또는 EVFILT_WRITE,
-    //         "이벤트추가" 및 "이벤트반환"매크로 EV_ADD | EV_ENABLE,
-    //         필터플레그값 0,
-    //         필터 데이터값 0,
-    //         사용자 정의 데이터 NULL);
-    //     **/
+        // struct kevent k_set;
+        /**
+        EV_SET(이벤트구조체 &k_set,
+            감지할fd,
+            감지되면 설정될 플래그 EVFILT_READ 또는 EVFILT_WRITE,
+            "이벤트추가" 및 "이벤트반환"매크로 EV_ADD | EV_ENABLE,
+            필터플레그값 0,
+            필터 데이터값 0,
+            사용자 정의 데이터 NULL);
+        **/
 
-    //     kq_fd = kqueue();
-    //     while ("soo-je-webserv")
-    //     {
-    //         try
-    //         {
-    //             detected_count = kevent(kq_fd, g_detects, g_detects.size(), detecteds, DETECT_SIZE, NULL);
-    //             for (int i(0); i < detected_count; i++)
-    //             {
-    //                 if (detecteds[i].flags & EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
-    //                 {
-    //                     //감지된 fd가 정규파일인지 서버인지 클라이언트꺼인지 검사한다.
-    //                     bool used = false; //찾았는지 여부.
-    //                     for (int j(0); j < get_server_list().size(); j++)
-    //                     {   //감지된 fd가 서버쪽 일 때.
-    //                         if (detecteds[i].ident == get_server_list()[j]->fd)
-    //                         {
-    //                             Client *new_client = new Client();
-    //                             new_client->setSocket_fd(get_server_list()[j]->accept_client()); //브라우저의 연결을 수락.
-    //                             new_client->regist_fd_to_detects(); //감지목록에 등록.
-    //                             this->set_client_list(new_client);
-    //                             used = true;
-    //                             break;
-    //                         }
-    //                     }
-    //                     if (used == true)
-    //                         continue;
-    //                     for (std get_client_list().begin())
-    //                     for (int j(0); j < get_client_list().size(); j++) 
-    //                     {   //감지된 fd가 클라쪽 일 때.(map활용예정)
-    //                         if (detecteds[i].ident == get_client_list()[j]->fd)
-    //                         {
-    //                             ////////////////////////
-    //                             /*클라이언트 객체로 이관예정*/
-    //                             if (get_client_list()[j]->recv_data() == FAIL)
-    //                             {
-    //                                 this->get_client_list()
-    //                             }
-    //                             ////////////
-    //                             char buf[1024];
-    //                             int n = recv(detecteds[i].ident, buf, sizeof(buf)); //소켓데이터를 버퍼만큼 읽는다.
-    //                             if (n <= 0)
-    //                             {
-    //                                 //데이터를 읽을 수 없다면 브라우저와 socket연결을 close하고 객체도 지운다.
-    //                                 //감지목록에서도 지운다.
-    //                             }
-    //                             else
-    //                             {
-    //                                 //"client 객체에 recv한 데이터 저장" += std::string(buf, n);
-    //                                 //**클라객체에서 추가적으로 수신 완료여부 검사 필요.
-    //                             }
-    //                             ////////////////////////
-    //                             used = true
-    //                             break;
-    //                         }
-    //                     }
-    //                     if (used == true)
-    //                         continue;
-    //                     else //감지된 fd가 파일쪽 일 때.(map활용예정)
-    //                     {
-    //                         //파일 구조체에 담긴 정보로 파일을 읽는다.
-    //                         //**파일 구조체: 클라이언트FD, 파일FD, 경로 및 파일이름, 읽기완료 여부, 쓰기완료 여부.
-    //                         //읽기가 완료되면 주인 클라이언트객체에게 알린다.
-    //                     }
-    //                 }
-    //                 else if (detecteds[i].flags & EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
-    //                 {
-    //                     if (detecteds[i].ident == "client_fd") //감지된 fd가 서버쪽 일 때.(map활용예정)
-    //                     {
-    //                         //클라이언트 객체가 완성된 response데이터를 전송.
-    //                         //**버퍼를 사용해서 BLOCK되지 않도록 한다. (나눠보내기)
-    //                     }
-    //                     else if (detecteds[i].ident == "file_fd") //감지된 fd가 파일쪽 일 때.(map활용예정)
-    //                     {
-    //                         //파일 구조체에 담긴 정보로 파일을 작성한다.
-    //                         //쓰기가 완료되면 주인 클라이언트객체에게 알린다.
-    //                     }
-    //                 }
-    //                 else
-    //                 {
-    //                     //error
-    //                 }
-    //             }
-    //         }
-    //         catch(const std::exception& e)
-    //         {
-    //             std::cerr << e.what() << '\n';
-    //         }
-    //     }
-    // }
+        kq_fd = kqueue();
+        while ("soo-je-webserv")
+        {
+            try
+            {
+                detected_count = kevent(kq_fd, g_detects, g_detects.size(), detecteds, DETECT_SIZE, NULL);
+                for (int i(0); i < detected_count; i++)
+                {
+                    if (detecteds[i].flags & EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
+                    {
+                        //감지된 fd가 정규파일인지 서버인지 클라이언트꺼인지 검사한다.
+                        bool used = false; //찾았는지 여부.
+                        for (int j(0); j < get_server_list().size(); j++)
+                        {   //감지된 fd가 서버쪽 일 때.
+                            if (detecteds[i].ident == get_server_list()[j]->fd)
+                            {
+                                Client *new_client = new Client();
+                                new_client->setSocket_fd(get_server_list()[j]->accept_client()); //브라우저의 연결을 수락.
+                                new_client->regist_fd_to_detects(); //감지목록에 등록.
+                                this->set_client_list(new_client);
+                                used = true;
+                                break;
+                            }
+                        }
+                        if (used == true)
+                            continue;
+                        for (std::vector<Client*>::iterator it(get_client_list().begin()); it != get_client_list().end(); it++)
+                        {   //감지된 fd가 클라쪽 일 때.
+                            if (detecteds[i].ident == (*it)->getSocket_fd())
+                            {
+                                if ((*it)->recv_data() == FAIL)
+                                {
+                                    //읽지 못하면 클라객체삭제.
+                                    delete (*it); //객체 메모리해제.
+                                    this->get_client_list().erase(it); 
+                                    //감지목록에서도 지운다. -> 처음부터 감지목록을 매회차 갱신으로 처리.
+                                }
+                                used = true
+                                break;
+                            }
+                        }
+                        //감지된 fd가 파일쪽 일 때.
+                        if (used == false)
+                        {
+                            //파일 구조체에 담긴 정보로 파일을 읽는다.
+                            //**파일 구조체: 클라이언트FD, 파일FD, 경로 및 파일이름, 읽기완료 여부, 쓰기완료 여부.
+                            //읽기가 완료되면 주인 클라이언트객체에게 알린다.
+                        }
+                    }
+                    else if (detecteds[i].flags & EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
+                    {
+                        bool used = false; //찾았는지 여부.
+                        for (std::vector<Client*>::iterator it(get_client_list().begin()); it != get_client_list().end(); it++)
+                        {   //감지된 fd가 클라쪽 일 때.
+                            if (detecteds[i].ident == (*it)->getSocket_fd())
+                            {
+                                //클라이언트 객체가 완성된 response데이터를 전송.
+                                //**버퍼를 사용해서 BLOCK되지 않도록 한다. (나눠보내기)
+                                used = true
+                                break;
+                            }
+                        }
+                        //감지된 fd가 파일쪽 일 때.
+                        if (used == false)
+                        {
+                            //파일 구조체에 담긴 정보로 파일을 작성한다.
+                            //쓰기가 완료되면 주인 클라이언트객체에게 알린다.
+                        }
+                    }
+                    else
+                    {
+                        //error
+                    }
+                }
+            }
+            catch(const std::exception& e)
+            {
+                std::cerr << e.what() << '\n';
+            }
+        }
+    }
 };
