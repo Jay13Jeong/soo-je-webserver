@@ -29,11 +29,11 @@ private:
 public:
     Webserv(/* args */){};
     ~Webserv(){};
-    std::vector<Server*> get_server_list()
+    std::vector<Server> get_server_list()
     {
         return this->_server_list;
     };
-    void set_server_list(Server *new_server)
+    void set_server_list(Server new_server)
     {
         this->_server_list.push_back(new_server);
     };
@@ -205,9 +205,8 @@ public:
              return (false);
         if (check_config_validation(config_fd) == false)
         {
-        
             config_fd.close();
-             return (false)
+             return (false);
         }
         config_fd.close();
         // 유효성 확인된 경우 파싱 시작
@@ -233,24 +232,24 @@ public:
                 ss.str(split_result[1]);
                 int port;
                 ss >> port; // 이 경우 a80 은 0으로, 80a는 80으로 파싱됨 -> 유효성 검사 부분에서 처리 필요함.
-                for(int i = 0; i < _server_list.size(); i++)
+                for(int i = 0; i < _server_list.size() - 1; i++)
                 {
-                    if (_server_list[i]->port == port)
+                    if (_server_list[i].port == port)
                     {
-                        //error
+                        return (false);
                     }
                 }
-                 _server_list.back()->port = port;
+                 _server_list.back().port = port;
             }
             else if (split_result[0] == "server_name")
             {
                 util::remove_last_semicolon(split_result[1]);
-                _server_list.back()->server_name = split_result[1];
+                _server_list.back().server_name = split_result[1];
             }
             else if (split_result[0] == "root")
             {
                 util::remove_last_semicolon(split_result[1]);
-                _server_list.back()->root = split_result[1];
+                _server_list.back().root = split_result[1];
             }
             else if (split_result[0] == "index")
             {
@@ -259,19 +258,19 @@ public:
                     if (split_result[i] == ";")
                         break;
                     util::remove_last_semicolon(split_result[i]);
-                    _server_list.back()->index.push_back(split_result[i]);
+                    _server_list.back().index.push_back(split_result[i]);
                 }
             }
             else if (split_result[0] == "autoindex")
             {
                 util::remove_last_semicolon(split_result[1]);
-                _server_list.back()->autoindex = (split_result[1] == "on");
+                _server_list.back().autoindex = (split_result[1] == "on");
             }
             else if (split_result[0] == "client_max_body_size")
             {
                 util::remove_last_semicolon(split_result[1]);
                 ss.str(split_result[1]);
-                ss >> _server_list.back()->client_max_body_size;
+                ss >> _server_list.back().client_max_body_size;
             }
             else if (split_result[0] == "error_page")
             {
@@ -280,13 +279,13 @@ public:
                 ss.str(split_result[1]);
                 ss >> status_code;
                 util::remove_last_semicolon(split_result[2]);
-                _server_list.back()->default_error_pages.insert(std::make_pair(status_code, split_result[2]));
+                _server_list.back().default_error_pages.insert(std::make_pair(status_code, split_result[2]));
             }
             else if (split_result[0] == "cgi")
             {
                 if (split_result.size() >= 3 && (split_result[1] == ".py" || split_result[1] == ".php"  || split_result[1] == "none"))
                 {
-                    _server_list.back()->cgi_map.insert(std::make_pair(split_result[1],split_result[2]));
+                    _server_list.back().cgi_map.insert(std::make_pair(split_result[1],split_result[2]));
                 }
             }
             else if (split_result[0] == "location")
@@ -299,7 +298,7 @@ public:
                     getline(config_fd, line);
                     split_result = util::ft_split(line, "\t ");
                     if (split_result[0] == "}"){
-                        _server_list.back()->loc.push_back(loc_temp);
+                        _server_list.back().loc.push_back(loc_temp);
                         break ;
                     }
                     else if (split_result[0] == "return")
@@ -314,8 +313,8 @@ public:
                     }
                 }
             }
-            else if (split_result[0] == "{" || split_result[0] == "}")
-                continue; // 논의 필요...
+            else if (split_result[0] == "}")
+                continue;
             else
             {
                 // error
