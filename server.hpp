@@ -16,7 +16,8 @@ public:
     std::vector<Location>       loc; //로케이션 구조체 배열
     bool                        autoindex; //오토인덱스. (기본값 있음 - off)
     size_t                      client_max_body_size; //서버가 수신가능한 최대 데이터 크기. (기본값 있음 ????????)
-    std::string                 default_error_page; //기본 에러페이지. (기본값 있음)
+    std::map<int, std::string>  default_error_pages; // 키:status code 값:에러페이지
+    //std::string                 default_error_page; //기본 에러페이지. (기본값 있음)
     int                         fd; //linsten용 서버 fd.
     std::map<std::string,std::string>   cgi_map; // 키:확장자, 값:확장자 경로(python,java)
 
