@@ -10,15 +10,69 @@ private:
     std::string version; //프로토콜버전. http1.1고정이기 때문에 float보다 string.
     std::map<std::string,std::string> headers; //콜론을 기준으로 나눈 헤더 키:값 들. 
     std::string body; //바디부분 데이터.
+
+public:
+    std::string getMethod()
+    {
+        return this.method;
+    }
+
+public:
+    void setMethod(std::string method)
+    {
+        this.method = method;
+    }
+
+public:
+    std::string getTarget()
+    {
+        return this.target;
+    }
+
+public:
+    void setTarget(std::string target)
+    {
+        this.target = target;
+    }
+
+public:
+    std::string getVersion()
+    {
+        return this.version;
+    }
+
+public:
+    void setVersion(std::string version)
+    {
+        this.version = version;
+    }
+
+public:
+    std::map<std::string, std::string> getHeaders()
+    {
+        return this.headers;
+    }
+
+public:
+    void setHeaders(std::map<std::string, std::string> headers)
+    {
+        this.headers = headers;
+    }
+
+public:
+    std::string getBody()
+    {
+        return this.body;
+    }
+
+public:
+    void setBody(std::string body)
+    {
+        this.body = body;
+    }
+
 public:
     Request(/* args */);
     ~Request();
 };
 
-Request::Request(/* args */)
-{
-}
-
-Request::~Request()
-{
-}

@@ -81,6 +81,7 @@ public:
             perror("listen");
             //**throw
         }
+        // g_io_infos[this->fd] = IO_manager(this->fd, "server", 0);
     }
 };
 

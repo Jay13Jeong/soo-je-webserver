@@ -5,7 +5,9 @@
 #include "webserv.hpp"
 
 
+
 std::vector<struct kevent> g_detects; //감지 할 이벤트벡터.
+// std::map<int, IO_manager> g_io_infos; //키:fd 값:fd에대한 정보구조체.
 
 //인터럽트가 발생하면 fd를 모두 닫고 종료.
 void my_sig(int signal)
