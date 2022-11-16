@@ -24,7 +24,7 @@ class Webserv
 {
 private:
     std::vector<Server*> _server_list;
-    // std::vector<Client*> _client_list;
+    std::vector<Client*> _client_list;
 
 public:
     Webserv(/* args */){};
@@ -82,6 +82,10 @@ public:
         //     return (false);
         // if (check_config_validation(config_fd) == false)
         // {
+        /*  체크사항
+            1. 중괄호 매치여부 확인
+            2. server  { 위치 확인 종료 } 위치 확인
+        */
         //     close(config_fd);
         //     return (false)
         // }
@@ -116,7 +120,7 @@ public:
                     {
                         //error
                     }
-                }                
+                }
                  _server_list.back()->port = port;
             }
             else if (split_result[0] == "server_name")
@@ -161,19 +165,9 @@ public:
             }
             else if (split_result[0] == "cgi")
             {
-                if (split_result[1] == "py" || split_result[1] == "php")
+                if (split_result.size() >= 3 && (split_result[1] == ".py" || split_result[1] == ".php"  || split_result[1] == "none"))
                 {
-                    if (split_result[1] == "py")
-                        _server_list.back()->cgi_map.insert(std::make_pair("py","python"));
-                    else if (split_result[1] == "php")
-                        _server_list.back()->cgi_map.insert(std::make_pair("php","php"));
-                }
-                if (split_result.size() >= 3 && (split_result[2] == "python" || split_result[2] == "php"))
-                {
-                    if (split_result[2] == "py")
-                        _server_list.back()->cgi_map.insert(std::make_pair("py","python"));
-                    else if (split_result[2] == "php")
-                        _server_list.back()->cgi_map.insert(std::make_pair("php","php"));
+                    _server_list.back()->cgi_map.insert(std::make_pair(split_result[1],split_result[2]));
                 }
             }
             else if (split_result[0] == "location")
@@ -268,7 +262,7 @@ public:
                                 {
                                     //읽지 못하면 클라객체삭제.
                                     delete (*it); //객체 메모리해제.
-                                    this->get_client_list().erase(it); 
+                                    this->get_client_list().erase(it);
                                     //감지목록에서도 지운다. -> 처음부터 감지목록을 매회차 갱신으로 처리.
                                 }
                                 used = true
