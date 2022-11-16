@@ -57,29 +57,35 @@ public:
         - key값 중복 여부 확인 필요
 
     */
-    bool    check_config_validation(ifstream config_fd)
+    bool    check_config_validation(std::ifstream &config_fd)
     {
         /*  체크사항
             노션 - 결정 사항 (11/16) 페이지에 정리해둠. 
         */
         std::string line;
         std::stack<std::string> bracket_stack;
-        std::vector<std::string> split_result;
 
         while (!config_fd.eof())
         {
+            std::vector<std::string> split_result;
             getline(config_fd, line);
+            int semicolon_cnt = util::count_semicolon(line);
             if (semicolon_cnt >= 2)
                 return (false);
+            // split_result.clear();
             split_result = util::ft_split(line, ";");
+            if (split_result.size() == 0)
+                continue;
             split_result = util::ft_split(split_result[0], "\t \n");
-            int semicolon_cnt = util::count_semicolon(line);
+            if (split_result.size() == 0)
+                continue;
             if (split_result[0] == "server")
             {
                 // 가능한 유일한 입력 : server {
                 if (semicolon_cnt != 0)
                     return (false);
-                if (split_result.size() != 2 || split_result[1] != "}")
+                    
+                if (split_result.size() != 2 || split_result[1] != "{")
                     return (false);
                 bracket_stack.push("{"); // 여는 괄호를 넣어준다.
             }
@@ -133,10 +139,10 @@ public:
             {
                 if (semicolon_cnt != 1 || split_result.size() != 3)
                     return (false);
-                if (split_result[i] != "none" && split_result[i] != ".py" && split_result[i] != ".php")
+                if (split_result[1] != "none" && split_result[1] != ".py" && split_result[1] != ".php")
                     return (false);
             }
-            else if (split_result[0] == "location") // 추가작업
+            else if (split_result[0] == "location")
             {
                 if (semicolon_cnt != 0 || split_result.size() != 3)
                     return (false);
@@ -144,6 +150,29 @@ public:
                     return (false);
                 bracket_stack.push("{");
                 // 계속 읽어준다.
+                while (!config_fd.eof())
+                {
+                    getline(config_fd, line);
+                    semicolon_cnt = util::count_semicolon(line);
+                    if (semicolon_cnt > 1)
+                        return (false);
+                    split_result = util::ft_split(line, ";");
+                    split_result = util::ft_split(split_result[0], "\t \n");
+                    if (split_result[0] == "}")
+                    {
+                        if (semicolon_cnt != 0)
+                            return (false);
+                        if (bracket_stack.empty())
+                            return (false);
+                        bracket_stack.pop();
+                        break;
+                    }
+
+                    if (split_result[0] != "root" && split_result[0] != "index")
+                        return (false);
+                    if (split_result.size() != 2)
+                        return (false);
+                }
             }
             else if (split_result[0] == "}")
             {
@@ -159,7 +188,8 @@ public:
                 return (false);
             }
         }
-        
+        if (!bracket_stack.empty())
+            return (false);
         return (true);
     }
 

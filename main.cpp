@@ -29,11 +29,17 @@ int main(int ac, char* av[])
 
     if (ac == 1)
     {
-        webserv.parsing("default.conf");
+        if (!webserv.parsing("error.conf"))
+            std::cout << "config file error\n";
+        else
+            std::cout << "config file ok!\n";
     }
     else if (ac == 2)
     {
-        webserv.parsing(av[1]); //웹서브 클래스에 인자의 파일을 넣음
+        if (!webserv.parsing(av[1])) //웹서브 클래스에 인자의 파일을 넣음
+            std::cout << "config file error\n";
+        else
+            std::cout << "config file ok!\n";
     }
     else if (ac >= 3)
     {
