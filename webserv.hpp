@@ -98,6 +98,14 @@ public:
                 if (util::is_numeric(split_result[1]) == false)
                     return (false);
             }
+            else if (split_result[0] == "host")
+            {
+                // 가능한 입력 : host 127.0.0.1; host 127.0.0.1 ;
+                if (semicolon_cnt != 1 || split_result.size() != 2) // 
+                    return (false);
+                if (if (split_result[1] != "127.0.0.1"))
+                    return (false);
+            }
             else if (split_result[0] == "server_name")
             {
                 // 가능한 입력 : server_name lalala; server_name lalala ;
@@ -169,10 +177,28 @@ public:
                         break;
                     }
 
-                    if (split_result[0] != "root" && split_result[0] != "index")
-                        return (false);
-                    if (split_result.size() != 2)
-                        return (false);
+                    // root, autoindex - key, value;
+                    if (split_result[0] == "root" || split_result[0] == "autoindex")
+                    {
+                        if (split_result.size() != 2)
+                            return (false);
+                        if (split_result[0] == "autoindex" && split_result[1] != "on" && split_result[1] == "off")
+                            return (false);
+                    }
+                    // return - key statuscode url
+                    else if (split_result[0] == "return")
+                    {
+                        if (split_result.size() != 3)
+                            return (false);
+                        if (util::is_numeric(split_result[1]) == false)
+                            return (false);
+                    }
+                    // index, accept_method - key value ...
+                    else if (split_result[0] == "index" || split_result[0] == "accept_method")
+                    {
+                        if (split_result.size() == 1)
+                            return (false); 
+                    }
                 }
             }
             else if (split_result[0] == "}")
@@ -297,15 +323,40 @@ public:
                 while (1)
                 {
                     getline(config_fd, line);
+                    util::remove_last_semicolon(line);
                     split_result = util::ft_split(line, "\t ");
                     if (split_result[0] == "}"){
                         _server_list.back().loc.push_back(loc_temp);
                         break ;
                     }
                     else if (split_result[0] == "return")
-                    {//배열 크기가 3이 아닌 2일때 예외처리 할 것
-                        loc_temp.redirection = split_result[1];
-                        loc_temp.index = split_result[2];
+                    {
+                        if (split_result.size() == 3)
+                            loc_temp.redirection.insert(std::make_pair(split_result[1], split_result[2]);
+                        else
+                            ;//예외처리하기
+                    }
+                    else if (split_result[0] == "accept_method")
+                    {
+                        i = 1;
+                        loc_temp.accept_method.clear();
+                        while (i < split_result.size())
+                        {
+                            if (split_result[i] == "GET" || split_result[i] == "POST" || split_result[i] == "DELETE")
+                                loc_temp.accept_method.push_back(split_result[i]);
+                            else
+                                ;// 예외처리
+                            i++;
+                        }
+                    }
+                    else if (split_result[0] == "index")
+                    {
+                        i = 1;
+                        while (i < split_result.size())
+                        {
+                            loc_temp.index.push_back(split_result[i]);
+                            i++;
+                        }
                     }
                     else if (split_result[0] == "autoindex")
                     {
@@ -314,7 +365,7 @@ public:
                     }
                 }
             }
-            else if (split_result[0] == "}")
+            else if (split_result[0] == "}" || split_result[0] == "host")
                 continue;
             else
             {
@@ -435,7 +486,7 @@ public:
                                         //(추후 fd가 파일인지 검사하는 구간에서 파생해준client를 file_fd로 찾은후 response제작).
                                     }
                                 }
-                                used = true
+                                used = true;
                                 break;
                             }
                         }
@@ -471,9 +522,10 @@ public:
                             if (detecteds[i].ident == (*it).getSocket_fd())
                             {
                                 //클라이언트 객체가 완성된 response데이터를 전송.
-                                (*it).send_data();
+                                int result = (*it).send_data();
+                                
                                 //**버퍼를 사용해서 BLOCK되지 않도록 한다. (나눠보내기)
-                                used = true
+                                used = true;
                                 break;
                             }
                         }
@@ -497,5 +549,3 @@ public:
         }
     }
 };
-
-//**서버의 포트가 열리면 EV_SET해줘야 함.

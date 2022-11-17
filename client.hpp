@@ -14,22 +14,24 @@ class Client
 {
 private:
     int socket_fd; //클라이언트 소켓 fd.
-    std::string data; //소켓에서 읽어온 비정제 데이터. (추후 파싱필요)
+    std::string read_buf; //소켓에서 읽어온 비정제 데이터. (추후 파싱필요)
+    std::string write_buf; //응답 클래스로 보낼 데이터.
     Request request; //비정제데이터를 파싱해서 만든 request클래스.
     Response response; //response를 제작하는 클래스.
     int file_fd; // cgi가 출력한 결과물을 담는 파일의 fd.
-    std::string file_data; //파일의 정보가 저장되는 변수.
+    std::string file_buf; //파일의 정보가 저장되는 변수.
+    size_t write_size; //보낸 데이터 크기.
 
 public
-    std::string getFile_data()
+    std::string getFile_buf()
     {
-        return this.file_data;
+        return this.file_buf;
     }
 
 public
-    void setFile_data(std::string file_data)
+    void setFile_buf(std::string file_buf)
     {
-        this.file_data = file_data;
+        this.file_buf = file_buf;
     }
 
 public
@@ -76,17 +78,21 @@ public:
         this.response = response;
     }
 
-    //클라이언트 소켓에서 데이터를 읽어서 본인의 data버퍼에 저장하는 메소드. 실패 -1 성공 0 모두받음 1 반환.
+    //클라이언트 소켓에서 데이터를 읽어서 본인의 read_buf버퍼에 저장하는 메소드. 실패 -1 성공 0 모두받음 1 반환.
     int recv_data( void )
     {
-        unsigned int read_size;
+        size_t read_size;
         char    buffer[BUFFER_SIZE];
 
         read_size = recv(this->getSocket_fd(), buffer, BUFFER_SIZE, 0);
-        if (read_size >= 1)
+        if (read_size == -1 || read_size == 0)
+        {
+            return -1;
+        }
+        else
         {
             //1.읽은 데이터 char[] -> string으로 변환해서 저장.
-            this->data += std::string(buffer, read_size);
+            this->read_buf += std::string(buffer, read_size);
             //**클라객체에서 추가적으로 수신 완료여부 검사 필요.
 
             //2.전부 송신이 되었는지 (또는 멤버bool변수로 체크).
@@ -98,31 +104,27 @@ public:
             //4. 파싱이 끝났는지. 
             //5.파싱된 요청클래스로 응답클래스 제작 (cgi 또는 파일업로드 필요시 중간에 실행) (완료되면 준비됨으로 바꿈).
         }
-        else
-        {
-            return -1;
-        }
         return 0;
     }
 
-    //지정한 파일에서 데이터를 읽어서 본인의 file_data버퍼에 저장하는 메소드. 실패 -1 성공 0 모두받음 1 반환.
+    //지정한 파일에서 데이터를 읽어서 본인의 file_buf버퍼에 저장하는 메소드. 실패 -1 성공 0 모두받음 1 반환.
     int read_file( void )
     {
-        unsigned int read_size;
+        size_t read_size;
         char    buffer[BUFFER_SIZE];
 
         read_size = recv(this->getFile_fd(), buffer, BUFFER_SIZE, 0);
-        if (read_size >= 1)
+        if (read_size == -1 || read_size == 0)
         {
-            this->file_data += std::string(buffer, read_size);
-            //**클라객체에서 추가적으로 수신 완료여부 검사 필요.
-
-            if (read_size < BUFFER_SIZE)
-                return 1;
+            return -1;
         }
         else
         {
-            return -1;
+            this->file_buf += std::string(buffer, read_size);
+            //**추가적으로 수신 완료여부 검사 필요할지도.
+
+            if (read_size < BUFFER_SIZE)
+                return 1;
         }
         return 0;
     }
@@ -130,9 +132,20 @@ public:
     //응답데이터를 소켓에게 전송하는 메소드.
     int send_data()
     {
-        int send_size;
+        size_t send_size;
+
+        send_size = send(this->socket_fd, this->write_buf.c_str() + (this->write_size), this->write_buf.length(), 0);
+        if (send_size == -1) //데이터전송 실패 했을 때.
+            return -1; //호출한 부분에서 이 클라이언트 소켓 닫기.
         
-        this->response
+        this->write_size += send_size;
+        if (write_size >= write_buf.length())
+        {
+            //**추가적으로 송신 완료여부 검사 필요할지도.
+            return 1; //호출한 부분에서 클라이언트 객체를 fd만 빼고 pop했다가 새로운 클라이언트 객체에 fd넣어서 클라이언트 백터에 넣기.
+        }
+        //전송중이면 (다 못보냈을 때)
+        return 0;
     }
 
     //파싱이 완료된 요청클래스로 
@@ -158,4 +171,13 @@ public:
 
         return true; //문제없이 파싱이 끝나면 true반환.
     }
+
+    //소켓fd만 제외하고 모두 깡통으로만드는 메소드.
+    bool clear_client()
+    {
+
+        return 1; //
+    }
 };
+
+///cgi 처리후 결과파일을 읽어서 응답클래스를 만든다.
