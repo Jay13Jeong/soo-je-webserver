@@ -23,35 +23,28 @@ private:
     size_t write_size; //보낸 데이터 크기.
 
 public
-    std::string getFile_buf()
-    {
-        return this.file_buf;
-    }
-
-public
-    void setFile_buf(std::string file_buf)
-    {
-        this.file_buf = file_buf;
-    }
-
-public
-    int getFile_fd()
-    {
-        return this.file_fd;
-    }
-
-public
-    void setFile_fd(int file_fd)
-    {
-        this.file_fd = file_fd;
-    }
-
-public:
     Client(/* args */) : socket_fd(-1) {};
     ~Client()
     {
         if (this->socket_fd != -1)
             close(this->socket_fd);
+    }
+
+    std::string getFile_buf()
+    {
+        return this.file_buf;
+    }
+    void setFile_buf(std::string file_buf)
+    {
+        this.file_buf = file_buf;
+    }
+    int getFile_fd()
+    {
+        return this.file_fd;
+    }
+    void setFile_fd(int file_fd)
+    {
+        this.file_fd = file_fd;
     }
     int getSocket_fd()
     {
@@ -116,6 +109,7 @@ public:
         read_size = recv(this->getFile_fd(), buffer, BUFFER_SIZE, 0);
         if (read_size == -1 || read_size == 0)
         {
+            close(this->file_fd);
             return -1;
         }
         else
@@ -124,7 +118,35 @@ public:
             //**추가적으로 수신 완료여부 검사 필요할지도.
 
             if (read_size < BUFFER_SIZE)
+            {
+                close(this->file_fd);
                 return 1;
+            }
+        }
+        return 0;
+    }
+
+    //지정한 파일에 file_buf를 write하는 메소드. 실패 -1 성공 0 모두받음 1 반환.
+    int write_file( void )
+    {
+        size_t read_size;
+
+        read_size = write(this->getFile_fd(), file_buf.c_str(), file_buf.length(), 0);
+        if (read_size == -1 || read_size == 0)
+        {
+            close(this->file_fd);
+            return -1;
+        }
+        else
+        {
+            this->file_buf += std::string(buffer, read_size);
+            //**추가적으로 수신 완료여부 검사 필요할지도.
+
+            if (read_size < BUFFER_SIZE)
+            {
+                close(this->file_fd);
+                return 1;
+            }
         }
         return 0;
     }
@@ -136,13 +158,13 @@ public:
 
         send_size = send(this->socket_fd, this->write_buf.c_str() + (this->write_size), this->write_buf.length(), 0);
         if (send_size == -1) //데이터전송 실패 했을 때.
-            return -1; //호출한 부분에서 이 클라이언트 소켓 닫기.
+            return -1; //호출한 부분에서 이 클라이언트 제거.
         
         this->write_size += send_size;
         if (write_size >= write_buf.length())
         {
             //**추가적으로 송신 완료여부 검사 필요할지도.
-            return 1; //호출한 부분에서 클라이언트 객체를 fd만 빼고 pop했다가 새로운 클라이언트 객체에 fd넣어서 클라이언트 백터에 넣기.
+            return 1; //호출한 부분에서 클라이언트 객체를 초기화하는 함수 실행.
         }
         //전송중이면 (다 못보냈을 때)
         return 0;
@@ -160,23 +182,25 @@ public:
     //cgi실행이 필요한지 여부를 반환하는 메소드. 
     bool check_need_cgi()
     {
-        /*code*/
+        //파싱된 요청클래스 검사....
 
-        return false;
+        return false; //cgi가 필요없으면 false반환.
     }
 
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드. 
     bool parse_request()
     {
-
+        if ((this->request.parse(std::string & data, this->response.status)) == false); //read_buf 파싱.
+            return false;
         return true; //문제없이 파싱이 끝나면 true반환.
     }
 
     //소켓fd만 제외하고 모두 깡통으로만드는 메소드.
     bool clear_client()
     {
+        //fd빼고 모두 초기상태로 초기화한다...
 
-        return 1; //
+        return true; //문제없으면 true리턴.
     }
 };
 

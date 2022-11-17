@@ -28,6 +28,24 @@ namespace util
 		return v;
 	}
 
+	std::vector<std::string> ft_split_s(std::string s, std::string divid)
+	{
+		std::vector<std::string> v;
+		size_t pos;
+		if (s.length() == 0)
+			return v;
+		pos = s.find(divid);
+		while (pos != std::string::npos)
+		{
+			v.push_back(s.substr(0, pos));
+			s = s.substr(pos + divid.length(), s.length() - v.back().length() + divid.length());
+			pos = s.find(divid);
+		}
+		if (s.length() != 0)
+			v.push_back(s);
+		return v;
+	}
+
 	bool is_numeric(std::string str)
 	{
 		char* p;

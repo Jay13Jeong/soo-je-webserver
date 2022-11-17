@@ -19,6 +19,7 @@
 #define DETECT_SIZE 1024; //한 횟차에 처리할 최대 이벤트 갯수.
 #define FAIL        -1; //실패를 의미하는 매크로.
 #define RECV_ALL    1; //모두 수신 받음을 의미.
+#define SEND_ALL    1; //모두 수신 받음을 의미.
 
 class Webserv
 {
@@ -523,7 +524,17 @@ public:
                             {
                                 //클라이언트 객체가 완성된 response데이터를 전송.
                                 int result = (*it).send_data();
-                                
+                                if (result == FAIL)
+                                {
+                                    //이 클라이언트 소켓 제거.
+                                    _server_list.erase(it);
+                                }
+                                else if (result == SEND_ALL)
+                                {
+                                    //호출한 부분에서 클라이언트 객체를 초기화하는 함수 실행.
+                                    (*it).clear_client();
+                                }
+
                                 //**버퍼를 사용해서 BLOCK되지 않도록 한다. (나눠보내기)
                                 used = true;
                                 break;

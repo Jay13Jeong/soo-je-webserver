@@ -71,6 +71,13 @@ public:
         this.body = body;
     }
 
+    //데이터를 받아서 파싱하는 메소드.
+    bool parse(std::string & data, std::string & status_code)
+    {
+        //
+        return true; //문제없으면 true반환;
+    }
+
 public:
     Request(/* args */);
     ~Request();
