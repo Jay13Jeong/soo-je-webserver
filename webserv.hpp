@@ -25,7 +25,8 @@ class Webserv
 private:
     std::vector<Server> _server_list;
     std::vector<Client> _client_list;
-
+    std::vector<struct kevent> _detects; //kq 감지대상 벡터.
+ 
 public:
     Webserv(/* args */){};
     ~Webserv(){};
@@ -336,12 +337,21 @@ public:
         }
     }
 
+    //fd와 "감지할 행동"을 인자로 받아서 감지목록에 추가하는 메소드.
+    void add_kq_event(uintptr_t ident, int16_t filter)
+    {
+        struct kevent new_event;
+
+        EV_SET(&new_event, ident, filter, EV_ADD | EV_ENABLE, 0, 0, NULL);
+        this->_detects.push_back(new_event);
+    }
+    
     //서버들을 감지목록에 추가하는 메소드.
     void regist_servers_to_kq()
     {
         for (int i(0);i < this->get_server_list().size();i++)
         {
-            EV_SET(g_detects, this->get_server_list()[i], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL);
+            add_kq_event(this->get_server_list()[i].fd, EVFILT_READ);
         }
     }
 
@@ -371,8 +381,8 @@ public:
         {
             try
             {
-                detected_count = kevent(kq_fd, g_detects, g_detects.size(), detecteds, DETECT_SIZE, NULL);
-                // g_detects.clear();
+                detected_count = kevent(kq_fd, _detects, _detects.size(), detecteds, DETECT_SIZE, NULL);
+                _detects.clear();
                 for (int i(0); i < detected_count; i++)
                 {
                     if (detecteds[i].flags & EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
@@ -388,16 +398,9 @@ public:
                                 Client new_client = Client();
                                 new_client.setSocket_fd(get_server_list()[j].accept_client()); //브라우저의 연결을 수락.
                                 // g_io_infos[new_client] = IO_manager(new_client, "client", 0);                        
-                                //감지목록에 등록. 
-                                EV_SET(g_detects, new_client, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL);
-                                /**EV_SET(이벤트구조체 &k_set,
-                                    감지할fd,
-                                    감지되면 설정될 플래그 EVFILT_READ 또는 EVFILT_WRITE,
-                                    "이벤트추가" 및 "이벤트반환"매크로 EV_ADD | EV_ENABLE,
-                                    필터플레그값 0,
-                                    필터 데이터값 0,
-                                    사용자 정의 데이터 NULL);
-                                **/
+                                //감지목록에 등록.
+                                add_kq_event(new_client, EVFILT_READ);
+                                add_kq_event(new_client, EVFILT_WRITE);
                                 this->set_client_list(new_client);
                                 used = true;
                                 break;
@@ -412,16 +415,8 @@ public:
                                 int result = (*it).recv_data();
                                 if (result == FAIL)
                                 {
-                                    //감지목록에서도 지운다. -> 처음부터 감지목록을 매회차 갱신으로 처리.
-                                    std::vector<struct kevent>::iterator it2;
-                                    for (it2 = g_detects.rbegin();it2 != g_detects.rend(); it2++)
-                                    {
-                                        if ((*it2).ident == (*it).getSocket_fd())
-                                            g_detects.erase(it2);
-                                    }
                                     //kq에서 읽기가능이라고 했는데도 데이터를 읽을 수 없다면 삭제한다.
                                     this->get_client_list().erase(it);
-                                    
                                 }
                                 else if (result == RECV_ALL) //모두수신받았을 때.
                                 {
@@ -432,7 +427,7 @@ public:
                                     {
                                         (*it).init_response(); //클라이언트는 파싱한 데이터로 응답클래스를 초기화한다.
                                         //감지목록에 클라이언트 소켓을 "쓰기가능감지"로 등록. (추후 브라우저에 데이터 보낼예정)
-                                        EV_SET(g_detects, (*it).getSocket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, NULL);
+                                        //**add_kq_event((*it).getSocket_fd(),EVFILT_WRITE);
                                     }
                                     else //cgi요청이 있을 때. (POST)
                                     {
@@ -455,13 +450,6 @@ public:
                                     int result = (*it).read_file();
                                     if (result == FAIL) //파일 읽기 오류났을 때.
                                     {
-                                        //감지목록에서도 지운다.
-                                        std::vector<struct kevent>::iterator it2;
-                                        for (it2 = g_detects.rbegin();it2 != g_detects.rend(); it2++)
-                                        {
-                                            if ((*it2).ident == (*it).getFile_fd())
-                                                g_detects.erase(it2);
-                                        }
                                         //**클라이언트의 파일 다운로드 상황을 완료로 처리해야할지도? 한다면 변수사용으로 처리 필요.
                                         //****여기에 응답 에러상태코드를 설정하는 부분을 넣어야 할 수도 있다.
                                         (*it).init_response(); //클라이언트는 파싱한 데이터로 응답클래스를 초기화한다.
@@ -470,7 +458,6 @@ public:
                                     {
                                         (*it).init_response(); //클라이언트는 파싱한 데이터로 응답클래스를 초기화한다.
                                     }
-                                    ////////////////
                                     break;
                                 }
                             }
@@ -502,7 +489,6 @@ public:
                         //error
                     }
                 }
-                // this->regist_servers_to_kq();
             }
             catch(const std::exception& e)
             {
