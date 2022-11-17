@@ -18,6 +18,8 @@ namespace util
 
 	std::vector<std::string> ft_split(std::string s, std::string divid) {
 		std::vector<std::string> v;
+		if (s.length() == 0)
+			return v;
 		char* c = strtok((char*)s.c_str(), divid.c_str());
 		while (c) {
 			v.push_back(c);
