@@ -21,9 +21,24 @@ private:
     int file_fd; // cgi가 출력한 결과물을 담는 파일의 fd.
     std::string file_buf; //파일의 정보가 저장되는 변수.
     size_t write_size; //보낸 데이터 크기.
+    size_t read_size; //파일의 읽은 데이터 크기.
+    int server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
+    bool cgi_mode; // cgi모드여부.
 
 public
-    Client(/* args */) : socket_fd(-1) {};
+    bool isCgi_mode()
+    {
+        return this.cgi_mode;
+    }
+
+public
+    void setCgi_mode(bool cgi_mode)
+    {
+        this.cgi_mode = cgi_mode;
+    }
+
+public
+    Client(/* args */) : socket_fd(-1), file_fd(-1), cgi_mode(false) {};
     ~Client()
     {
         if (this->socket_fd != -1)
@@ -106,10 +121,11 @@ public
         size_t read_size;
         char    buffer[BUFFER_SIZE];
 
-        read_size = recv(this->getFile_fd(), buffer, BUFFER_SIZE, 0);
-        if (read_size == -1 || read_size == 0)
+        read_size = read(this->getFile_fd(), buffer, BUFFER_SIZE);
+        if (read_size == -1)
         {
-            close(this->file_fd);
+            close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
+            this->file_fd = -1;
             return -1;
         }
         else
@@ -119,34 +135,34 @@ public
 
             if (read_size < BUFFER_SIZE)
             {
-                close(this->file_fd);
+                close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
+                this->file_fd = -1;
                 return 1;
             }
         }
         return 0;
     }
 
-    //지정한 파일에 file_buf를 write하는 메소드. 실패 -1 성공 0 모두받음 1 반환.
+    //지정한 파일에 file_buf를 write하는 메소드. 실패 -1 성공 0 모두보냄 1 반환.
     int write_file( void )
     {
-        size_t read_size;
+        size_t size;
 
-        read_size = write(this->getFile_fd(), file_buf.c_str(), file_buf.length(), 0);
-        if (read_size == -1 || read_size == 0)
+        size = write(this->getFile_fd(), file_buf.c_str() + (this->write_size), file_buf.length() - (this->write_size));
+        if (size == -1)
         {
             close(this->file_fd);
+            this->file_fd = -1;
+            this->write_size = 0;
             return -1;
         }
-        else
+        this->write_size += size;
+        if (this->write_size >= this->file_buf.length())
         {
-            this->file_buf += std::string(buffer, read_size);
-            //**추가적으로 수신 완료여부 검사 필요할지도.
-
-            if (read_size < BUFFER_SIZE)
-            {
-                close(this->file_fd);
-                return 1;
-            }
+            close(this->file_fd);
+            this->file_fd = -1;
+            this->write_size = 0;
+            return 1;
         }
         return 0;
     }
@@ -156,12 +172,12 @@ public
     {
         size_t send_size;
 
-        send_size = send(this->socket_fd, this->write_buf.c_str() + (this->write_size), this->write_buf.length(), 0);
+        send_size = send(this->socket_fd, this->write_buf.c_str() + (this->write_size), this->write_buf.length() - (this->write_size), 0);
         if (send_size == -1) //데이터전송 실패 했을 때.
             return -1; //호출한 부분에서 이 클라이언트 제거.
         
         this->write_size += send_size;
-        if (write_size >= write_buf.length())
+        if (this->write_size >= this->write_buf.length())
         {
             //**추가적으로 송신 완료여부 검사 필요할지도.
             return 1; //호출한 부분에서 클라이언트 객체를 초기화하는 함수 실행.
@@ -170,19 +186,45 @@ public
         return 0;
     }
 
-    //파싱이 완료된 요청클래스로 
-    bool init_response()
+    //응답클래스를 제작하는 메소드.
+    bool init_response(std::map<int,Server> & server_map)
     {
+        Server s = server_map[this->server_fd];
         this->response.setVersion(this->request.getVersion);
-        //**이런식으로 응답클래스를 초기화한다.
-
+        //1. 위와 같이 응답클래스를 초기화한다.
+        //2. file_buf의 크기를 헤더필드 Content-Length에 추가한다. 그외에 필요한 정보가 있으면 추가.
+        //3. (cgi냐 단순html파일이냐 에따라 다르게 file_buf 컨트롤 필요).
+        //4. 맴버변수 write_buf에 하나의 데이터로 저장한다. (시작줄 + 헤더 + file_buf).
         return true; //문제없이 응답클래스를 초기화했으면 true반환 
     }
 
-    //cgi실행이 필요한지 여부를 반환하는 메소드. 
-    bool check_need_cgi()
+    //응답데이터를 만들기전에 필요한 read/write 또는 unlink하는 메소드.
+    bool ready_response_meta(std::map<int,Server> & server_map, void (*add_kq_event)(uintptr_t, int16_t, uint16_t))
     {
-        //파싱된 요청클래스 검사....
+        Server s = server_map[this->server_fd];
+        //if GET or POST (read)
+        //  0. (아래 진행하다가 문제 생기면 400, 404 등등 처리) --나중에 여기서 세션처리.
+        //  1. stat으로 target_path가 정규파일이면 바로 open, 에러시 500처리.
+        //  2. 폴더면 conf의 index로 open. 없으면 autoindex유무에 따라 처리. 없으면 400에러
+        //  3. 열린파일fd 논블로킹 설정하고, 현 클라객체 file fd에 등록.
+        //  4. 인자의 함수포인터로 열린파일fd를 "읽기 가능"감지에 등록.
+        //if DELETE (no body)
+        //  1.폴더면 rmdir, 정규파일이면 unlink
+        //  2.바디가 없는 응답클래스를 제작.
+        //  3.kq에 소켓을 "쓰기가능"감지로 등록.
+        //if PUT (write)
+        //  1. stat으로 target_path가 정규파일이면 바로 open, 에러시 500처리.
+        //  2. 폴더면 conf의 index로 open.
+        //  3. 열린파일fd 논블로킹 설정하고, 현 클라객체 file fd에 등록.
+        //  4. 인자의 함수포인터로 열린파일fd를 "쓰기 가능"감지에 등록.
+        //else 지원되는 메소드가 아니면 501
+    }
+
+    //cgi실행이 필요한지 여부를 반환하는 메소드. 
+    bool check_need_cgi(std::map<int,Server> & server_map)
+    {
+        Server s = server_map[this->server_fd];
+        //taget의 확장자가 server의 map에 있는지 검사...
 
         return false; //cgi가 필요없으면 false반환.
     }
@@ -202,6 +244,23 @@ public
 
         return true; //문제없으면 true리턴.
     }
-};
 
+    //400번대 에러가 발생했는지 검사하는 메소드.
+    bool check_client_err()
+    {
+        //권한오류, 메소드사용가능하지 유무, 최대 바디크기 유무 등등 검사....
+        //400번대에 해당하는 오류있으면 response의 상태코드를 설정.
+
+        return false; //이상 없으면 false반환.
+    }
+
+    void excute_cgi(void (*add_kq_event)(uintptr_t, int16_t, uint16_t))
+    {
+        //1. cgi결과를 담을 result file open. (이름은 중복되지 안도록 뒤에 fd번호를 붙인다).
+        //2. 클라의 file fd를 result file fd로 설정. 
+        //3. fork
+        //4. 자식프로세스의 stdout을 file fd로 변경(dup2). 그 후 execve로 실행. 마지막에 exit(0);
+        //5. 부모프로세스에서 file fd를 논블로킹으로 설정. kq에 "읽기가능"감지로 등록. return ;
+    }
+};
 ///cgi 처리후 결과파일을 읽어서 응답클래스를 만든다.
