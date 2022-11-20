@@ -410,6 +410,18 @@ public:
         }
     }
 
+    void init_servers_map()
+    {
+        for (int i(0);i < this->get_server_list().size();i++)
+            this->_server_map[this->_server_list[i].fd] = this->_server_list[i]
+    }
+
+    // void init_clients_map()
+    // {
+    //     for (int i(0);i < this->get_clients_list().size();i++)
+    //         this->_client_map[this->_client_list[i].fd] = this->_client_list[i]
+    // }
+
     //서버를 실행하는 메소드.
     void start()
     {
@@ -431,6 +443,7 @@ public:
 
         this->open_ports(); //서버포트 열기
         this->regist_servers_to_kq(); //감지목록에 서버들 추가.
+        this->init_servers_map();
         kq_fd = kqueue();
         while ("soo-je-webserv")
         {
@@ -444,7 +457,6 @@ public:
                     {
                         //감지된 fd가 정규파일인지 서버인지 클라이언트꺼인지 검사한다.
                         bool used = false; //찾았는지 여부.
-                        
                         for (int j(0); j < get_server_list().size(); j++)
                         {   //감지된 fd가 서버쪽 일 때.
                             if (detecteds[i].ident == get_server_list()[j]->fd)
@@ -472,13 +484,16 @@ public:
                                 }
                                 else if (result == RECV_ALL) //모두수신받았을 때.
                                 {
-                                    //"읽기가능"감지 끄기.
-                                    add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE);
-                                    //수신받은 request데이터 파싱.
-                                    (*it).parse_request();
-                                    (*it).check_client_err(); //400번대 에러가 발생했는지 검사. 있다면 상태코드 설정.
-                                    //파싱된 데이터에 cgi요청이없을 때.
-                                    if ((*it).check_need_cgi() == false) 
+                                    add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE); //"읽기가능"감지 끄기.
+                                    if ((*it).parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
+                                    {
+                                        (*it).ready_err_response_meta(this->_server_map, &(this->add_kq_event)); //에러응답 준비.
+                                    }
+                                    else if ((*it).check_client_err() == true) //400번대 에러가 발생했는지 검사. 있다면 상태코드 설정.
+                                    {
+                                        (*it).ready_err_response_meta(this->_server_map, &(this->add_kq_event)); //에러응답 준비.
+                                    }
+                                    else if ((*it).check_need_cgi() == false) //파싱된 데이터에 cgi요청이 없을 때.
                                     {
                                         (*it).ready_response_meta(this->_server_map, &(this->add_kq_event)); //요청에 필요한 데이터 IO하기.
                                     }
@@ -487,8 +502,6 @@ public:
                                         (*it).setCgi_mode(true); //cgi모드로 설정.
                                         (*it).excute_cgi(&(this->add_kq_event)); //fork로 보내고 파생된result파일을 읽도록 kq에 등록.
                                     }
-                                    //감지목록에 클라이언트 소켓을 "쓰기가능감지"로 등록. (추후 브라우저에 데이터 보낼예정)
-                                    // add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //cgi 고려해서 소켓에 쓰기가 가능하더라도 cgi작업이 끝났는지 확인하고 조건문에 들어가야함.
                                 }
                                 used = true;
                                 break;

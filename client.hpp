@@ -198,6 +198,20 @@ public
         return true; //문제없이 응답클래스를 초기화했으면 true반환 
     }
 
+    //에러 응답데이터를 만들기전에 필요한 준비를 지시하는 메소드.
+    bool ready_err_response_meta(std::map<int,Server> & server_map, void (*add_kq_event)(uintptr_t, int16_t, uint16_t))
+    {
+        Server s = server_map[this->server_fd];
+
+        //if conf에 지정된 에러페이지가없으면.
+        //  1.  바디를 하드코딩으로 만든다.
+        //  2. kq에 소켓을 "쓰기가능"감지로 등록.
+        //else
+        //  1. stat으로 지정된 에러페이지(설정되어있다면)가 정규파일이면 바로 open, 에러시 500처리.
+        //  2. 설정된 파일이 있고, 열리면 논블로킹 설정하고, 현 클라객체 file fd에 등록.
+        //  3. 인자의 함수포인터로 열린파일fd를 "읽기 가능"감지에 등록.
+    }
+
     //응답데이터를 만들기전에 필요한 read/write 또는 unlink하는 메소드.
     bool ready_response_meta(std::map<int,Server> & server_map, void (*add_kq_event)(uintptr_t, int16_t, uint16_t))
     {
