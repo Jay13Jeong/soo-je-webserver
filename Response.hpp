@@ -1,3 +1,5 @@
+#ifndef RESPONSE_CLASS_HPP
+# define RESPONSE_CLASS_HPP
 #include <string>
 #include <vector>
 #include <map>
@@ -65,3 +67,5 @@ public:
         return send_data;
     }
 };
+
+#endif

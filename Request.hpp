@@ -1,3 +1,5 @@
+#ifndef REQUEST_CLASS_HPP
+# define REQUEST_CLASS_HPP
 #include <vector>
 #include <string>
 #include <map>
@@ -14,61 +16,61 @@ private:
 public:
     std::string getMethod()
     {
-        return this.method;
+        return this->method;
     }
 
 public:
     void setMethod(std::string method)
     {
-        this.method = method;
+        this->method = method;
     }
 
 public:
     std::string getTarget()
     {
-        return this.target;
+        return this->target;
     }
 
 public:
     void setTarget(std::string target)
     {
-        this.target = target;
+        this->target = target;
     }
 
 public:
     std::string getVersion()
     {
-        return this.version;
+        return this->version;
     }
 
 public:
     void setVersion(std::string version)
     {
-        this.version = version;
+        this->version = version;
     }
 
 public:
     std::map<std::string, std::string> getHeaders()
     {
-        return this.headers;
+        return this->headers;
     }
 
 public:
     void setHeaders(std::map<std::string, std::string> headers)
     {
-        this.headers = headers;
+        this->headers = headers;
     }
 
 public:
     std::string getBody()
     {
-        return this.body;
+        return this->body;
     }
 
 public:
     void setBody(std::string body)
     {
-        this.body = body;
+        this->body = body;
     }
 
     //데이터를 받아서 파싱하는 메소드.
@@ -79,7 +81,8 @@ public:
     }
 
 public:
-    Request(/* args */);
-    ~Request();
+    Request(/* args */){};
+    ~Request(){};
 };
 
+#endif

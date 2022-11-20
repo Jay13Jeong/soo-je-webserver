@@ -1,3 +1,6 @@
+#ifndef LOCATION_CLASS_HPP
+# define LOCATION_CLASS_HPP
+
 #include <string>
 #include <vector>
 
@@ -16,3 +19,5 @@ public:
     bool        autoindex;
     std::vector<std::string> accept_method;//GET POST DELETE 만 받기
 };
+
+#endif

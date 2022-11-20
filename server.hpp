@@ -1,3 +1,5 @@
+#ifndef SERVER_CLASS_HPP
+# define SERVER_CLASS_HPP
 #include <iostream>
 #include <string>
 #include <vector>
@@ -85,3 +87,4 @@ public:
     }
 };
 
+#endif

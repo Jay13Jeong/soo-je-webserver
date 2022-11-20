@@ -1,3 +1,5 @@
+#ifndef WEBSERV_CLASS_HPP
+# define WEBSERV_CLASS_HPP
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -460,7 +462,7 @@ public:
                         {   //감지된 fd가 서버쪽 일 때.
                             if (detecteds[i].ident == get_server_list()[j].fd)
                             {
-                                Client new_client = Client(this->_ev_cmds);
+                                Client new_client = Client(&this->_ev_cmds);
                                 new_client.setSocket_fd(get_server_list()[j].accept_client()); //브라우저의 연결을 수락.                     
                                 //감지목록에 등록.
                                 add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
@@ -471,7 +473,7 @@ public:
                         }
                         if (used == true)
                             continue;
-                        for (std::vector<Client>::iterator it(get_client_list().begin()); it != get_client_list().end(); it++)
+                        for (std::vector<Client>::iterator it = _client_list.begin(); it != get_client_list().end(); it++)
                         {   //감지된 fd가 클라쪽 일 때.
                             if (detecteds[i].ident == (*it).getSocket_fd())
                             {
@@ -479,7 +481,7 @@ public:
                                 if (result == FAIL)
                                 {
                                     //kq에서 읽기가능이라고 했는데도 데이터를 읽을 수 없다면 삭제한다.
-                                    this->get_client_list().erase(it);
+                                    this->_client_list.erase(it);
                                 }
                                 else if (result == RECV_ALL) //모두수신받았을 때.
                                 {
@@ -509,7 +511,7 @@ public:
                         if (used == true)
                             continue;
                         //감지된 fd가 파일쪽 일 때.
-                        for (std::vector<Client>::iterator it(get_client_list().begin());it != get_client_list().end();it++)
+                        for (std::vector<Client>::iterator it = _client_list.begin();it != get_client_list().end();it++)
                         {   //먼저 어떤 클라이언트의 파일인지 찾는다.
                             if (detecteds[i].ident == (*it).getFile_fd())
                             {
@@ -534,7 +536,7 @@ public:
                     else if (detecteds[i].flags & EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
                     {
                         bool used = false; //찾았는지 여부.
-                        for (std::vector<Client>::iterator it(get_client_list().begin()); it != get_client_list().end(); it++)
+                        for (std::vector<Client>::iterator it = _client_list.begin(); it != get_client_list().end(); it++)
                         {   //감지된 fd가 클라쪽 일 때.
                             if (detecteds[i].ident == (*it).getSocket_fd())
                             {
@@ -558,7 +560,7 @@ public:
                         if (used == true)
                             continue;
                         //감지된 fd가 파일쪽 일 때. (POST).
-                        for (std::vector<Client>::iterator it(get_client_list().begin());it != get_client_list().end();it++)
+                        for (std::vector<Client>::iterator it = _client_list.begin();it != get_client_list().end();it++)
                         {   //먼저 어떤 클라이언트의 파일인지 찾는다.
                             if (detecteds[i].ident == (*it).getFile_fd())
                             {
@@ -595,3 +597,5 @@ public:
         }
     }
 };
+
+#endif

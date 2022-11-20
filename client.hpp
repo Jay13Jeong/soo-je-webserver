@@ -1,3 +1,5 @@
+#ifndef CLIENT_CLASS_HPP
+# define CLIENT_CLASS_HPP
 #include <iostream>
 #include <string>
 #include <vector>
@@ -23,10 +25,10 @@ private:
     size_t read_size; //파일의 읽은 데이터 크기.
     int server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
     bool cgi_mode; // cgi모드여부.
-    std::vector<struct kevent> & _ev_cmds; //kq 감지대상 벡터.
+    std::vector<struct kevent> * _ev_cmds; //kq 감지대상 벡터.
 
 public:
-    Client(std::vector<struct kevent> & cmds) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) {};
+    Client(std::vector<struct kevent> * cmds) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) {};
     ~Client()
     {
         if (this->socket_fd != -1)
@@ -88,7 +90,7 @@ public:
         struct kevent new_event;
 
         EV_SET(&new_event, ident, filter, flags, 0, 0, NULL);
-        this->_ev_cmds.push_back(new_event);
+        this->_ev_cmds->push_back(new_event);
     }
 
     //클라이언트 소켓에서 데이터를 읽어서 본인의 read_buf버퍼에 저장하는 메소드. 실패 -1 성공 0 모두받음 1 반환.
@@ -215,6 +217,8 @@ public:
         //  1. stat으로 지정된 에러페이지(설정되어있다면)가 정규파일이면 바로 open, 에러시 500처리.
         //  2. 설정된 파일이 있고, 열리면 논블로킹 설정하고, 현 클라객체 file fd에 등록.
         //  3. 열린파일fd를 "읽기 가능"감지에 등록.
+
+        return true; //정상수행 true반환.
     }
 
     //응답데이터를 만들기전에 필요한 read/write 또는 unlink하는 메소드.
@@ -237,6 +241,8 @@ public:
         //  3. 열린파일fd 논블로킹 설정하고, 현 클라객체 file fd에 등록.
         //  4. 열린파일fd를 "쓰기 가능"감지에 등록.
         //else 지원되는 메소드가 아니면 501
+
+        return true; //정상수행 true반환.
     }
 
     //cgi실행이 필요한지 여부를 반환하는 메소드. 
@@ -251,7 +257,7 @@ public:
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드. 
     bool parse_request()
     {
-        if ((this->request.parse(this->read_buf, this->response.getStatus())) == false); //read_buf 파싱.
+        if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
             return false;
         return true; //문제없이 파싱이 끝나면 true반환.
     }
@@ -282,4 +288,5 @@ public:
         //5. 부모프로세스에서 file fd를 논블로킹으로 설정. kq에 "읽기가능"감지로 등록. return ;
     }
 };
-///cgi 처리후 결과파일을 읽어서 응답클래스를 만든다.
+
+#endif
