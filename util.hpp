@@ -63,4 +63,15 @@ namespace util
 		}
 		return (ret);
 	}
+
+	int count_sp(std::string str)
+	{
+		int ret = 0;
+		for (int i = 0; i < str.length(); i++)
+		{
+			if (str[i] == ' ')
+				ret++;
+		}
+		return (ret);
+	}
 }
