@@ -15,7 +15,6 @@
 #include <sstream>
 #include <map>
 #include "util.hpp"
-#include "IO_manager.hpp"
 
 #define DETECT_SIZE 1024 //한 횟차에 처리할 최대 이벤트 갯수.
 #define FAIL        -1 //실패를 의미하는 매크로.
@@ -461,7 +460,7 @@ public:
                         {   //감지된 fd가 서버쪽 일 때.
                             if (detecteds[i].ident == get_server_list()[j].fd)
                             {
-                                Client new_client = Client();
+                                Client new_client = Client(this->_ev_cmds);
                                 new_client.setSocket_fd(get_server_list()[j].accept_client()); //브라우저의 연결을 수락.                     
                                 //감지목록에 등록.
                                 add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
@@ -487,20 +486,20 @@ public:
                                     add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE); //"읽기가능"감지 끄기.
                                     if ((*it).parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
                                     {
-                                        (*it).ready_err_response_meta(this->_server_map, &(this->add_kq_event)); //에러응답 준비.
+                                        (*it).ready_err_response_meta(this->_server_map); //에러응답 준비.
                                     }
                                     else if ((*it).check_client_err() == true) //400번대 에러가 발생했는지 검사. 있다면 상태코드 설정.
                                     {
-                                        (*it).ready_err_response_meta(this->_server_map, &(this->add_kq_event)); //에러응답 준비.
+                                        (*it).ready_err_response_meta(this->_server_map); //에러응답 준비.
                                     }
                                     else if ((*it).check_need_cgi(this->_server_map) == false) //파싱된 데이터에 cgi요청이 없을 때.
                                     {
-                                        (*it).ready_response_meta(this->_server_map, &(this->add_kq_event)); //요청에 필요한 데이터 IO하기.
+                                        (*it).ready_response_meta(this->_server_map); //요청에 필요한 데이터 IO하기.
                                     }
                                     else //cgi요청이 있을 때. (POST)
                                     {
                                         (*it).setCgi_mode(true); //cgi모드로 설정.
-                                        (*it).excute_cgi(&(this->add_kq_event)); //fork로 보내고 파생된result파일을 읽도록 kq에 등록.
+                                        (*it).excute_cgi(); //fork로 보내고 파생된result파일을 읽도록 kq에 등록.
                                     }
                                 }
                                 used = true;

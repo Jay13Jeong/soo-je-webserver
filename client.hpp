@@ -8,7 +8,6 @@
 #include "Response.hpp"
 
 #define BUFFER_SIZE 5120
-// #define 
 
 class Client
 {
@@ -24,14 +23,16 @@ private:
     size_t read_size; //파일의 읽은 데이터 크기.
     int server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
     bool cgi_mode; // cgi모드여부.
+    std::vector<struct kevent> & _ev_cmds; //kq 감지대상 벡터.
 
 public:
-    Client(/* args */) : socket_fd(-1), file_fd(-1), cgi_mode(false) {};
+    Client(std::vector<struct kevent> & cmds) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) {};
     ~Client()
     {
         if (this->socket_fd != -1)
             close(this->socket_fd);
     }
+
     bool isCgi_mode()
     {
         return this->cgi_mode;
@@ -79,6 +80,15 @@ public:
     void setResponse(Response response)
     {
         this->response = response;
+    }
+
+    //fd와 "감지할 행동", kevent지시문을 인자로 받아서 감지목록에 추가하는 메소드.
+    void add_kq_event(uintptr_t ident, int16_t filter, uint16_t flags)
+    {
+        struct kevent new_event;
+
+        EV_SET(&new_event, ident, filter, flags, 0, 0, NULL);
+        this->_ev_cmds.push_back(new_event);
     }
 
     //클라이언트 소켓에서 데이터를 읽어서 본인의 read_buf버퍼에 저장하는 메소드. 실패 -1 성공 0 모두받음 1 반환.
@@ -194,7 +204,7 @@ public:
     }
 
     //에러 응답데이터를 만들기전에 필요한 준비를 지시하는 메소드.
-    bool ready_err_response_meta(std::map<int,Server> & server_map, void (&add_kq_event)(uintptr_t, int16_t, uint16_t))
+    bool ready_err_response_meta(std::map<int,Server> & server_map)
     {
         Server s = server_map[this->server_fd];
 
@@ -204,11 +214,11 @@ public:
         //else
         //  1. stat으로 지정된 에러페이지(설정되어있다면)가 정규파일이면 바로 open, 에러시 500처리.
         //  2. 설정된 파일이 있고, 열리면 논블로킹 설정하고, 현 클라객체 file fd에 등록.
-        //  3. 인자의 함수포인터로 열린파일fd를 "읽기 가능"감지에 등록.
+        //  3. 열린파일fd를 "읽기 가능"감지에 등록.
     }
 
     //응답데이터를 만들기전에 필요한 read/write 또는 unlink하는 메소드.
-    bool ready_response_meta(std::map<int,Server> & server_map, void (*add_kq_event)(uintptr_t, int16_t, uint16_t))
+    bool ready_response_meta(std::map<int,Server> & server_map)
     {
         Server s = server_map[this->server_fd];
         //if GET or POST (read)
@@ -216,7 +226,7 @@ public:
         //  1. stat으로 target_path가 정규파일이면 바로 open, 에러시 500처리.
         //  2. 폴더면 conf의 index로 open. 없으면 autoindex유무에 따라 처리. 없으면 400에러
         //  3. 열린파일fd 논블로킹 설정하고, 현 클라객체 file fd에 등록.
-        //  4. 인자의 함수포인터로 열린파일fd를 "읽기 가능"감지에 등록.
+        //  4. 열린파일fd를 "읽기 가능"감지에 등록.
         //if DELETE (no body)
         //  1.폴더면 rmdir, 정규파일이면 unlink
         //  2.바디가 없는 응답클래스를 제작.
@@ -225,7 +235,7 @@ public:
         //  1. stat으로 target_path가 정규파일이면 바로 open, 에러시 500처리.
         //  2. 폴더면 conf의 index로 open.
         //  3. 열린파일fd 논블로킹 설정하고, 현 클라객체 file fd에 등록.
-        //  4. 인자의 함수포인터로 열린파일fd를 "쓰기 가능"감지에 등록.
+        //  4. 열린파일fd를 "쓰기 가능"감지에 등록.
         //else 지원되는 메소드가 아니면 501
     }
 
@@ -241,7 +251,7 @@ public:
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드. 
     bool parse_request()
     {
-        if ((this->request.parse(this->read_buf, this->response.status)) == false); //read_buf 파싱.
+        if ((this->request.parse(this->read_buf, this->response.getStatus())) == false); //read_buf 파싱.
             return false;
         return true; //문제없이 파싱이 끝나면 true반환.
     }
@@ -263,7 +273,7 @@ public:
         return false; //이상 없으면 false반환.
     }
 
-    void excute_cgi(void (*add_kq_event)(uintptr_t, int16_t, uint16_t))
+    void excute_cgi()
     {
         //1. cgi결과를 담을 result file open. (이름은 중복되지 안도록 뒤에 fd번호를 붙인다).
         //2. 클라의 file fd를 result file fd로 설정. 
