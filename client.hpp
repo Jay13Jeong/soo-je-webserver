@@ -25,65 +25,60 @@ private:
     int server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
     bool cgi_mode; // cgi모드여부.
 
-public
-    bool isCgi_mode()
-    {
-        return this.cgi_mode;
-    }
-
-public
-    void setCgi_mode(bool cgi_mode)
-    {
-        this.cgi_mode = cgi_mode;
-    }
-
-public
+public:
     Client(/* args */) : socket_fd(-1), file_fd(-1), cgi_mode(false) {};
     ~Client()
     {
         if (this->socket_fd != -1)
             close(this->socket_fd);
     }
-
+    bool isCgi_mode()
+    {
+        return this->cgi_mode;
+    }
+    void setCgi_mode(bool cgi_mode)
+    {
+        this->cgi_mode = cgi_mode;
+    }
     std::string getFile_buf()
     {
-        return this.file_buf;
+        return this->file_buf;
     }
     void setFile_buf(std::string file_buf)
     {
-        this.file_buf = file_buf;
+        this->file_buf = file_buf;
     }
     int getFile_fd()
     {
-        return this.file_fd;
+        return this->file_fd;
     }
     void setFile_fd(int file_fd)
     {
-        this.file_fd = file_fd;
+        this->file_fd = file_fd;
     }
     int getSocket_fd()
     {
-        return this.socket_fd;
+        return this->socket_fd;
     }
     void setSocket_fd(int socket_fd)
     {
-        this.socket_fd = socket_fd;
+        this->socket_fd = socket_fd;
     }
     Request getRequest()
     {
-        return this.request;
+        return this->request;
     }
     void setRequest(Request request)
     {
-        this.request = request;
+        this->request = request;
     }
     Response getResponse()
     {
-        return this.response;
+        return this->response;
     }
     void setResponse(Response response)
     {
-        this.response = response;
+        this->response = response;
     }
 
     //클라이언트 소켓에서 데이터를 읽어서 본인의 read_buf버퍼에 저장하는 메소드. 실패 -1 성공 0 모두받음 1 반환.
@@ -190,7 +185,7 @@ public
     bool init_response(std::map<int,Server> & server_map)
     {
         Server s = server_map[this->server_fd];
-        this->response.setVersion(this->request.getVersion);
+        this->response.setVersion(this->request.getVersion());
         //1. 위와 같이 응답클래스를 초기화한다.
         //2. file_buf의 크기를 헤더필드 Content-Length에 추가한다. 그외에 필요한 정보가 있으면 추가.
         //3. (cgi냐 단순html파일이냐 에따라 다르게 file_buf 컨트롤 필요).
@@ -199,7 +194,7 @@ public
     }
 
     //에러 응답데이터를 만들기전에 필요한 준비를 지시하는 메소드.
-    bool ready_err_response_meta(std::map<int,Server> & server_map, void (*add_kq_event)(uintptr_t, int16_t, uint16_t))
+    bool ready_err_response_meta(std::map<int,Server> & server_map, void (&add_kq_event)(uintptr_t, int16_t, uint16_t))
     {
         Server s = server_map[this->server_fd];
 

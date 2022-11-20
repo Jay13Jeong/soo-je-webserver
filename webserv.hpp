@@ -17,10 +17,10 @@
 #include "util.hpp"
 #include "IO_manager.hpp"
 
-#define DETECT_SIZE 1024; //한 횟차에 처리할 최대 이벤트 갯수.
-#define FAIL        -1; //실패를 의미하는 매크로.
-#define RECV_ALL    1; //모두 수신 받음을 의미.
-#define SEND_ALL    1; //모두 수신 받음을 의미.
+#define DETECT_SIZE 1024 //한 횟차에 처리할 최대 이벤트 갯수.
+#define FAIL        -1 //실패를 의미하는 매크로.
+#define RECV_ALL    1 //모두 수신 받음을 의미.
+#define SEND_ALL    1 //모두 수신 받음을 의미.
 
 class Webserv
 {
@@ -107,7 +107,7 @@ public:
                 // 가능한 입력 : host 127.0.0.1; host 127.0.0.1 ;
                 if (semicolon_cnt != 1 || split_result.size() != 2) // 
                     return (false);
-                if (if (split_result[1] != "127.0.0.1"))
+                if ((split_result[1] != "127.0.0.1"))
                     return (false);
             }
             else if (split_result[0] == "server_name")
@@ -336,13 +336,13 @@ public:
                     else if (split_result[0] == "return")
                     {
                         if (split_result.size() == 3)
-                            loc_temp.redirection.insert(std::make_pair(split_result[1], split_result[2]);
+                            loc_temp.redirection.insert(std::make_pair(split_result[1], split_result[2]));
                         else
                             ;//예외처리하기
                     }
                     else if (split_result[0] == "accept_method")
                     {
-                        i = 1;
+                        int i = 1;
                         loc_temp.accept_method.clear();
                         while (i < split_result.size())
                         {
@@ -355,7 +355,7 @@ public:
                     }
                     else if (split_result[0] == "index")
                     {
-                        i = 1;
+                        int i = 1;
                         while (i < split_result.size())
                         {
                             loc_temp.index.push_back(split_result[i]);
@@ -413,7 +413,7 @@ public:
     void init_servers_map()
     {
         for (int i(0);i < this->get_server_list().size();i++)
-            this->_server_map[this->_server_list[i].fd] = this->_server_list[i]
+            this->_server_map[this->_server_list[i].fd] = this->_server_list[i];
     }
 
     // void init_clients_map()
@@ -449,7 +449,7 @@ public:
         {
             try
             {
-                detected_count = kevent(kq_fd, _ev_cmds, _ev_cmds.size(), detecteds, DETECT_SIZE, NULL);
+                detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), &detecteds[0], DETECT_SIZE, NULL);
                 _ev_cmds.clear(); //사용한 이벤트명령은 비운다.
                 for (int i(0); i < detected_count; i++)
                 {
@@ -459,7 +459,7 @@ public:
                         bool used = false; //찾았는지 여부.
                         for (int j(0); j < get_server_list().size(); j++)
                         {   //감지된 fd가 서버쪽 일 때.
-                            if (detecteds[i].ident == get_server_list()[j]->fd)
+                            if (detecteds[i].ident == get_server_list()[j].fd)
                             {
                                 Client new_client = Client();
                                 new_client.setSocket_fd(get_server_list()[j].accept_client()); //브라우저의 연결을 수락.                     
@@ -493,7 +493,7 @@ public:
                                     {
                                         (*it).ready_err_response_meta(this->_server_map, &(this->add_kq_event)); //에러응답 준비.
                                     }
-                                    else if ((*it).check_need_cgi() == false) //파싱된 데이터에 cgi요청이 없을 때.
+                                    else if ((*it).check_need_cgi(this->_server_map) == false) //파싱된 데이터에 cgi요청이 없을 때.
                                     {
                                         (*it).ready_response_meta(this->_server_map, &(this->add_kq_event)); //요청에 필요한 데이터 IO하기.
                                     }
