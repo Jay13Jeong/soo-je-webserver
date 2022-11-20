@@ -246,7 +246,7 @@ public
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드. 
     bool parse_request()
     {
-        if ((this->request.parse(std::string & data, this->response.status)) == false); //read_buf 파싱.
+        if ((this->request.parse(this->read_buf, this->response.status)) == false); //read_buf 파싱.
             return false;
         return true; //문제없이 파싱이 끝나면 true반환.
     }
