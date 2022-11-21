@@ -27,11 +27,14 @@ private:
     std::string file_buf; //파일의 정보가 저장되는 변수.
     size_t write_size; //보낸 데이터 크기.
     size_t read_size; //파일의 읽은 데이터 크기.
+    Location * my_loc; //요청이 처리될 영역을 지정한 로케이션 구조체.
     int server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
     bool cgi_mode; // cgi모드여부.
     std::vector<struct kevent> * _ev_cmds; //kq 감지대상 벡터.
     Server * my_server; //현재 클라이언트의 서버.(conf 데이터 불러오기 가능).
     std::map<std::string, std::string> * status_msg;
+    std::string  cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")
+    std::string  cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")
 
 public:
     Client(std::vector<struct kevent> * cmds) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) {};
@@ -223,6 +226,14 @@ public:
         //5. kq에 소켓을 "쓰기가능"감지로 등록.
         return true; //문제없이 응답클래스를 초기화했으면 true반환 
     }
+
+    //오토인데스 응답페이지를 만들고 송신준비를 하는 메소드.
+    void init_autoindex_response(std::string path)
+    {
+        //1.바로 소켓송신이 가능하도록 헤더+바디를 제작한다.
+        //2.kq에 "쓰기가능"감지 등록한다.
+    }
+
     void find_mime_type(std::string path)
     {
         //값"text/html",text/css, images/png, jpeg, gif
@@ -286,23 +297,36 @@ public:
         return true; //정상수행 true반환.
     }
 
+    //index 목록에 실존하는 파일이 있는지 확인 하고 없으면 빈경로를 반환하는 메소드.
+    std::string found_index_abs_path(std::string & path)
+    {
+        std::string tmp_path = path;
+        struct stat sb;
+
+        for (std::vector<std::string>::const_iterator it = this->my_loc->index.begin(); it != this->my_loc->index.end(); it++)
+        {
+            tmp_path = path + *it;
+            if (stat(tmp_path.c_str(), &sb) == 0)
+                return (tmp_path);
+        }
+        return ("");
+    }
+
     //응답데이터를 만들기전에 필요한 read/write 또는 unlink하는 메소드.
     bool ready_response_meta()
     {
         Server s = *this->my_server;
-        std::string uri = this->getRequest().getTarget().substr(0, this->getRequest().getTarget().find('?')); //'?'부터 쿼리스트링 제거
+        std::string uri = this->getRequest().getTarget().substr(0, this->getRequest().getTarget().find('?')); //'?'부터 뒷부분 쿼리스트링 제거.
 
         if (this->request.getMethod() == "GET" || this->request.getMethod() == "POST")
         {
             if (uri[uri.length() - 1] != '/') //경로가 '/'로 끝나지 않으면 만들어준다.
 			    uri += '/';
-            std::string path = s.get_root();;
-            if (this->request.getTarget() != "/")
-            {
-                //uri와 loc에 매칭되는 경로가 있다면 path는 loc의 root + 매치되지 않은 부분으로 재할당.
-            }
+            std::string path = this->my_loc->root; //실제 서버경로.
+            if (this->request.getTarget() != "/") //uri에 loc에 매칭된 경로외에 정보가 있다면 실제 서버의 경로에 이어 붙인다.
+                path += uri.substr(this->my_loc->path.length());
             struct stat sb;
-            if (stat(path.c_str(), &sb) == -1) //경로가 존재 하지 않을 때.
+            if (stat(path.c_str(), &sb) == -1) //서버경로가 존재 하지 않을 때.
             {
                 path.erase(--(path.end())); // '//'더블 슬레시 제거.
                 if (stat(path.c_str(), &sb) == -1) // 그래도 없을 때.
@@ -311,7 +335,22 @@ public:
                     return false; //바로 에러 페이지 제작 필요.
                 }
             }
-            //오토인덱스 확인 및 처리(미구현)...
+            if (path[path.length() - 1] == '/') //서버경로가 정규파일이 아닌 폴더일 때.
+            {
+                std::string abs_path = this->found_index_abs_path(path); //conf의 index 목록중에 실존하는 파일의 절대경로찾기.
+                if (abs_path == "" && this->my_loc->autoindex == false) //오토인덱스도 꺼져있고, index목록에도 없을 때
+                {
+                    this->getResponse().setStatus("404"); //404처리.
+                    return false; //바로 에러 페이지 제작 필요.
+                }
+                else if (abs_path == "" && this->my_loc->autoindex == true) //index는 없지만 오토인덱스가 켜져있을 때.
+                {
+                    this->init_autoindex_response(path); //오토인덱스 페이지 만들어서 kq통해 바로 리스폰.
+                    return true ; //에러페이지는 만들지 않게한다.
+                }
+                else //conf에서의 index목록중에 있다면 해당 경로로 대치.
+                    path = abs_path;
+            }
             this->file_fd = open(path.c_str(),O_RDONLY);
             if (this->file_fd == -1) //열기 실패시.
             {
@@ -351,29 +390,77 @@ public:
         return true; //정상수행 true반환.
     }
 
-    //cgi실행이 필요한지 여부를 반환하는 메소드. 
+    //요청경로가 로케이션 구조체중에 일치하면 그 경로로 로케이션구조체를 설정하는 메소드.
+    void init_client_location()
+    {
+        size_t pos;
+        std::string uri_loc = "";
+        std::string & uri = this->request.getTarget();
+
+        pos = uri.find('.'); //확장자 암시를 찾는다.
+        if (pos != std::string::npos) //확장자 암시가 없다면.
+        {
+            while (uri[pos] != '/') //경로를 한 폴더 올라가서 uri_loc변수에 백업.
+                pos--;
+            uri_loc = uri.substr(0, pos + 1);
+        }
+        else //확장자 암시가 있다면.
+        {
+            pos = uri.find('?'); //쿼리스트링 암시를 찾아서,
+            if (pos != std::string::npos)
+                uri_loc = uri.substr(0, pos); //쿼리스트링이 있다면 '?'부터 뒷부분 지운다.
+            else
+                uri_loc = uri; //없으면 말고.
+        }
+        //**conf파일에서 location의 경로는 무조건 슬래쉬로 끝나야 적용가능. (conf파싱부분에서 loc경로를 슬래시로 닫아주는 처리가 필요)
+        if (uri_loc[uri_loc.length() - 1] != '/')  //경로는 무조건 슬래시로 끝나야한다.(로케이션 구조체와 구분하기 위해)
+            uri_loc += "/";	//슬래시가 없다면 만들어주자.
+
+        this->my_loc = NULL;
+        std::map<std::string, Location> &loc_map = this->my_server->get_loc_map();
+        if (loc_map.find("/") != loc_map.end()) //기본값으로 빈경로 구조체를 초기화 시도.
+            this->my_loc = &loc_map["/"];
+        std::string key = "";
+        for (std::string::const_iterator iter = uri_loc.begin(); iter != uri_loc.end(); iter++)
+        { // 슬래시를 만나서 단계별로 경로가 만들어질 때마다 매칭되는 로케이션 유무를 확인한다.
+            key += *iter;
+            if (*iter == '/') //경로가 한단계 만들어질 때.
+            {
+                if (loc_map.find(key) == loc_map.end()) //구조체 중 찾아보고 없으면 종료.
+                    break;
+                else
+                    this->my_loc = &loc_map[key]; //있다면 해당 구조체로 설정. 이어서 다음단계 찾기.
+            }
+        }
+        if (this->my_loc == NULL)
+        {
+            //my_loc의 기본 경로 만들어주기...(구조체 채우기)
+        }
+    }
+
+    //cgi실행이 필요한지 여부를 반환하는 메소드. cgi가 필요없으면 false반환. 있으면 cgi 정보를 설정하고 true반환.
     bool check_need_cgi()
     {
         Server s = *this->my_server;
-        //taget의 확장자가 server의 map에 있는지 검사...
         std::map<std::string, std::string> & cgi_infos = s.get_cgi_map();
 
-        size_t exe = this->getRequest().getTarget().find('.'); //확장자를 암시하는 부분을 찾는다.
-        if (exe == std::string::npos) //없다면 검사종료.
+        size_t offset = this->getRequest().getTarget().find('.'); //확장자를 암시하는 부분을 찾는다.
+        if (offset == std::string::npos) //없다면 검사종료.
             return (false);
-        size_t curr = exe;
+        size_t curr = offset;
         while (curr != this->getRequest().getTarget().length()) //확장자의 문자열을 하나하나검사.
             if (this->getRequest().getTarget()[curr] != '/' && this->getRequest().getTarget()[curr] != '?') //문자열에 '/'또는'?'가 있다면 검사중단.
                 curr++;
-        std::string pure_exe = this->getRequest().getTarget().substr(exe, curr - exe); //순수 확장자만 파싱해서 뽑는다.
+        std::string pure_exe = this->getRequest().getTarget().substr(offset, curr - offset); //순수 확장자만 파싱해서 뽑는다.
         std::map<std::string, std::string>::const_iterator match_cgi = cgi_infos.find(pure_exe); //지원하는 cgi가 있는지 검사.
         if (match_cgi == cgi_infos.end()) //지원하는 cgi가 없다면 false반환
             return (false);
-        while (this->getRequest().getTarget()[exe] != '/') //////////////////
-            exe--;
-        pure_exe = this->getRequest().getTarget().substr(exe + 1, curr - exe - 1);
-        //stat으로 cgi파일이 존재하는지 검사.....(미구현)
-        return false; //cgi가 필요없으면 false반환.
+        else    //지원한다면 값을 맴버변수에 할당.
+            this->cgi_program = match_cgi->second; 
+        while (this->getRequest().getTarget()[offset] != '/') //현재 확장자의 파일이름이 있는 곳으로 포인터를 옮긴다.
+            offset--;
+        this->cgi_file = this->getRequest().getTarget().substr(offset + 1, curr - offset - 1); //파일이름 + 확장자 형식의 순수 파일명을 뽑기.
+        return true;
     }
 
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
@@ -466,31 +553,61 @@ public:
         return false; //이상 없으면 false반환.
     }
 
-    void excute_cgi()
+    //cgi를 실행하는 메소드.
+    bool excute_cgi()
     {
         std::string file_name = "cgi_result_" + util::num_to_string(this->socket_fd);
-        //1. cgi결과를 담을 result file open. (이름은 중복되지 않도록 뒤에 fd번호를 붙인다).
-        //2. 클라의 file fd를 result file fd로 설정. 
-        this->file_fd = open(file_name.c_str(), O_WRONLY);
-        if (this->file_fd == -1)
+        if ((this->file_fd = open(file_name.c_str(), O_RDWR | O_CREAT | O_APPEND)) == -1)//읽쓰기, 없으면만듬, 이어쓰기가능.
         {
-            // error
+            std::cerr << "open err" << std::endl;
+            this->getResponse().setStatus("500"); //500처리.
+            return false; //바로 에러 페이지 제작 필요.
         }
-        //3. fork
-        pid_t pid = fork();
-        if (pid == 0)
+        if ((this->pid = fork()) < 0)
         {
-            //4. 자식프로세스의 stdout을 file fd로 변경(dup2). 그 후 execve로 실행. 마지막에 exit(0);
-            int ret = dup2(this->file_fd, 1);
-            if (ret == -1)
+            std::cerr << "fork err" << std::endl;
+            this->getResponse().setStatus("500"); //500처리.
+            return false; //바로 에러 페이지 제작 필요.
+        }
+        if (this->pid == 0) //자식프로세스 일 때.
+        {
+            std::string file_path = this->request.getTarget(); //실행 할 상대경로 제작.
+            file_path = file_path.substr(this->my_loc->path.length());
+            file_path = this->my_loc->root + file_path;
+            char *buf = realpath(file_path.c_str(), NULL); //상대경로를 절대경로로 변경.
+            if (buf != NULL) //변환성공 했을 때.
+                file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
+            char **env = this->init_cgi_env(file_path); //환경변수 준비.
+            dup2(this->file_fd, 1); //출력 리다이렉트.
+            ////////////////////////exe/////
+            char **arg = (char **)malloc(sizeof(char *) * 3);
+            arg[0] = strdup(this->cgi_program.c_str()); //예시 "/usr/bin/python"
+            arg[1] = strdup(file_path.c_str()); //실행할 파일의 절대경로.
+            arg[2] = NULL;
+            if (execve(this->cgi_program.c_str(), arg, env) == -1) //cgi 실행.
             {
-                // error
+                std::cerr << "cgi err" << std::endl;
+                exit(1);
             }
+            ////////////////////////exe/////
+            exit(0);
         }
-        else
+        else //부모프로세스는 논블럭설정하고 "읽기가능"감지에 등록한다.
         {
-            //5. 부모프로세스에서 file fd를 논블로킹으로 설정. kq에 "읽기가능"감지로 등록. return ;
+            fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
+            add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+            return true;
         }
+    }
+
+    //cgi자식프로세스가 사용할 환경변수 목록을 2차원포인터로 제작하는 메소드.
+    char **init_cgi_env(std::string & file_path)
+    {
+        char **cgi_env;
+        *cgi_env = NULL;
+        //단톡DM방 책갈피의 cgi IBM문서 참조....
+
+        return (cgi_env);
     }
 };
 
