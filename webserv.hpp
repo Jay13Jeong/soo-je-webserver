@@ -31,6 +31,7 @@ private:
     std::vector<struct kevent> _ev_cmds; //kq 감지대상 벡터.
     std::map<int,Server> _server_map; //서버 맵.
     std::map<int,Client> _client_map; //클라이언트 맵.
+    std::map<std::string, std::string> * status_map;
  
 public:
     Webserv(/* args */){};
@@ -324,7 +325,8 @@ public:
             {
                 Location loc_temp;
                 //l의 기본값 넣는 부분 추가할 것
-                loc_temp.root = split_result[1];
+                loc_temp.path = split_result[1];
+                //loc_temp.root = split_result[1];
                 while (1)
                 {
                     getline(config_fd, line);
@@ -367,6 +369,11 @@ public:
                     {
                         util::remove_last_semicolon(split_result[1]);
                         loc_temp.autoindex = (split_result[1] == "on");
+                    }
+                    else if (split_result[0] == "root")
+                    {
+                        util::remove_last_semicolon(split_result[1]);
+                        loc_temp.root = split_result[1];
                     }
                 }
             }
@@ -422,7 +429,30 @@ public:
     //     for (int i(0);i < this->get_clients_list().size();i++)
     //         this->_client_map[this->_client_list[i].fd] = this->_client_list[i]
     // }
-
+    void init_status_map()
+    {
+        status_map->insert(std::make_pair("200","OK"));
+        status_map->insert(std::make_pair("201","Created"));
+        status_map->insert(std::make_pair("204","No Content"));
+        status_map->insert(std::make_pair("205","Reset Content"));
+        status_map->insert(std::make_pair("301","Moved Permanently"));
+        status_map->insert(std::make_pair("303","See Other"));
+        status_map->insert(std::make_pair("307","Temporary Redirect"));
+        status_map->insert(std::make_pair("400","Bad Request"));
+        status_map->insert(std::make_pair("401","Unauthorized"));
+        status_map->insert(std::make_pair("403","Forbidden"));
+        status_map->insert(std::make_pair("404","Not Found"));
+        status_map->insert(std::make_pair("405","Method Not Allowed"));
+        status_map->insert(std::make_pair("408","Request Timeout"));
+        status_map->insert(std::make_pair("410","Gone"));
+        status_map->insert(std::make_pair("411","Length Required"));
+        status_map->insert(std::make_pair("413","Payload Too Large"));
+        status_map->insert(std::make_pair("414","URI Too Long"));
+        status_map->insert(std::make_pair("500","Internal Server Error"));
+        status_map->insert(std::make_pair("503","Service Unavailable"));
+        status_map->insert(std::make_pair("504","Gateway Timeout"));
+        status_map->insert(std::make_pair("505","HTTP Version Not Supported"));
+    }
     //서버를 실행하는 메소드.
     void start()
     {
@@ -445,6 +475,7 @@ public:
         this->open_ports(); //서버포트 열기
         this->regist_servers_to_kq(); //감지목록에 서버들 추가.
         this->init_servers_map();
+        this->init_status_map();
         kq_fd = kqueue();
         while ("soo-je-webserv")
         {
@@ -463,7 +494,9 @@ public:
                             if (detecteds[i].ident == get_server_list()[j].fd)
                             {
                                 Client new_client = Client(&this->_ev_cmds);
-                                new_client.setSocket_fd(get_server_list()[j].accept_client()); //브라우저의 연결을 수락.                     
+                                new_client.setSocket_fd(get_server_list()[j].accept_client()); //브라우저의 연결을 수락.
+                                new_client.set_status_msg(&(this->status_map));
+                                new_client.set_myserver(&(this->_server_map[detecteds[i].ident])); //클라이언트클래스에서 서버클래스에 접근 할 수 있도록.
                                 //감지목록에 등록.
                                 add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
                                 this->set_client_list(new_client); //클라이언트리스트에도 추가.
@@ -488,15 +521,15 @@ public:
                                     add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE); //"읽기가능"감지 끄기.
                                     if ((*it).parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
                                     {
-                                        (*it).ready_err_response_meta(this->_server_map); //에러응답 준비.
+                                        (*it).ready_err_response_meta(); //에러응답 준비.
                                     }
                                     else if ((*it).check_client_err() == true) //400번대 에러가 발생했는지 검사. 있다면 상태코드 설정.
                                     {
-                                        (*it).ready_err_response_meta(this->_server_map); //에러응답 준비.
+                                        (*it).ready_err_response_meta(); //에러응답 준비.
                                     }
-                                    else if ((*it).check_need_cgi(this->_server_map) == false) //파싱된 데이터에 cgi요청이 없을 때.
+                                    else if ((*it).check_need_cgi() == false) //파싱된 데이터에 cgi요청이 없을 때.
                                     {
-                                        (*it).ready_response_meta(this->_server_map); //요청에 필요한 데이터 IO하기.
+                                        (*it).ready_response_meta(); //요청에 필요한 데이터 IO하기.
                                     }
                                     else //cgi요청이 있을 때. (POST)
                                     {

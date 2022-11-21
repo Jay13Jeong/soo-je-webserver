@@ -45,9 +45,9 @@ public:
     {
         return this->header_map;
     }
-    void setHeader_map(std::map<std::string, std::string> header_map)
+    void setHeader_map(std::string key, std::string value)
     {
-        this->header_map = header_map;
+        this->headers.insert(std::make_pair(key, value));
     }
     std::string & getBody()
     {

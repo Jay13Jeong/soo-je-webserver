@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <cstring>
+#include <time.h>
 // #include <algorithm>
 
 namespace util
@@ -75,6 +76,30 @@ namespace util
 				ret++;
 		}
 		return (ret);
+	}
+
+	template <typename T>
+	T string_to_num(std::string str)
+	{
+		std::stringstream ss(str);
+		T ret;
+		ss >> ret;
+		return (ret);
+	}
+
+	template <typename T>
+	std::string num_to_string (T num)
+	{
+		std::stringstream ss;
+		ss << num
+		std::string ret = ss.str();
+		return (ret);
+	}
+
+	std::string get_date()
+	{
+		// Thu, 17 Nov 2022 09:26:07 GMT
+
 	}
 }
 

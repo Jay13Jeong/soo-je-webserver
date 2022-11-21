@@ -13,7 +13,8 @@ public:
         accept_method.push_back("POST");
         accept_method.push_back("DELETE");
     }
-    std::string root; //실행 되는 최상위 폴더
+    std::string path; // 이 패턴으로 시작하는 경우에 location block 적용.
+    std::string root; // 실행 되는 최상위 폴더
     std::map<std::string, std::string>redirection; // 301 302리다이렉션 정보.//맵으로 하기
     std::vector<std::string> index; //기본지정파일.벡터로 받게 하기
     bool        autoindex;

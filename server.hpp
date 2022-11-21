@@ -19,7 +19,6 @@ public:
     bool                        autoindex; //오토인덱스. (기본값 있음 - off)
     size_t                      client_max_body_size; //서버가 수신가능한 최대 데이터 크기. (기본값 있음 ????????)
     std::map<int, std::string>  default_error_pages; // 키:status code 값:에러페이지
-    //std::string                 default_error_page; //기본 에러페이지. (기본값 있음)
     int                         fd; //linsten용 서버 fd.
     std::map<std::string,std::string>   cgi_map; // 키:확장자, 값:확장자 경로(python,java)
 
@@ -32,6 +31,47 @@ public:
     {
         if (this->fd != -1)
             close(this->fd);
+    }
+
+    std::string get_root()
+    {
+        return this->root;
+    }
+    std::string get_server_name()
+    {
+        return this->server_name;
+    }
+    int get_port()
+    {
+        return this->port;
+    }
+    std::vector<std::string> get_index()
+    {
+        return this->index;
+    }
+    std::vector<Location> get_loc()
+    {
+        return this->loc;
+    }
+    bool get_autoindex()
+    {
+        return this->autoindex;
+    }
+    size_t get_max_body_size()
+    {
+        return this->client_max_body_size;
+    }
+    std::map<int, std::string>  get_default_error_page()
+    {
+        return this->default_error_pages;
+    }
+    int get_fd()
+    {
+        return this->fd;
+    }
+    std::map<std::string,std::string> & get_cgi_map()
+    {
+        return this->cgi_map;
     }
 
     //서버가 connet를 수락하고 클라이언트fd를 생성해서 반환하는 메소드.
