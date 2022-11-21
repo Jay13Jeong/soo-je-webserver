@@ -98,8 +98,15 @@ namespace util
 
 	std::string get_date()
 	{
-		// Thu, 17 Nov 2022 09:26:07 GMT
-
+		// Thu, 17 Nov 2022 09:26:07 GMT (UTC == GMT)
+		time_t raw_time;
+		struct tm *time_info;
+		time(&raw_time);
+		time_info = gmtime(&raw_time); // UTC 형식 시간
+		char buf[64];
+		strftime(buf, sizeof(buf), "%a, %d %b %Y %T GMT", time_info);
+		std::string ret = buf;
+		return (ret);
 	}
 }
 
