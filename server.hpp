@@ -11,15 +11,15 @@
 class Server
 {
 public:
-    int                         port; //서버포트. (기본값 있음)
-    std::string                 server_name; //서버이름. (기본값 있음)
-    std::string                 root; //실행되는 최상위 폴더. (기본값 있음)
-    std::vector<std::string>    index; //인덱스 파일목록. (기본값 있음 - index.html)
-    std::vector<Location>       loc; //로케이션 구조체 배열
-    bool                        autoindex; //오토인덱스. (기본값 있음 - off)
-    size_t                      client_max_body_size; //서버가 수신가능한 최대 데이터 크기. (기본값 있음 ????????)
-    std::map<int, std::string>  default_error_pages; // 키:status code 값:에러페이지
-    int                         fd; //linsten용 서버 fd.
+    int                                 port; //서버포트. (기본값 있음)
+    std::string                         server_name; //서버이름. (기본값 있음)
+    std::string                         root; //실행되는 최상위 폴더. (기본값 있음)
+    std::vector<std::string>            index; //인덱스 파일목록. (기본값 있음 - index.html)
+    std::vector<Location>               loc; //로케이션 구조체 배열
+    bool                                autoindex; //오토인덱스. (기본값 있음 - off)
+    size_t                              client_max_body_size; //서버가 수신가능한 최대 데이터 크기. (기본값 있음 ????????)
+    std::map<std::string, std::string>  default_error_pages; // 키:status code 값:에러페이지
+    int                                 fd; //linsten용 서버 fd.
     std::map<std::string,std::string>   cgi_map; // 키:확장자, 값:확장자 경로(python,java)
 
 private:
@@ -61,7 +61,7 @@ public:
     {
         return this->client_max_body_size;
     }
-    std::map<int, std::string>  get_default_error_page()
+    std::map<std::string, std::string>  get_default_error_page()
     {
         return this->default_error_pages;
     }
