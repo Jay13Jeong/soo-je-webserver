@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include "server.hpp"
-//#include "client.hpp"
+#include "client.hpp"
 #include <sys/socket.h> //socket
 // #include <sys/un.h>
 #include <sys/event.h> //kqueue
@@ -27,10 +27,10 @@ class Webserv
 {
 private:
     std::vector<Server> _server_list;
-    // std::vector<Client> _client_list;
+    std::vector<Client> _client_list;
     std::vector<struct kevent> _ev_cmds; //kq 감지대상 벡터.
     std::map<int,Server> _server_map; //서버 맵.
-    // std::map<int,Client> _client_map; //클라이언트 맵.
+    std::map<int,Client> _client_map; //클라이언트 맵.
     std::map<std::string, std::string> * status_map;
  
 public:
@@ -44,14 +44,14 @@ public:
     {
         this->_server_list.push_back(new_server);
     };
-    // std::vector<Client> get_client_list()
-    // {
-    //     return this->_client_list;
-    // };
-    // void set_client_list(Client new_client)
-    // {
-    //     this->_client_list.push_back(new_client);
-    // };
+    std::vector<Client> get_client_list()
+    {
+        return this->_client_list;
+    };
+    void set_client_list(Client new_client)
+    {
+        this->_client_list.push_back(new_client);
+    };
 
     /*
         - check bracket
@@ -327,7 +327,7 @@ public:
                     getline(config_fd, line);
                     util::remove_last_semicolon(line);
                     split_result = util::ft_split(line, "\t ");
-                    if (split_result.empty() == 0)
+                    if (split_result.empty())
                         continue;
                     if (split_result[0] == "}"){
                         _server_list.back().loc.push_back(loc_temp);
@@ -388,244 +388,244 @@ public:
         return (true);
     }
 
-//     //서버포트들을 개방하는 메소드.
-//     void open_ports()
-//     {
-//         for (int i(0);i < this->get_server_list().size();i++)
-//         {
-//             this->get_server_list()[i].open_port();
-//         }
-//     }
+    //서버포트들을 개방하는 메소드.
+    void open_ports()
+    {
+        for (int i(0);i < this->get_server_list().size();i++)
+        {
+            this->get_server_list()[i].open_port();
+        }
+    }
 
-//     //fd와 "감지할 행동", kevent지시문을 인자로 받아서 감지목록에 추가하는 메소드.
-//     void add_kq_event(uintptr_t ident, int16_t filter, uint16_t flags)
-//     {
-//         struct kevent new_event;
+    //fd와 "감지할 행동", kevent지시문을 인자로 받아서 감지목록에 추가하는 메소드.
+    void add_kq_event(uintptr_t ident, int16_t filter, uint16_t flags)
+    {
+        struct kevent new_event;
 
-//         EV_SET(&new_event, ident, filter, flags, 0, 0, NULL);
-//         this->_ev_cmds.push_back(new_event);
-//     }
+        EV_SET(&new_event, ident, filter, flags, 0, 0, NULL);
+        this->_ev_cmds.push_back(new_event);
+    }
     
-//     //서버들을 감지목록에 추가하는 메소드.
-//     void regist_servers_to_kq()
-//     {
-//         for (int i(0);i < this->get_server_list().size();i++)
-//         {
-//             add_kq_event(this->get_server_list()[i].fd, EVFILT_READ, EV_ADD | EV_ENABLE);
-//         }
-//     }
+    //서버들을 감지목록에 추가하는 메소드.
+    void regist_servers_to_kq()
+    {
+        for (int i(0);i < this->get_server_list().size();i++)
+        {
+            add_kq_event(this->get_server_list()[i].fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+        }
+    }
 
-//     void init_servers_map()
-//     {
-//         for (int i(0);i < this->get_server_list().size();i++)
-//             this->_server_map[this->_server_list[i].fd] = this->_server_list[i];
-//     }
+    void init_servers_map()
+    {
+        for (int i(0);i < this->get_server_list().size();i++)
+            this->_server_map[this->_server_list[i].fd] = this->_server_list[i];
+    }
 
-//     // void init_clients_map()
-//     // {
-//     //     for (int i(0);i < this->get_clients_list().size();i++)
-//     //         this->_client_map[this->_client_list[i].fd] = this->_client_list[i]
-//     // }
-//     void init_status_map()
-//     {
-//         status_map->insert(std::make_pair("200","OK"));
-//         status_map->insert(std::make_pair("201","Created"));
-//         status_map->insert(std::make_pair("204","No Content"));
-//         status_map->insert(std::make_pair("205","Reset Content"));
-//         status_map->insert(std::make_pair("301","Moved Permanently"));
-//         status_map->insert(std::make_pair("303","See Other"));
-//         status_map->insert(std::make_pair("307","Temporary Redirect"));
-//         status_map->insert(std::make_pair("400","Bad Request"));
-//         status_map->insert(std::make_pair("401","Unauthorized"));
-//         status_map->insert(std::make_pair("403","Forbidden"));
-//         status_map->insert(std::make_pair("404","Not Found"));
-//         status_map->insert(std::make_pair("405","Method Not Allowed"));
-//         status_map->insert(std::make_pair("408","Request Timeout"));
-//         status_map->insert(std::make_pair("410","Gone"));
-//         status_map->insert(std::make_pair("411","Length Required"));
-//         status_map->insert(std::make_pair("413","Payload Too Large"));
-//         status_map->insert(std::make_pair("414","URI Too Long"));
-//         status_map->insert(std::make_pair("500","Internal Server Error"));
-//         status_map->insert(std::make_pair("503","Service Unavailable"));
-//         status_map->insert(std::make_pair("504","Gateway Timeout"));
-//         status_map->insert(std::make_pair("505","HTTP Version Not Supported"));
-//     }
-//     //서버를 실행하는 메소드.
-//     void start()
-//     {
-//         int kq_fd; //커널큐 fd.
-//         int detected_count; //감지된 이벤트 갯수.
-//         std::vector<struct kevent> detecteds; //감지 된 이벤트벡터.
-//         detecteds.reserve(DETECT_SIZE); //오버헤드 방지.
+    // void init_clients_map()
+    // {
+    //     for (int i(0);i < this->get_clients_list().size();i++)
+    //         this->_client_map[this->_client_list[i].fd] = this->_client_list[i]
+    // }
+    void init_status_map()
+    {
+        status_map->insert(std::make_pair("200","OK"));
+        status_map->insert(std::make_pair("201","Created"));
+        status_map->insert(std::make_pair("204","No Content"));
+        status_map->insert(std::make_pair("205","Reset Content"));
+        status_map->insert(std::make_pair("301","Moved Permanently"));
+        status_map->insert(std::make_pair("303","See Other"));
+        status_map->insert(std::make_pair("307","Temporary Redirect"));
+        status_map->insert(std::make_pair("400","Bad Request"));
+        status_map->insert(std::make_pair("401","Unauthorized"));
+        status_map->insert(std::make_pair("403","Forbidden"));
+        status_map->insert(std::make_pair("404","Not Found"));
+        status_map->insert(std::make_pair("405","Method Not Allowed"));
+        status_map->insert(std::make_pair("408","Request Timeout"));
+        status_map->insert(std::make_pair("410","Gone"));
+        status_map->insert(std::make_pair("411","Length Required"));
+        status_map->insert(std::make_pair("413","Payload Too Large"));
+        status_map->insert(std::make_pair("414","URI Too Long"));
+        status_map->insert(std::make_pair("500","Internal Server Error"));
+        status_map->insert(std::make_pair("503","Service Unavailable"));
+        status_map->insert(std::make_pair("504","Gateway Timeout"));
+        status_map->insert(std::make_pair("505","HTTP Version Not Supported"));
+    }
+    //서버를 실행하는 메소드.
+    void start()
+    {
+        int kq_fd; //커널큐 fd.
+        int detected_count; //감지된 이벤트 갯수.
+        std::vector<struct kevent> detecteds; //감지 된 이벤트벡터.
+        detecteds.reserve(DETECT_SIZE); //오버헤드 방지.
 
-//         // struct kevent k_set;
-//         /**
-//         EV_SET(이벤트구조체 &k_set,
-//             감지할fd,
-//             감지되면 설정될 플래그 EVFILT_READ 또는 EVFILT_WRITE,
-//             "이벤트추가" 및 "이벤트반환"매크로 EV_ADD | EV_ENABLE,
-//             필터플레그값 0,
-//             필터 데이터값 0,
-//             사용자 정의 데이터 NULL);
-//         **/
+        // struct kevent k_set;
+        /**
+        EV_SET(이벤트구조체 &k_set,
+            감지할fd,
+            감지되면 설정될 플래그 EVFILT_READ 또는 EVFILT_WRITE,
+            "이벤트추가" 및 "이벤트반환"매크로 EV_ADD | EV_ENABLE,
+            필터플레그값 0,
+            필터 데이터값 0,
+            사용자 정의 데이터 NULL);
+        **/
 
-//         this->open_ports(); //서버포트 열기
-//         this->regist_servers_to_kq(); //감지목록에 서버들 추가.
-//         this->init_servers_map();
-//         this->init_status_map();
-//         kq_fd = kqueue();
-//         while ("soo-je-webserv")
-//         {
-//             try
-//             {
-//                 detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), &detecteds[0], DETECT_SIZE, NULL);
-//                 _ev_cmds.clear(); //사용한 이벤트명령은 비운다.
-//                 for (int i(0); i < detected_count; i++)
-//                 {
-//                     if (detecteds[i].flags & EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
-//                     {
-//                         //감지된 fd가 정규파일인지 서버인지 클라이언트꺼인지 검사한다.
-//                         bool used = false; //찾았는지 여부.
-//                         for (int j(0); j < get_server_list().size(); j++)
-//                         {   //감지된 fd가 서버쪽 일 때.
-//                             if (detecteds[i].ident == get_server_list()[j].fd)
-//                             {
-//                                 Client new_client = Client(&this->_ev_cmds);
-//                                 new_client.setSocket_fd(get_server_list()[j].accept_client()); //브라우저의 연결을 수락.
-//                                 new_client.set_status_msg(&(this->status_map));
-//                                 new_client.set_myserver(&(this->_server_map[detecteds[i].ident])); //클라이언트클래스에서 서버클래스에 접근 할 수 있도록.
-//                                 //감지목록에 등록.
-//                                 add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
-//                                 this->set_client_list(new_client); //클라이언트리스트에도 추가.
-//                                 used = true;
-//                                 break;
-//                             }
-//                         }
-//                         if (used == true)
-//                             continue;
-//                         for (std::vector<Client>::iterator it = _client_list.begin(); it != get_client_list().end(); it++)
-//                         {   //감지된 fd가 클라쪽 일 때.
-//                             if (detecteds[i].ident == (*it).getSocket_fd())
-//                             {
-//                                 int result = (*it).recv_data();
-//                                 if (result == FAIL)
-//                                 {
-//                                     //kq에서 읽기가능이라고 했는데도 데이터를 읽을 수 없다면 삭제한다.
-//                                     this->_client_list.erase(it);
-//                                 }
-//                                 else if (result == RECV_ALL) //모두수신받았을 때.
-//                                 {
-//                                     add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE); //"읽기가능"감지 끄기.
-//                                     if ((*it).parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
-//                                     {
-//                                         (*it).ready_err_response_meta(); //에러응답 준비.
-//                                     }
-//                                     else if ((*it).check_client_err() == true) //400번대 에러가 발생했는지 검사. 있다면 상태코드 설정.
-//                                     {
-//                                         (*it).ready_err_response_meta(); //에러응답 준비.
-//                                     }
-//                                     else if ((*it).check_need_cgi() == false) //파싱된 데이터에 cgi요청이 없을 때.
-//                                     {
-//                                         (*it).ready_response_meta(); //요청에 필요한 데이터 IO하기.
-//                                     }
-//                                     else //cgi요청이 있을 때. (POST)
-//                                     {
-//                                         (*it).setCgi_mode(true); //cgi모드로 설정.
-//                                         (*it).excute_cgi(); //fork로 보내고 파생된result파일을 읽도록 kq에 등록.
-//                                     }
-//                                 }
-//                                 used = true;
-//                                 break;
-//                             }
-//                         }
-//                         if (used == true)
-//                             continue;
-//                         //감지된 fd가 파일쪽 일 때.
-//                         for (std::vector<Client>::iterator it = _client_list.begin();it != get_client_list().end();it++)
-//                         {   //먼저 어떤 클라이언트의 파일인지 찾는다.
-//                             if (detecteds[i].ident == (*it).getFile_fd())
-//                             {
-//                                 //클라이언트객체는 파일을 읽는다
-//                                 int result = (*it).read_file();
-//                                 if (result == FAIL || result == RECV_ALL)
-//                                 {
-//                                     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비.
-//                                 }
-//                                 if (result == FAIL) //파일 읽기 오류났을 때.
-//                                 {
-//                                     // cerr...
-//                                 }
-//                                 else if (result == RECV_ALL) //모두수신받았을 때.
-//                                 {
-//                                     (*it).init_response(this->_server_map); //클라이언트는 응답 데이터를 제작한다.
-//                                 }
-//                                 break;
-//                             }
-//                         }
-//                     }
-//                     else if (detecteds[i].flags & EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
-//                     {
-//                         bool used = false; //찾았는지 여부.
-//                         for (std::vector<Client>::iterator it = _client_list.begin(); it != get_client_list().end(); it++)
-//                         {   //감지된 fd가 클라쪽 일 때.
-//                             if (detecteds[i].ident == (*it).getSocket_fd())
-//                             {
-//                                 used = true;
-//                                 if ((*it).getFile_fd() != -1) //아직 처리중인 파일이 있다면 송신하지 않는다.
-//                                     break;
-//                                 int result = (*it).send_data(); //클라이언트 객체가 완성된 response데이터를 전송.
-//                                 if (result == FAIL)
-//                                 {
-//                                     _client_list.erase(it); //이 클라이언트 소켓 제거.
-//                                 }
-//                                 else if (result == SEND_ALL)
-//                                 {
-//                                     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_DELETE | EV_DISABLE); //"쓰기가능"감지목록에서 제외.
-//                                     add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE); //다시 "읽기가능"감지목록에 등록.
-//                                     (*it).clear_client();//fd를 제외한 클라이언트 정보를 초기화한다.
-//                                 }
-//                                 break;
-//                             }
-//                         }
-//                         if (used == true)
-//                             continue;
-//                         //감지된 fd가 파일쪽 일 때. (POST).
-//                         for (std::vector<Client>::iterator it = _client_list.begin();it != get_client_list().end();it++)
-//                         {   //먼저 어떤 클라이언트의 파일인지 찾는다.
-//                             if (detecteds[i].ident == (*it).getFile_fd())
-//                             {
-//                                 int result = (*it).write_file(); //클라이언트객체는 파일을 작성한다.
-//                                 if (result == FAIL || result == SEND_ALL)
-//                                 {
-//                                     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비. (리스폰스제작과 연계)
-//                                 }
-//                                 if (result == FAIL) //파일 쓰기 오류났을 때.
-//                                 {
-//                                     // cerr...
-//                                 }
-//                                 else if (result == SEND_ALL) //모두작성했을 때.
-//                                 {
-//                                     (*it).init_response(this->_server_map); //업로드 완료 후 처리?... (kq와 연계)
-//                                 }
-//                                 break;
-//                             }
-//                         }
-//                     } 
-//                     else { /* error... */ }
-//                 }
-//             }
-//             catch(const std::exception& e)
-//             {
-//                 close(kq_fd);
-//                 kq_fd = kqueue();
-//                 this->_client_list.clear();
-//                 this->_client_map.clear();
-//                 this->_ev_cmds.clear();
-//                 this->regist_servers_to_kq();
-//                 std::cerr << e.what() << '\n';
-//             }
-//         }
-//     }
+        this->open_ports(); //서버포트 열기
+        this->regist_servers_to_kq(); //감지목록에 서버들 추가.
+        this->init_servers_map();
+        this->init_status_map();
+        kq_fd = kqueue();
+        while ("soo-je-webserv")
+        {
+            try
+            {
+                detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), &detecteds[0], DETECT_SIZE, NULL);
+                _ev_cmds.clear(); //사용한 이벤트명령은 비운다.
+                for (int i(0); i < detected_count; i++)
+                {
+                    if (detecteds[i].flags & EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
+                    {
+                        //감지된 fd가 정규파일인지 서버인지 클라이언트꺼인지 검사한다.
+                        bool used = false; //찾았는지 여부.
+                        for (int j(0); j < get_server_list().size(); j++)
+                        {   //감지된 fd가 서버쪽 일 때.
+                            if (detecteds[i].ident == get_server_list()[j].fd)
+                            {
+                                Client new_client = Client(&this->_ev_cmds);
+                                new_client.setSocket_fd(get_server_list()[j].accept_client()); //브라우저의 연결을 수락.
+                                new_client.set_status_msg(&(this->status_map));
+                                new_client.set_myserver(&(this->_server_map[detecteds[i].ident])); //클라이언트클래스에서 서버클래스에 접근 할 수 있도록.
+                                //감지목록에 등록.
+                                add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
+                                this->set_client_list(new_client); //클라이언트리스트에도 추가.
+                                used = true;
+                                break;
+                            }
+                        }
+                        if (used == true)
+                            continue;
+                        for (std::vector<Client>::iterator it = _client_list.begin(); it != get_client_list().end(); it++)
+                        {   //감지된 fd가 클라쪽 일 때.
+                            if (detecteds[i].ident == (*it).getSocket_fd())
+                            {
+                                int result = (*it).recv_data();
+                                if (result == FAIL)
+                                {
+                                    //kq에서 읽기가능이라고 했는데도 데이터를 읽을 수 없다면 삭제한다.
+                                    this->_client_list.erase(it);
+                                }
+                                else if (result == RECV_ALL) //모두수신받았을 때.
+                                {
+                                    add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE); //"읽기가능"감지 끄기.
+                                    if ((*it).parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
+                                    {
+                                        (*it).ready_err_response_meta(); //에러응답 준비.
+                                    }
+                                    else if ((*it).check_client_err() == true) //400번대 에러가 발생했는지 검사. 있다면 상태코드 설정.
+                                    {
+                                        (*it).ready_err_response_meta(); //에러응답 준비.
+                                    }
+                                    else if ((*it).check_need_cgi() == false) //파싱된 데이터에 cgi요청이 없을 때.
+                                    {
+                                        (*it).ready_response_meta(); //요청에 필요한 데이터 IO하기.
+                                    }
+                                    else //cgi요청이 있을 때. (POST)
+                                    {
+                                        (*it).setCgi_mode(true); //cgi모드로 설정.
+                                        (*it).excute_cgi(); //fork로 보내고 파생된result파일을 읽도록 kq에 등록.
+                                    }
+                                }
+                                used = true;
+                                break;
+                            }
+                        }
+                        if (used == true)
+                            continue;
+                        //감지된 fd가 파일쪽 일 때.
+                        for (std::vector<Client>::iterator it = _client_list.begin();it != get_client_list().end();it++)
+                        {   //먼저 어떤 클라이언트의 파일인지 찾는다.
+                            if (detecteds[i].ident == (*it).getFile_fd())
+                            {
+                                //클라이언트객체는 파일을 읽는다
+                                int result = (*it).read_file();
+                                if (result == FAIL || result == RECV_ALL)
+                                {
+                                    add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비.
+                                }
+                                if (result == FAIL) //파일 읽기 오류났을 때.
+                                {
+                                    // cerr...
+                                }
+                                else if (result == RECV_ALL) //모두수신받았을 때.
+                                {
+                                    (*it).init_response(this->_server_map); //클라이언트는 응답 데이터를 제작한다.
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    else if (detecteds[i].flags & EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
+                    {
+                        bool used = false; //찾았는지 여부.
+                        for (std::vector<Client>::iterator it = _client_list.begin(); it != get_client_list().end(); it++)
+                        {   //감지된 fd가 클라쪽 일 때.
+                            if (detecteds[i].ident == (*it).getSocket_fd())
+                            {
+                                used = true;
+                                if ((*it).getFile_fd() != -1) //아직 처리중인 파일이 있다면 송신하지 않는다.
+                                    break;
+                                int result = (*it).send_data(); //클라이언트 객체가 완성된 response데이터를 전송.
+                                if (result == FAIL)
+                                {
+                                    _client_list.erase(it); //이 클라이언트 소켓 제거.
+                                }
+                                else if (result == SEND_ALL)
+                                {
+                                    add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_DELETE | EV_DISABLE); //"쓰기가능"감지목록에서 제외.
+                                    add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE); //다시 "읽기가능"감지목록에 등록.
+                                    (*it).clear_client();//fd를 제외한 클라이언트 정보를 초기화한다.
+                                }
+                                break;
+                            }
+                        }
+                        if (used == true)
+                            continue;
+                        //감지된 fd가 파일쪽 일 때. (POST).
+                        for (std::vector<Client>::iterator it = _client_list.begin();it != get_client_list().end();it++)
+                        {   //먼저 어떤 클라이언트의 파일인지 찾는다.
+                            if (detecteds[i].ident == (*it).getFile_fd())
+                            {
+                                int result = (*it).write_file(); //클라이언트객체는 파일을 작성한다.
+                                if (result == FAIL || result == SEND_ALL)
+                                {
+                                    add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비. (리스폰스제작과 연계)
+                                }
+                                if (result == FAIL) //파일 쓰기 오류났을 때.
+                                {
+                                    // cerr...
+                                }
+                                else if (result == SEND_ALL) //모두작성했을 때.
+                                {
+                                    (*it).init_response(this->_server_map); //업로드 완료 후 처리?... (kq와 연계)
+                                }
+                                break;
+                            }
+                        }
+                    } 
+                    else { /* error... */ }
+                }
+            }
+            catch(const std::exception& e)
+            {
+                close(kq_fd);
+                kq_fd = kqueue();
+                this->_client_list.clear();
+                this->_client_map.clear();
+                this->_ev_cmds.clear();
+                this->regist_servers_to_kq();
+                std::cerr << e.what() << '\n';
+            }
+        }
+    }
 };
 
 #endif
