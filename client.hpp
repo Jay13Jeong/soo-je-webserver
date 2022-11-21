@@ -8,7 +8,7 @@
 #include "Response.hpp"
 
 #define BUFFER_SIZE 5120
-// #define 
+// #define
 
 class Client
 {
@@ -22,7 +22,7 @@ private:
     std::string file_buf; //파일의 정보가 저장되는 변수.
     size_t write_size; //보낸 데이터 크기.
 
-public
+public:
     Client(/* args */) : socket_fd(-1) {};
     ~Client()
     {
@@ -94,7 +94,7 @@ public
                 //3.송신된 데이터 파싱.
                 return 1;
             }
-            //4. 파싱이 끝났는지. 
+            //4. 파싱이 끝났는지.
             //5.파싱된 요청클래스로 응답클래스 제작 (cgi 또는 파일업로드 필요시 중간에 실행) (완료되면 준비됨으로 바꿈).
         }
         return 0;
@@ -159,7 +159,7 @@ public
         send_size = send(this->socket_fd, this->write_buf.c_str() + (this->write_size), this->write_buf.length(), 0);
         if (send_size == -1) //데이터전송 실패 했을 때.
             return -1; //호출한 부분에서 이 클라이언트 제거.
-        
+
         this->write_size += send_size;
         if (write_size >= write_buf.length())
         {
@@ -170,16 +170,16 @@ public
         return 0;
     }
 
-    //파싱이 완료된 요청클래스로 
+    //파싱이 완료된 요청클래스로
     bool init_response()
     {
         this->response.setVersion(this->request.getVersion);
         //**이런식으로 응답클래스를 초기화한다.
 
-        return true; //문제없이 응답클래스를 초기화했으면 true반환 
+        return true; //문제없이 응답클래스를 초기화했으면 true반환
     }
 
-    //cgi실행이 필요한지 여부를 반환하는 메소드. 
+    //cgi실행이 필요한지 여부를 반환하는 메소드.
     bool check_need_cgi()
     {
         //파싱된 요청클래스 검사....
@@ -187,7 +187,7 @@ public
         return false; //cgi가 필요없으면 false반환.
     }
 
-    //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드. 
+    //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
     bool parse_request()
     {
         if ((this->request.parse(std::string & data, this->response.status)) == false); //read_buf 파싱.
