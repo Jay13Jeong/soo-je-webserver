@@ -1,3 +1,5 @@
+#ifndef REQUEST_CLASS_HPP
+# define REQUEST_CLASS_HPP
 #include <vector>
 #include <string>
 #include <map>
@@ -136,3 +138,4 @@ public:
     ~Request(){};
 };
 
+#endif

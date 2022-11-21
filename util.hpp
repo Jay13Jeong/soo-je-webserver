@@ -1,3 +1,5 @@
+#ifndef UTIL_CLASS_HPP
+# define UTIL_CLASS_HPP
 #include <iostream>
 #include <string>
 #include <vector>
@@ -75,3 +77,5 @@ namespace util
 		return (ret);
 	}
 }
+
+#endif
