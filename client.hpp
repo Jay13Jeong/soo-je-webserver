@@ -116,7 +116,7 @@ public:
                 //3.송신된 데이터 파싱.
                 return 1;
             }
-            //4. 파싱이 끝났는지. 
+            //4. 파싱이 끝났는지.
             //5.파싱된 요청클래스로 응답클래스 제작 (cgi 또는 파일업로드 필요시 중간에 실행) (완료되면 준비됨으로 바꿈).
         }
         return 0;
@@ -182,7 +182,7 @@ public:
         send_size = send(this->socket_fd, this->write_buf.c_str() + (this->write_size), this->write_buf.length() - (this->write_size), 0);
         if (send_size == -1) //데이터전송 실패 했을 때.
             return -1; //호출한 부분에서 이 클라이언트 제거.
-        
+
         this->write_size += send_size;
         if (this->write_size >= this->write_buf.length())
         {
@@ -254,7 +254,7 @@ public:
         return false; //cgi가 필요없으면 false반환.
     }
 
-    //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드. 
+    //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
     bool parse_request()
     {
         if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
