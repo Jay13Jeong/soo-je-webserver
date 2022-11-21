@@ -5,6 +5,7 @@
 #include <vector>
 #include <cstring>
 #include <time.h>
+#include <sstream>
 // #include <algorithm>
 
 namespace util
@@ -91,7 +92,7 @@ namespace util
 	std::string num_to_string (T num)
 	{
 		std::stringstream ss;
-		ss << num
+		ss << num;
 		std::string ret = ss.str();
 		return (ret);
 	}
