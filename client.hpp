@@ -101,7 +101,7 @@ public:
         this->response = response;
     }
 
-    
+
     //fd와 "감지할 행동", kevent지시문을 인자로 받아서 감지목록에 추가하는 메소드.
     void add_kq_event(uintptr_t ident, int16_t filter, uint16_t flags)
     {
@@ -221,7 +221,7 @@ public:
         //3. (cgi냐 단순html파일이냐 에따라 다르게 file_buf 컨트롤 필요).
         //4. 맴버변수 write_buf에 하나의 데이터로 저장한다. (시작줄 + 헤더 + file_buf).
         //5. kq에 소켓을 "쓰기가능"감지로 등록.
-        return true; //문제없이 응답클래스를 초기화했으면 true반환 
+        return true; //문제없이 응답클래스를 초기화했으면 true반환
     }
     void find_mime_type(std::string path)
     {
@@ -249,10 +249,10 @@ public:
         //std::string temp_body3 = "</h1>/r/n    </center>/r/n    <hr>/r/n    <center>soo-je-webserver</center>/r/n  </body>/r/n</html>";
         //if conf에 지정된 에러페이지가없으면.
         //  1.  바디를 하드코딩으로 만든다.       O
-        //  2. kq에 소켓을 "쓰기가능"감지로 등록.  O 
+        //  2. kq에 소켓을 "쓰기가능"감지로 등록.  O
         //else
         //  1. stat으로 지정된 에러페이지(설정되어있다면)가 정규파일이면 바로 open, 에러시 500처리.   O
-        //  2. 설정된 파일이 있고, 열리면 논블로킹 설정하고, 현 클라객체 file fd에 등록.      서버 88줄      X
+        //  2. 설정된 파일이 있고, 열리면 논블로킹 설정하고, 현 클라객체 file fd에 등록.      서버 88줄      o
         //  3. 열린파일fd를 "읽기 가능"감지에 등록.  288에서 read 로 변경하기                          O
 //경로에서 확장자를 확인하고 해당하는 헤더를 반환하는
 	    std::stringstream ss(this->response.getStatus());
@@ -278,9 +278,19 @@ public:
             struct stat sb;
             if (stat(s.get_default_error_page().find(status_num)->second.c_str(), &sb) != 0);
                 return (this->response.setStatus("500"), this->ready_err_response_meta());
-            
-            this->file_fd
+            if ((S_IFMT & file_info.sb.st_mode) != S_IFREG)//일반파일이 아닐 경우
+                return (this->response.setStatus("500"), this->ready_err_response_meta());
+            if ((this->file_fd = open(s.get_default_error_page().find(status_num)->second, O_RDONLY)) < 0)
+                return (this->response.setStatus("500"), this->ready_err_response_meta());//터지면 경로 문제
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
+
+            this->response.setHeader_map("server", "soo-je-webserver");
+            this->response.setHeader_map("Date", util::get_date());
+            this->response.setHeader_map("content-Type", "text/html");
+            this->response.setHeader_map("Content-Length", (sb.st_size).to_string());//논의 필요
+            this->response.setHeader_map("Connection", "keep-alive");
+            this->response.setHeader_map("Accept-Ranges", "bytes");
+
             add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //파일을 쓰기감지에 예약.
         }
         return true; //정상수행 true반환.
@@ -351,7 +361,7 @@ public:
         return true; //정상수행 true반환.
     }
 
-    //cgi실행이 필요한지 여부를 반환하는 메소드. 
+    //cgi실행이 필요한지 여부를 반환하는 메소드.
     bool check_need_cgi()
     {
         Server s = *this->my_server;
@@ -470,7 +480,7 @@ public:
     {
         std::string file_name = "cgi_result_" + util::num_to_string(this->socket_fd);
         //1. cgi결과를 담을 result file open. (이름은 중복되지 않도록 뒤에 fd번호를 붙인다).
-        //2. 클라의 file fd를 result file fd로 설정. 
+        //2. 클라의 file fd를 result file fd로 설정.
         this->file_fd = open(file_name.c_str(), O_WRONLY);
         if (this->file_fd == -1)
         {
