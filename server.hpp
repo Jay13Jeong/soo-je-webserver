@@ -53,7 +53,7 @@ public:
     {
         return this->port;
     }
-    std::vector<std::string> get_index()
+    std::vector<std::string> & get_index()
     {
         return this->index;
     }
@@ -147,13 +147,11 @@ public:
     void init_default_location()
     {
         //if loc_map이 비었다면. (뭔가 존재하면 그냥 리턴하고 종료.)
-        if (this->loc_map.empty())
+        if (this->loc_map.empty() == false)
             return;
         //default_loc초기화.....
-        // Location default_loc(this->root, this->index, this->autoindex);
-        Location default_loc = Location(this->root, this->index, this->autoindex);
+        Location default_loc(this->root, this->index, this->autoindex);
         this->loc_map.insert(std::make_pair("/", default_loc));
-        //this->loc_map["/"] = default_loc;
     }
 };
 

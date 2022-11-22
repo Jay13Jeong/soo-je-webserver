@@ -9,16 +9,7 @@ class Location
 {
 public:
     //생성자..
-    Location()
-    {
-        this->path = "/";
-        this->root = root;
-        // redirection.insert(std::make_pair("", ""));
-        this->index = index;
-        this->autoindex = autoindex;
-        accept_method = {"GET", "POST", "DELETE"};
-    };
-
+    Location() { };
     Location(std::string root, std::vector<std::string> index, bool autoindex)
     {
         this->path = "/";
@@ -28,6 +19,7 @@ public:
         this->autoindex = autoindex;
         accept_method = {"GET", "POST", "DELETE"};
     };
+    ~Location(){}
     std::string path; // 이 패턴으로 시작하는 경우에 location block 적용.
     std::string root; // 실행 되는 최상위 폴더
     std::map<std::string, std::string>redirection; // key : status code, value : redirect target // 301 302 리다이렉션 정보. // 맵으로 하기

@@ -71,6 +71,7 @@ public:
         */
         std::string line;
         std::stack<std::string> bracket_stack;
+        bool set = false;
 
         while (!config_fd.eof())
         {
@@ -88,6 +89,7 @@ public:
                 continue;
             if (split_result[0] == "server")
             {
+                set = true;
                 // 가능한 유일한 입력 : server {
                 if (semicolon_cnt != 0)
                     return (false);
@@ -99,7 +101,7 @@ public:
             else if (split_result[0] == "listen")
             {
                 // 가능한 입력 : listen 80; listen 70 ;
-                if (semicolon_cnt != 1 || split_result.size() != 2) // 
+                if (set == false || semicolon_cnt != 1 || split_result.size() != 2) // 
                     return (false);
                 if (util::is_numeric(split_result[1]) == false)
                     return (false);
@@ -107,7 +109,7 @@ public:
             else if (split_result[0] == "host")
             {
                 // 가능한 입력 : host 127.0.0.1; host 127.0.0.1 ;
-                if (semicolon_cnt != 1 || split_result.size() != 2) // 
+                if (set == false || semicolon_cnt != 1 || split_result.size() != 2) // 
                     return (false);
                 if ((split_result[1] != "127.0.0.1"))
                     return (false);
@@ -115,51 +117,51 @@ public:
             else if (split_result[0] == "server_name")
             {
                 // 가능한 입력 : server_name lalala; server_name lalala ;
-                if (semicolon_cnt != 1 || split_result.size() != 2)
+                if (set == false || semicolon_cnt != 1 || split_result.size() != 2)
                     return (false);
             }
             else if (split_result[0] == "root")
             {
                 // 가능한 입력 : root path; root path ;
-                if (semicolon_cnt != 1 || split_result.size() != 2)
+                if (set == false || semicolon_cnt != 1 || split_result.size() != 2)
                     return (false);
             }
             else if (split_result[0] == "index")
             {
-                if (semicolon_cnt != 1 || split_result.size() < 2)
+                if (set == false || semicolon_cnt != 1 || split_result.size() < 2)
                     return (false);
             }
             else if (split_result[0] == "default_error_pages")
             {
-                if (semicolon_cnt != 1 || split_result.size() != 3)
+                if (set == false || semicolon_cnt != 1 || split_result.size() != 3)
                     return (false);
                 if (util::is_numeric(split_result[1]) == false)
                     return (false);
             }
             else if (split_result[0] == "autoindex")
             {
-                if (semicolon_cnt != 1 || split_result.size() != 2)
+                if (set == false || semicolon_cnt != 1 || split_result.size() != 2)
                     return (false);
                 if (split_result[1] != "on" && split_result[1] != "off")
                     return (false);
             }
             else if (split_result[0] == "client_max_body_size")
             {
-                if (semicolon_cnt != 1 || split_result.size() != 2)
+                if (set == false || semicolon_cnt != 1 || split_result.size() != 2)
                     return (false);
                 if (util::is_numeric(split_result[1]) == false)
                     return (false);
             }
             else if (split_result[0] == "cgi")
             {
-                if (semicolon_cnt != 1 || split_result.size() != 3)
+                if (set == false || semicolon_cnt != 1 || split_result.size() != 3)
                     return (false);
                 if (split_result[1] != "none" && split_result[1] != ".py" && split_result[1] != ".php")
                     return (false);
             }
             else if (split_result[0] == "location")
             {
-                if (semicolon_cnt != 0 || split_result.size() != 3)
+                if (set == false || semicolon_cnt != 0 || split_result.size() != 3)
                     return (false);
                 if (split_result[2] != "{")
                     return (false);
@@ -211,7 +213,7 @@ public:
             }
             else if (split_result[0] == "}")
             {
-                if (semicolon_cnt != 0)
+                if (set == false || semicolon_cnt != 0)
                     return (false);
                 if (bracket_stack.empty() == true)
                     return (false);
@@ -285,6 +287,7 @@ public:
             }
             else if (split_result[0] == "index")
             {
+                _server_list.back().get_index().clear();
                 for (int i = 1; i < split_result.size(); i++)
                 {
                     if (split_result[i] == ";")

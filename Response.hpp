@@ -62,7 +62,7 @@ public:
     std::string make_send_data()
     {
         std::string send_data;
-        
+
         //정보를 조합해서 send_data를 만들어 반환. 
         return send_data;
     }
