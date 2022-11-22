@@ -126,7 +126,7 @@ public:
         while (i < temp_data.size())
         {
             temp = temp + temp_data[i];
-            temp = temp + "\r\n";
+            //temp = temp + "\r\n";
             i++;
         }
         setBody(temp);

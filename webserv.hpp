@@ -31,7 +31,7 @@ private:
     std::vector<struct kevent> _ev_cmds; //kq 감지대상 벡터.
     std::map<int,Server> _server_map; //서버 맵.
     std::map<int,Client> _client_map; //클라이언트 맵.
-    std::map<std::string, std::string> * status_map;
+    std::map<std::string, std::string> status_map;
  
 public:
     Webserv(/* args */){};
@@ -318,7 +318,9 @@ public:
             }
             else if (split_result[0] == "location")
             {
-                Location loc_temp;
+                Location loc_temp(get_server_list().back().get_root(), \
+                    get_server_list().back().get_index(), \
+                    get_server_list().back().get_autoindex());
                 //l의 기본값 넣는 부분 추가할 것
                 loc_temp.path = split_result[1];
                 //loc_temp.root = split_result[1];
@@ -355,6 +357,7 @@ public:
                     }
                     else if (split_result[0] == "index")
                     {
+                        loc_temp.index.clear();
                         int i = 1;
                         while (i < split_result.size())
                         {
@@ -421,34 +424,36 @@ public:
         {
             this->_server_map[this->_server_list[i].fd] = this->_server_list[i];
             this->_server_list[i].init_location_map(); //로케이션 맵도 같이 초기화.
+            this->_server_list[i].init_default_location(); //로케이션 초기화대상이없으면 하나 만들어주기.
         }
             
     }
 
     void init_status_map()
     {
-        status_map->insert(std::make_pair("200","OK"));
-        status_map->insert(std::make_pair("201","Created"));
-        status_map->insert(std::make_pair("204","No Content"));
-        status_map->insert(std::make_pair("205","Reset Content"));
-        status_map->insert(std::make_pair("301","Moved Permanently"));
-        status_map->insert(std::make_pair("303","See Other"));
-        status_map->insert(std::make_pair("307","Temporary Redirect"));
-        status_map->insert(std::make_pair("400","Bad Request"));
-        status_map->insert(std::make_pair("401","Unauthorized"));
-        status_map->insert(std::make_pair("403","Forbidden"));
-        status_map->insert(std::make_pair("404","Not Found"));
-        status_map->insert(std::make_pair("405","Method Not Allowed"));
-        status_map->insert(std::make_pair("408","Request Timeout"));
-        status_map->insert(std::make_pair("410","Gone"));
-        status_map->insert(std::make_pair("411","Length Required"));
-        status_map->insert(std::make_pair("413","Payload Too Large"));
-        status_map->insert(std::make_pair("414","URI Too Long"));
-        status_map->insert(std::make_pair("500","Internal Server Error"));
-        status_map->insert(std::make_pair("503","Service Unavailable"));
-        status_map->insert(std::make_pair("504","Gateway Timeout"));
-        status_map->insert(std::make_pair("505","HTTP Version Not Supported"));
+        status_map.insert(std::make_pair("200","OK"));
+        status_map.insert(std::make_pair("201","Created"));
+        status_map.insert(std::make_pair("204","No Content"));
+        status_map.insert(std::make_pair("205","Reset Content"));
+        status_map.insert(std::make_pair("301","Moved Permanently"));
+        status_map.insert(std::make_pair("303","See Other"));
+        status_map.insert(std::make_pair("307","Temporary Redirect"));
+        status_map.insert(std::make_pair("400","Bad Request"));
+        status_map.insert(std::make_pair("401","Unauthorized"));
+        status_map.insert(std::make_pair("403","Forbidden"));
+        status_map.insert(std::make_pair("404","Not Found"));
+        status_map.insert(std::make_pair("405","Method Not Allowed"));
+        status_map.insert(std::make_pair("408","Request Timeout"));
+        status_map.insert(std::make_pair("410","Gone"));
+        status_map.insert(std::make_pair("411","Length Required"));
+        status_map.insert(std::make_pair("413","Payload Too Large"));
+        status_map.insert(std::make_pair("414","URI Too Long"));
+        status_map.insert(std::make_pair("500","Internal Server Error"));
+        status_map.insert(std::make_pair("503","Service Unavailable"));
+        status_map.insert(std::make_pair("504","Gateway Timeout"));
+        status_map.insert(std::make_pair("505","HTTP Version Not Supported"));
     }
+
     //서버를 실행하는 메소드.
     void start()
     {
@@ -592,7 +597,7 @@ public:
                         }
                         if (used == true)
                             continue;
-                        //감지된 fd가 파일쪽 일 때. (POST).
+                        //감지된 fd가 파일쪽 일 때. (PUT).
                         for (std::vector<Client>::iterator it = _client_list.begin();it != get_client_list().end();it++)
                         {   //먼저 어떤 클라이언트의 파일인지 찾는다.
                             if (detecteds[i].ident == (*it).getFile_fd())

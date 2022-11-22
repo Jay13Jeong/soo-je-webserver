@@ -27,7 +27,14 @@ private:
     struct sockaddr_in          t_address; //포트개방용 변수. 소켓에 이식할 주소구조체.(초기화 안됨)
 
 public:
-    Server() : fd(-1) {};
+    Server() : fd(-1) {
+        port = 80;
+        server_name = "soo-je";
+        // root = "";
+        index = {"index.html"};
+        autoindex = false;
+        client_max_body_size = 1000000;
+    };
     ~Server()
     {
         if (this->fd != -1)
@@ -134,6 +141,19 @@ public:
             //**throw
         }
         // g_io_infos[this->fd] = IO_manager(this->fd, "server", 0);
+    }
+
+    //로케이션 구조체가 하나도 없으면 서버의 기본 필드로 '/'경로를 만드는 메소드.
+    void init_default_location()
+    {
+        //if loc_map이 비었다면. (뭔가 존재하면 그냥 리턴하고 종료.)
+        if (this->loc_map.empty())
+            return;
+        //default_loc초기화.....
+        // Location default_loc(this->root, this->index, this->autoindex);
+        Location default_loc = Location(this->root, this->index, this->autoindex);
+        this->loc_map.insert(std::make_pair("/", default_loc));
+        //this->loc_map["/"] = default_loc;
     }
 };
 

@@ -12,6 +12,8 @@
 #include "Request.hpp"
 #include "Response.hpp"
 #include <sstream>
+#include <dirent.h>
+#include "util.hpp"
 
 #define BUFFER_SIZE 5120
 
@@ -230,8 +232,40 @@ public:
     //오토인데스 응답페이지를 만들고 송신준비를 하는 메소드.
     void init_autoindex_response(std::string path)
     {
+        std::string temp_body;
         //1.바로 소켓송신이 가능하도록 헤더+바디를 제작한다.
         //2.kq에 "쓰기가능"감지 등록한다.
+        this->response.setVersion(this->request.getVersion());
+        this->response.setStatus("200");
+        this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
+        //헤더도 넣기
+        this->response.setHeader_map("server", "soo-je-webserver");
+        this->response.setHeader_map("Date", util::get_date());
+        this->response.setHeader_map("content-Type", "text/html");
+        this->response.setHeader_map("Connection", "keep-alive");
+        this->response.setHeader_map("Accept-Ranges", "bytes");
+        
+
+        DIR *dir;
+        struct dirent *ent;
+        dir = opendir((my_loc->root + this->request.getTarget()).c_str());//안되면 경로 문제 mac에서 절대 경로 문제, 상대경로는 됨
+        if (dir == NULL)
+        {
+            this->response.setStatus("500");
+            this->ready_err_response_meta();
+            return ;
+        }
+        temp_body = "<html><head>    <title>Index of ";
+        temp_body = temp_body + this->request.getTarget() + "</title></head><body bg color='white'>  <h1> Index of " + this->request.getTarget() + "</h1>  <hr>  <pre>";
+  //<a href= '../'>../</a> 이건 빼자
+        while ((ent = readdir(dir)) != NULL)
+        {
+            temp_body = temp_body + "    <a href= " + ent->d_name + ">" + ent->d_name + "</a><br>";
+        }
+        temp_body = temp_body + "</pre>  <hr></body></html>";
+        this->response.setHeader_map("Content-Length", util::num_to_string(this->response.getBody().length()));
+        this->response.setBody(temp_body);
+        closedir(dir);
     }
 
     void find_mime_type(std::string path)
@@ -266,10 +300,7 @@ public:
         //  2. 설정된 파일이 있고, 열리면 논블로킹 설정하고, 현 클라객체 file fd에 등록.      서버 88줄      o
         //  3. 열린파일fd를 "읽기 가능"감지에 등록.  288에서 read 로 변경하기                          O
 //경로에서 확장자를 확인하고 해당하는 헤더를 반환하는
-	    std::stringstream ss(this->response.getStatus());
-        int status_num;
-        ss >> status_num;
-        if (s.get_default_error_page().count(status_num) == 0)
+        if (s.get_default_error_page().count(this->response.getStatus()) == 0)
         {
             this->response.setVersion(this->request.getVersion());
             this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
@@ -287,20 +318,15 @@ public:
         else
         {
             struct stat sb;
-            if (stat(s.get_default_error_page().find(status_num)->second.c_str(), &sb) != 0);
+            if (stat(s.get_default_error_page().find(this->response.getStatus())->second.c_str(), &sb) != 0);//루트경로 추가할 것
                 return (this->response.setStatus("500"), this->ready_err_response_meta());
-            if ((S_IFMT & file_info.sb.st_mode) != S_IFREG)//일반파일이 아닐 경우
+            if ((S_IFMT & sb.st_mode) != S_IFREG)//일반파일이 아닐 경우
                 return (this->response.setStatus("500"), this->ready_err_response_meta());
-            if ((this->file_fd = open(s.get_default_error_page().find(status_num)->second, O_RDONLY)) < 0)
+            if ((this->file_fd = open(s.get_default_error_page().find(this->response.getStatus())->second.c_str(), O_RDONLY)) < 0)
                 return (this->response.setStatus("500"), this->ready_err_response_meta());//터지면 경로 문제
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
 
-            this->response.setHeader_map("server", "soo-je-webserver");
-            this->response.setHeader_map("Date", util::get_date());
-            this->response.setHeader_map("content-Type", "text/html");
-            this->response.setHeader_map("Content-Length", (sb.st_size).to_string());//논의 필요
-            this->response.setHeader_map("Connection", "keep-alive");
-            this->response.setHeader_map("Accept-Ranges", "bytes");
+            //헤더 내용은 뒤에 다른 함수에서 추가
 
             add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //파일을 쓰기감지에 예약.
         }
@@ -326,7 +352,7 @@ public:
     bool ready_response_meta()
     {
         Server s = *this->my_server;
-        std::string uri = this->getRequest().getTarget().substr(0, this->getRequest().getTarget().find('?')); //'?'부터 뒷부분 쿼리스트링 제거.
+        std::string uri = this->getRequest().getTarget().substr(0, this->getRequest().getTarget().find('?')); //'?'부터 뒷부분 쿼리스트링 제거한 앞부분.
 
         if (this->request.getMethod() == "GET" || this->request.getMethod() == "POST")
         {
@@ -374,6 +400,10 @@ public:
         {
             if (uri[uri.length() - 1] != '/') //경로가 '/'로 끝나지 않으면 만들어준다.
 			    uri += '/';
+            if (uri == this->my_loc->path) //타겟이 로케이션구조체의 경로와 정확히 일치할때.
+            {
+                //매칭된 서버의 폴더의 내용을 비운다.
+            }
             //만약 uri가 location 목록에 있다면 경로를 재설정한다(미구현)....
         }
         else if (this->request.getMethod() == "PUT")
@@ -428,8 +458,6 @@ public:
 
         this->my_loc = NULL;
         std::map<std::string, Location> &loc_map = this->my_server->get_loc_map();
-        if (loc_map.find("/") != loc_map.end()) //기본값으로 빈경로 구조체를 초기화 시도.
-            this->my_loc = &loc_map["/"];
         std::string key = "";
         for (std::string::const_iterator iter = uri_loc.begin(); iter != uri_loc.end(); iter++)
         { // 슬래시를 만나서 단계별로 경로가 만들어질 때마다 매칭되는 로케이션 유무를 확인한다.
@@ -443,9 +471,7 @@ public:
             }
         }
         if (this->my_loc == NULL)
-        {
-            //my_loc의 기본 경로 만들어주기...(구조체 채우기)
-        }
+            this->my_loc = &loc_map["/"]; //기본값으로 루트경로 구조체를 초기화 시도.
     }
 
     //cgi실행이 필요한지 여부를 반환하는 메소드. cgi가 필요없으면 false반환. 있으면 cgi 정보를 설정하고 true반환.
@@ -504,24 +530,11 @@ public:
     //400번대 에러가 발생했는지 검사하는 메소드.
     bool check_client_err()
     {
-        // path 정의해줘야 함. (동작 확인 필요)
+        // // path 정의해줘야 함. (동작 확인 필요)
         std::string uri = this->getRequest().getTarget().substr(0, this->getRequest().getTarget().find('?'));
-        std::string root = this->get_myserver()->get_root() + "/";
+        std::string root = this->my_loc->root+ "/";
         std::string path;
-        // location block에서 일치하는 항목 있는지 확인
-        int loc_idx = -1;
-        for(int idx = 0; idx < this->get_myserver()->loc.size(); idx++)
-        {
-            if (uri.find(this->get_myserver()->loc[idx].path) == 0)
-            {
-                if (loc_idx == -1 || this->get_myserver()->loc[idx].path > this->get_myserver()->loc[loc_idx].path)
-                    loc_idx = idx;
-            }
-        }
-        if (loc_idx != -1)
-            path = uri.replace(0, this->get_myserver()->loc[loc_idx].path.length(), this->get_myserver()->loc[loc_idx].root + "/");
-        else
-            path = root + uri;
+        path = uri.replace(0, this->my_loc->path.length(), root);
         size_t pos = path.find("//");
         while (1)
         {
@@ -541,13 +554,9 @@ public:
         if (access(path.c_str(), R_OK) == -1)
             return (this->getResponse().setStatus("403"), true);
         // - 405 : accept_method 확인, request에서 확인 완.
-        if (loc_idx != -1)
-        {
-           if (find(this->get_myserver()->loc[loc_idx].accept_method.begin(), \
-            this->get_myserver()->loc[loc_idx].accept_method.end(), \
-            this->getRequest().getMethod()) == this->get_myserver()->loc[loc_idx].accept_method.end())
-            return (this->getResponse().setStatus("405"), true);
-        }
+        if (find(this->my_loc->accept_method.begin(), this->my_loc->accept_method.end(), \
+        this->getRequest().getMethod()) == this->my_loc->accept_method.end())
+        return (this->getResponse().setStatus("405"), true);
         // - 408 : Timeout ?
         // - 410 : -> 404 ?
         // - 411 : Content-Length 필요한 경우 확인
@@ -573,13 +582,14 @@ public:
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
-        if ((this->pid = fork()) < 0)
+        int pid = -1;
+        if ((pid = fork()) < 0)
         {
             std::cerr << "fork err" << std::endl;
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
-        if (this->pid == 0) //자식프로세스 일 때.
+        if (pid == 0) //자식프로세스 일 때.
         {
             std::string file_path = this->request.getTarget(); //실행 할 상대경로 제작.
             file_path = file_path.substr(this->my_loc->path.length());
@@ -590,14 +600,28 @@ public:
             char **env = this->init_cgi_env(file_path); //환경변수 준비.
             dup2(this->file_fd, 1); //출력 리다이렉트.
             ////////////////////////exe/////
-            char **arg = (char **)malloc(sizeof(char *) * 3);
-            arg[0] = strdup(this->cgi_program.c_str()); //예시 "/usr/bin/python"
-            arg[1] = strdup(file_path.c_str()); //실행할 파일의 절대경로.
-            arg[2] = NULL;
-            if (execve(this->cgi_program.c_str(), arg, env) == -1) //cgi 실행.
+            if (file_path.substr(file_path.rfind('.')) == ".bla") //인트라 cgi테스터용 특별처리.
+            {   //(인트라 cgi프로그램은 인자를 직접 받지않고 환경변수로 받는다.)
+                char **arg = (char **)malloc(sizeof(char *) * 2);
+                arg[0] = strdup("./cgi-bin/cgi_tester");
+                arg[1] = NULL;
+                if (execve(arg[0], arg, env) == -1) 
+                {
+                    std::cerr << "execve err" << std::endl;
+                    exit(1);
+                }
+            }
+            else
             {
-                std::cerr << "cgi err" << std::endl;
-                exit(1);
+                char **arg = (char **)malloc(sizeof(char *) * 3);
+                arg[0] = strdup(this->cgi_program.c_str()); //예시 "/usr/bin/python"
+                arg[1] = strdup(file_path.c_str()); //실행할 파일의 절대경로.
+                arg[2] = NULL;
+                if (execve(arg[0], arg, env) == -1) //cgi 실행.
+                {
+                    std::cerr << "execve err" << std::endl;
+                    exit(1);
+                }
             }
             ////////////////////////exe/////
             exit(0);
