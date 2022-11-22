@@ -107,7 +107,6 @@ public:
         this->response = response;
     }
 
-
     //fd와 "감지할 행동", kevent지시문을 인자로 받아서 감지목록에 추가하는 메소드.
     void add_kq_event(uintptr_t ident, int16_t filter, uint16_t flags)
     {
@@ -123,25 +122,16 @@ public:
         size_t read_size;
         char    buffer[BUFFER_SIZE];
 
-        read_size = recv(this->getSocket_fd(), buffer, BUFFER_SIZE, 0);
-        if (read_size == -1 || read_size == 0)
-        {
+        if ((this->read_buf.size() + BUFFER_SIZE) < this->read_buf.size()) //string 용량 초과시 예외처리.
             return -1;
-        }
+        read_size = recv(this->socket_fd, buffer, BUFFER_SIZE, 0);
+        if (read_size == -1 || read_size == 0)
+            return -1;
         else
         {
-            //1.읽은 데이터 char[] -> string으로 변환해서 저장.
-            this->read_buf += std::string(buffer, read_size);
-            //**클라객체에서 추가적으로 수신 완료여부 검사 필요.
-
-            //2.전부 송신이 되었는지 (또는 멤버bool변수로 체크).
-            if (read_size < BUFFER_SIZE)
-            {
-                //3.송신된 데이터 파싱.
+            this->read_buf += std::string(buffer, read_size); //1.읽은 데이터 char[] -> string으로 변환해서 저장.
+            if (read_size < BUFFER_SIZE) //모두 읽었다면..
                 return 1;
-            }
-            //4. 파싱이 끝났는지.
-            //5.파싱된 요청클래스로 응답클래스 제작 (cgi 또는 파일업로드 필요시 중간에 실행) (완료되면 준비됨으로 바꿈).
         }
         return 0;
     }
@@ -152,6 +142,12 @@ public:
         size_t read_size;
         char    buffer[BUFFER_SIZE];
 
+        if ((this->file_buf.size() + BUFFER_SIZE) < this->file_buf.size()) //string 용량 초과시 예외처리.
+        {
+            close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
+            this->file_fd = -1;
+            return -1;
+        }
         read_size = read(this->getFile_fd(), buffer, BUFFER_SIZE);
         if (read_size == -1)
         {
@@ -162,8 +158,6 @@ public:
         else
         {
             this->file_buf += std::string(buffer, read_size);
-            //**추가적으로 수신 완료여부 검사 필요할지도.
-
             if (read_size < BUFFER_SIZE)
             {
                 close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
@@ -269,7 +263,7 @@ public:
     void init_autoindex_response(std::string path)
     {
         std::string temp_body;
-        //1.바로 소켓송신이 가능하도록 헤더+바디를 제작한다.
+        //1.바로 소켓송신이 가능하도록 헤더+바디를 제작한다. -> "this->write_buf에 바로 담는다."
         //2.kq에 "쓰기가능"감지 등록한다.
 
         this->response.setVersion(this->request.getVersion());
@@ -306,6 +300,7 @@ public:
         this->response.setHeader_map("Content-Length", util::num_to_string(this->response.getBody().length()));//바디 크기
         this->response.setBody(temp_body);//바디 입력
         closedir(dir);
+        this->write_buf = "응답데이터";
     }
 
     void find_mime_type(std::string path)
@@ -329,7 +324,7 @@ public:
     bool ready_err_response_meta()
     {
         //if conf에 지정된 에러페이지가없으면.
-        //  1.  바디를 하드코딩으로 만든다.   
+        //  1.  바디를 하드코딩으로 만든다. -> "this->write_buf 제작"
         //  2. kq에 소켓을 "쓰기가능"감지로 등록.
         //else
         //  1. stat으로 지정된 에러페이지(설정되어있다면)가 정규파일이면 바로 open, 에러시 500처리.
@@ -350,6 +345,7 @@ public:
             this->response.setHeader_map("Connection", "keep-alive");
             this->response.setHeader_map("Accept-Ranges", "bytes");
             this->response.setBody(this->response.getStatus());
+            this->write_buf = "응답데이터";
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
             add_kq_event(this->file_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //파일을 쓰기감지에 예약.
         }
@@ -384,6 +380,13 @@ public:
                 return (tmp_path);
         }
         return ("");
+    }
+
+    //송신할 DELETE 응답정보를 만드는 메소드.
+    void init_delete_response()
+    {
+        this->write_buf = "응답데이터";
+        //DELETE용 응답데이터 (시작줄 + 헤더 + 바디)만들기....
     }
 
     //응답데이터를 만들기전에 필요한 read/write 또는 unlink하는 메소드.
@@ -443,6 +446,19 @@ public:
                 path += uri.substr(this->my_loc->path.length()); //추가경로를 타겟의 path에 이어붙인다.
             //1.경로가 폴더면 위와 동일하게 폴더 내부를 비운다.
             //2.파일이면 unlink.
+            struct stat sb;
+            if (stat(path.c_str(), &sb) == 0) // 디렉토리일 때.(맨뒤에 슬래시달린상태로 stat되면 디렉토리).
+            {
+                path.erase(--(path.end())); //맨뒤 슬래시 제거.
+                if (rm_sub_files(path.c_str()) == false) //재귀로 하위폴더 비우기.
+                    return (this->getResponse().setStatus("500"), false); //500처리.
+            }
+            else //디렉토리가 아닐 때.
+            {
+                path.erase(--(path.end()));
+                unlink(path.c_str()); //있든없든 지우고본다. (RFC: 서버는 삭제를 보장하지않음.)
+            }
+            this->init_delete_response(); 
             //3.kq에 "쓰기가능"감지으로 등록한다.
             //구현중...
         }
@@ -454,15 +470,20 @@ public:
             struct stat sb;
             stat(path.c_str(), &sb);
 
-            if (path[path.length() - 1] == '/' || S_ISDIR(sb.st_mode))
+            if (path[path.length() - 1] == '/' || S_ISDIR(sb.st_mode)) //put대상이 폴더일 때.
             {
-                this->getResponse().setStatus("404"); //404처리.
+                this->getResponse().setStatus("400"); //400처리.
                     return false; //바로 에러 페이지 제작 필요.
             }
-            this->file_fd = open(path.c_str(),O_RDONLY);
+            if (make_middle_pathes() == false) //경로의 중간 경로들이 없다면 만든다.
+            {
+                this->getResponse().setStatus("500"); //500처리.
+                    return false; //바로 에러 페이지 제작 필요.
+            }
+            this->file_fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC); //읽기전용, 없으면만듬, 덮어쓰기.
             if (this->file_fd == -1)
             {
-                this->getResponse().setStatus("404"); //404처리.
+                this->getResponse().setStatus("500"); //500처리.
                     return false; //바로 에러 페이지 제작 필요.
             }
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
@@ -470,24 +491,6 @@ public:
         }
         else
             return (this->getResponse().setStatus("501"), false); //501처리. 지원하지않는 메소드.
-
-        //if GET or POST (read)
-        //  0. (아래 진행하다가 문제 생기면 400, 404 등등 처리) --나중에 여기서 세션처리.
-        //  1. stat으로 target_path가 정규파일이면 바로 open, 에러시 500처리.
-        //  2. 폴더면 conf의 index로 open. 없으면 autoindex유무에 따라 처리. 없으면 400에러
-        //  3. 열린파일fd 논블로킹 설정하고, 현 클라객체 file fd에 등록.
-        //  4. 열린파일fd를 "읽기 가능"감지에 등록.
-        //if DELETE (no body)
-        //  1.폴더면 rmdir, 정규파일이면 unlink
-        //  2.바디가 없는 응답클래스를 제작.
-        //  3.kq에 소켓을 "쓰기가능"감지로 등록.
-        //if PUT (write)
-        //  1. stat으로 target_path가 정규파일이면 바로 open, 에러시 500처리.
-        //  2. 폴더면 conf의 index로 open.
-        //  3. 열린파일fd 논블로킹 설정하고, 현 클라객체 file fd에 등록.
-        //  4. 열린파일fd를 "쓰기 가능"감지에 등록.
-        //else 지원되는 메소드가 아니면 501
-
         return true; //정상수행 true반환.
     }
 
@@ -532,7 +535,7 @@ public:
             }
         }
         if (this->my_loc == NULL)
-            this->my_loc = &loc_map["/"]; //기본값으로 루트경로 구조체를 초기화 시도.
+            this->my_loc = &loc_map["/"]; //기본값으로 루트경로 구조체로 초기화.
     }
 
     //cgi실행이 필요한지 여부를 반환하는 메소드. cgi가 필요없으면 false반환. 있으면 cgi 정보를 설정하고 true반환.
@@ -571,7 +574,7 @@ public:
     //소켓fd만 제외하고 모두 깡통으로만드는 메소드.
     bool clear_client()
     {
-        //fd빼고 모두 초기상태로 초기화한다...
+        //socket_fd,server_fd,_ev_cmds,my_server,status_msg빼고 모두 초기상태로 초기화한다...
         this->read_buf.clear();
         this->write_buf.clear();
         // request
@@ -639,14 +642,14 @@ public:
         std::string file_name = "cgi_result_" + util::num_to_string(this->socket_fd);
         if ((this->file_fd = open(file_name.c_str(), O_RDWR | O_CREAT | O_APPEND)) == -1)//읽쓰기, 없으면만듬, 이어쓰기가능.
         {
-            std::cerr << "open err" << std::endl;
+            perror("open cgi_result err");
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
         int pid = -1;
         if ((pid = fork()) < 0)
         {
-            std::cerr << "fork err" << std::endl;
+            perror("fork err");
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
@@ -660,7 +663,6 @@ public:
                 file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
             char **env = this->init_cgi_env(file_path); //환경변수 준비.
             dup2(this->file_fd, 1); //출력 리다이렉트.
-            ////////////////////////exe/////
             if (file_path.substr(file_path.rfind('.')) == ".bla") //인트라 cgi테스터용 특별처리.
             {   //(인트라 cgi프로그램은 인자를 직접 받지않고 환경변수로 받는다.)
                 char **arg = (char **)malloc(sizeof(char *) * 2);
@@ -668,23 +670,20 @@ public:
                 arg[1] = NULL;
                 if (execve(arg[0], arg, env) == -1) 
                 {
-                    std::cerr << "execve err" << std::endl;
+                    perror("execve err bla");
                     exit(1);
                 }
-            }
-            else
-            {
+            } else {
                 char **arg = (char **)malloc(sizeof(char *) * 3);
                 arg[0] = strdup(this->cgi_program.c_str()); //예시 "/usr/bin/python"
                 arg[1] = strdup(file_path.c_str()); //실행할 파일의 절대경로.
                 arg[2] = NULL;
                 if (execve(arg[0], arg, env) == -1) //cgi 실행.
                 {
-                    std::cerr << "execve err" << std::endl;
+                    perror("execve err nomal");
                     exit(1);
                 }
             }
-            ////////////////////////exe/////
             exit(0);
         }
         else //부모프로세스는 논블럭설정하고 "읽기가능"감지에 등록한다.
