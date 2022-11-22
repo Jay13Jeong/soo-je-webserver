@@ -21,6 +21,7 @@ public:
     std::map<std::string, std::string>  default_error_pages; // 키:status code 값:에러페이지
     int                                 fd; //linsten용 서버 fd.
     std::map<std::string,std::string>   cgi_map; // 키:확장자, 값:확장자 경로(python,java)
+    std::map<std::string, Location>       loc_map; //로케이션 구조체 맵.
 
 private:
     struct sockaddr_in          t_address; //포트개방용 변수. 소켓에 이식할 주소구조체.(초기화 안됨)
@@ -49,7 +50,11 @@ public:
     {
         return this->index;
     }
-    std::vector<Location> get_loc()
+    std::map<std::string, Location> & get_loc_map()
+    {
+        return this->loc_map;
+    }
+    std::vector<Location> & get_loc()
     {
         return this->loc;
     }
@@ -73,7 +78,12 @@ public:
     {
         return this->cgi_map;
     }
-
+    //로케이션 맵을 초기화하는 메소드.
+    void init_location_map()
+    {
+        for (std::vector<Location>::iterator it = this->loc.begin();it != this->loc.end(); it++)
+            this->loc_map[(*it).path] = *it;
+    }
     //서버가 connet를 수락하고 클라이언트fd를 생성해서 반환하는 메소드.
     int accept_client( void )
     {

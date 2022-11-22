@@ -418,14 +418,13 @@ public:
     void init_servers_map()
     {
         for (int i(0);i < this->get_server_list().size();i++)
+        {
             this->_server_map[this->_server_list[i].fd] = this->_server_list[i];
+            this->_server_list[i].init_location_map(); //로케이션 맵도 같이 초기화.
+        }
+            
     }
 
-    // void init_clients_map()
-    // {
-    //     for (int i(0);i < this->get_clients_list().size();i++)
-    //         this->_client_map[this->_client_list[i].fd] = this->_client_list[i]
-    // }
     void init_status_map()
     {
         status_map->insert(std::make_pair("200","OK"));
@@ -507,6 +506,7 @@ public:
                         {   //감지된 fd가 클라쪽 일 때.
                             if (detecteds[i].ident == (*it).getSocket_fd())
                             {
+                                used = true;
                                 int result = (*it).recv_data();
                                 if (result == FAIL)
                                 {
@@ -519,14 +519,18 @@ public:
                                     if ((*it).parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
                                     {
                                         (*it).ready_err_response_meta(); //에러응답 준비.
+                                        break;
                                     }
-                                    else if ((*it).check_client_err() == true) //400번대 에러가 발생했는지 검사. 있다면 상태코드 설정.
+                                    (*it).init_client_location(); //경로가 로케이션 경로중에 해당하면 그 경로로 정보를 변경한다.
+                                    if ((*it).check_client_err() == true) //400번대 에러가 발생했는지 검사. 있다면 상태코드 설정.
                                     {
                                         (*it).ready_err_response_meta(); //에러응답 준비.
+                                        break;
                                     }
-                                    else if ((*it).check_need_cgi() == false) //파싱된 데이터에 cgi요청이 없을 때.
+                                    if ((*it).check_need_cgi() == false) //파싱된 데이터에 cgi요청이 없을 때.
                                     {
-                                        (*it).ready_response_meta(); //요청에 필요한 데이터 IO하기.
+                                        if ((*it).ready_response_meta() == false) //요청에 필요한 데이터 IO하기.
+                                            (*it).ready_err_response_meta();
                                     }
                                     else //cgi요청이 있을 때. (POST)
                                     {
@@ -534,7 +538,6 @@ public:
                                         (*it).excute_cgi(); //fork로 보내고 파생된result파일을 읽도록 kq에 등록.
                                     }
                                 }
-                                used = true;
                                 break;
                             }
                         }
