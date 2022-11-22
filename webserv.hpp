@@ -172,6 +172,8 @@ public:
                     if (semicolon_cnt > 1)
                         return (false);
                     split_result = util::ft_split(line, ";");
+                    if (split_result.empty())
+                        continue;
                     split_result = util::ft_split(split_result[0], "\t \n");
                     if (split_result[0] == "}")
                     {
@@ -188,7 +190,7 @@ public:
                     {
                         if (split_result.size() != 2)
                             return (false);
-                        if (split_result[0] == "autoindex" && split_result[1] != "on" && split_result[1] == "off")
+                        if (split_result[0] == "autoindex" && split_result[1] != "on" && split_result[1] != "off")
                             return (false);
                     }
                     // return - key statuscode url
@@ -247,7 +249,6 @@ public:
 	    while (!config_fd.eof())
 	    {
 		    std::vector<std::string> split_result;
-            std::stringstream ss;
             getline(config_fd, line);
             split_result = util::ft_split(line, "\t \n");
             if (split_result.size() == 0)
@@ -262,9 +263,7 @@ public:
             else if (split_result[0] == "listen")
             {
                 util::remove_last_semicolon(split_result[1]);
-                ss.str(split_result[1]);
-                int port;
-                ss >> port; // 이 경우 a80 은 0으로, 80a는 80으로 파싱됨 -> 유효성 검사 부분에서 처리 필요함.
+                int port = util::string_to_num<int>(split_result[1]);
                 for(int i = 0; i < _server_list.size() - 1; i++)
                 {
                     if (_server_list[i].port == port)
@@ -302,17 +301,13 @@ public:
             else if (split_result[0] == "client_max_body_size")
             {
                 util::remove_last_semicolon(split_result[1]);
-                ss.str(split_result[1]);
-                ss >> _server_list.back().client_max_body_size;
+                _server_list.back().client_max_body_size = util::string_to_num<size_t>(split_result[1]);
             }
             else if (split_result[0] == "error_page")
             {
-                int status_code;
                 util::remove_last_semicolon(split_result[1]);
-                ss.str(split_result[1]);
-                ss >> status_code;
                 util::remove_last_semicolon(split_result[2]);
-                _server_list.back().default_error_pages.insert(std::make_pair(status_code, split_result[2]));
+                _server_list.back().default_error_pages.insert(std::make_pair(split_result[1], split_result[2]));
             }
             else if (split_result[0] == "cgi")
             {
@@ -332,6 +327,8 @@ public:
                     getline(config_fd, line);
                     util::remove_last_semicolon(line);
                     split_result = util::ft_split(line, "\t ");
+                    if (split_result.empty())
+                        continue;
                     if (split_result[0] == "}"){
                         _server_list.back().loc.push_back(loc_temp);
                         break ;

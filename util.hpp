@@ -5,6 +5,7 @@
 #include <vector>
 #include <cstring>
 #include <time.h>
+#include <sstream>
 // #include <algorithm>
 
 namespace util
@@ -91,15 +92,22 @@ namespace util
 	std::string num_to_string (T num)
 	{
 		std::stringstream ss;
-		ss << num
+		ss << num;
 		std::string ret = ss.str();
 		return (ret);
 	}
 
 	std::string get_date()
 	{
-		// Thu, 17 Nov 2022 09:26:07 GMT
-
+		// Thu, 17 Nov 2022 09:26:07 GMT (UTC == GMT)
+		time_t raw_time;
+		struct tm *time_info;
+		time(&raw_time);
+		time_info = gmtime(&raw_time); // UTC 형식 시간
+		char buf[64];
+		strftime(buf, sizeof(buf), "%a, %d %b %Y %T GMT", time_info);
+		std::string ret = buf;
+		return (ret);
 	}
 }
 
