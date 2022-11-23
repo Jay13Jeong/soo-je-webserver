@@ -466,7 +466,6 @@ public:
         int kq_fd; //커널큐 fd.
         int detected_count; //감지된 이벤트 갯수.
         std::vector<struct kevent> detecteds; //감지 된 이벤트벡터.
-        detecteds.reserve(DETECT_SIZE); //오버헤드 방지.
 
         // struct kevent k_set;
         /**

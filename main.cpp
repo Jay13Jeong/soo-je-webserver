@@ -7,10 +7,7 @@ int main(int ac, char* av[])
 
     if (ac == 1)
     {
-        if (!webserv.parsing("error.conf"))
-            std::cout << "config file error\n";
-        else
-            std::cout << "config file ok!\n";
+        webserv.parsing("default.conf");
     }
     else if (ac == 2)
     {
