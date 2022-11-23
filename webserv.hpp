@@ -427,8 +427,8 @@ public:
         for (int i(0);i < this->get_server_list().size();i++)
         {
             this->_server_map[this->_server_list[i].fd] = this->_server_list[i];
-            // this->_server_map[this->_server_list[i].fd].init_location_map(); //로케이션 맵도 같이 초기화.
-            // this->_server_map[this->_server_list[i].fd].init_default_location(); //로케이션 초기화대상이없으면 하나 만들어주기.
+            this->_server_map[this->_server_list[i].fd].init_location_map(); //로케이션 맵도 같이 초기화.
+            this->_server_map[this->_server_list[i].fd].init_default_location(); //로케이션 초기화대상이없으면 하나 만들어주기.
         }
             
     }
