@@ -484,12 +484,15 @@ public:
         kq_fd = kqueue();
         while ("soo-je-webserv")
         {
-            try
-            {
+            // try
+            // {
                 detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), &detecteds[0], DETECT_SIZE, NULL);
+                // perror("abc");
+                // return;
                 _ev_cmds.clear(); //사용한 이벤트명령은 비운다.
                 for (int i(0); i < detected_count; i++)
                 {
+                    perror("abc");
                     if (detecteds[i].flags & EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
                     {
                         //감지된 fd가 정규파일인지 서버인지 클라이언트꺼인지 검사한다.
@@ -609,20 +612,20 @@ public:
                                 break;
                             }
                         }
-                    } 
+                    }
                     else { perror("flag err"); /* error... */ }
                 }
-            }
-            catch(const std::exception& e)
-            {
-                close(kq_fd);
-                kq_fd = kqueue();
-                this->_client_list.clear();
-                this->_client_map.clear();
-                this->_ev_cmds.clear();
-                this->regist_servers_to_kq();
-                std::cerr << e.what() << '\n';
-            }
+            // }
+            // catch(const std::exception& e)
+            // {
+            //     close(kq_fd);
+            //     kq_fd = kqueue();
+            //     this->_client_list.clear();
+            //     this->_client_map.clear();
+            //     this->_ev_cmds.clear();
+            //     this->regist_servers_to_kq();
+            //     std::cerr << e.what() << '\n';
+            // }
         }
     }
 };

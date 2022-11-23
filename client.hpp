@@ -394,7 +394,7 @@ public:
     //송신할 DELETE 응답정보를 만드는 메소드.
     void init_delete_response()
     {
-        push_write_buf(this->response.getBody());
+        //push_write_buf("\0");
         //DELETE용 응답데이터 (시작줄 + 헤더 + 바디)만들기....
     }
 
@@ -706,19 +706,37 @@ public:
     //cgi자식프로세스가 사용할 환경변수 목록을 2차원포인터로 제작하는 메소드.
     char **init_cgi_env(std::string & file_path)
     {
+        // 1. 일단 필요한 정보들 가공해서 map 에 넣기
         std::map<std::string, std::string> cgi_env_map;
-        char **cgi_env = new char *[sizeof(char *) * cgi_env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
-        //cgi_env_map
-        int i = 0;
-        for(std::map<std::string, std::string>::iterator iter = cgi_env_map.begin(); iter != cgi_env_map.end(); iter++)
-        {
-            cgi_env[i] = strdup(((*iter).first + "=", (*iter).second).c_str());
-            i++;
-        }
+        // cgi_env_map["AUTH_TYPE"] = "";
+        // cgi_env_map["CONTENT_LENGTH"] = "-1";
+        // cgi_env_map["CONTENT_TYPE"] = this->getResponse().getHeader_map()["Content-Type"];  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
+        // cgi_env_map["GATEWAY_INTERFACE"] = "CGI/1.1";
+        // cgi_env_map["REQUEST_METHOD"] = this->getRequest().getMethod();
+        // cgi_env_map["SERVER_PROTOCOL"] = "";
+        // cgi_env_map["AUTH_TYPE"] = "";
+        // cgi_env_map["AUTH_TYPE"] = "";
+        // cgi_env_map["AUTH_TYPE"] = "";
+        // cgi_env_map["AUTH_TYPE"] = "";
+        // cgi_env_map["AUTH_TYPE"] = "";
+        // cgi_env_map["AUTH_TYPE"] = "";
+        // cgi_env_map["AUTH_TYPE"] = "";
+        // cgi_env_map["AUTH_TYPE"] = "";
+        // cgi_env_map["AUTH_TYPE"] = "";
+        // cgi_env_map["AUTH_TYPE"] = "";
+        // cgi_env_map["AUTH_TYPE"] = "";
+        // char **cgi_env = new char *[sizeof(char *) * cgi_env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
+        // // 2. 맵의 내용들 2차원 배열로 저장하기
+        // int i = 0;
+        // for(std::map<std::string, std::string>::iterator iter = cgi_env_map.begin(); iter != cgi_env_map.end(); iter++)
+        // {
+        //     cgi_env[i] = strdup(((*iter).first + "=", (*iter).second).c_str());
+        //     i++;
+        // }
         //*cgi_env = NULL;
         //단톡DM방 책갈피의 cgi IBM문서 참조...., https://www.oreilly.com/openbook/cgi/ch02_02.html
         /*
-        - AUTH_TYPE : NULL
+        - AUTH_TYPE : 사용자 인증이 사용되는 경우, 이 사용자가 인증된 사용자라면 그 사용자를 인증하기 위해 사용한 메소드. 우리는 인증 과정이 없으므로 NULL
         - CONTENT_LENGTH : 요청 본문의 길이, 모르면 -1
         - CONTENT_TYPE : this->response.getHeader_map()["Content-Type"], 모르는 경우가 있다면? null
         - GATEWAY_INTERFACE : "CGI/1.1" CGI 스펙의 버전

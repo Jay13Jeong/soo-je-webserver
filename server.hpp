@@ -86,12 +86,14 @@ public:
     {
         return this->cgi_map;
     }
+    
     //로케이션 맵을 초기화하는 메소드.
     void init_location_map()
     {
         for (std::vector<Location>::iterator it = this->loc.begin();it != this->loc.end(); it++)
             this->loc_map[(*it).path] = *it;
     }
+
     //서버가 connet를 수락하고 클라이언트fd를 생성해서 반환하는 메소드.
     int accept_client( void )
     {
@@ -100,7 +102,7 @@ public:
         int size = sizeof(t_address);
         if ((new_socket = accept(this->fd, (struct sockaddr*)&t_address, (socklen_t*)&size)) < 0) 
         {
-            perror("accept");
+            perror("accept_");
             //**throw
         }
         fcntl(new_socket, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정
@@ -121,11 +123,11 @@ public:
     
         int opt = 1;
         // 예약) 포트가 선점되어 있을 시 강제로 열도록 예약한다.
-        if (setsockopt(this->fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-            perror("setsockopt");
+        if (setsockopt(this->fd, SOL_SOCKET, SO_REUSEADDR , &opt, sizeof(opt))) {
+            perror("set_sockopt");
             //**throw
         }
-        
+
         // int addrlen = sizeof(t_address);
         t_address.sin_family = AF_INET; //주조체계를 ipv4로 초기화한다.
         t_address.sin_addr.s_addr = INADDR_ANY; //주조를 localhost로 초기화한다.

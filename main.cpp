@@ -24,6 +24,6 @@ int main(int ac, char* av[])
         std::cout << "ERROR : ARGS OVER" << std::endl;
         return(-1);
     }
-    // webserv.start();
+    webserv.start();
     return 0;
 }
