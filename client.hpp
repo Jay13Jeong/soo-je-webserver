@@ -114,6 +114,10 @@ public:
     {
         this->response = response;
     }
+    std::string &get_cgi_program()
+    {
+        return this->cgi_program;
+    }
 
     //fd와 "감지할 행동", kevent지시문을 인자로 받아서 감지목록에 추가하는 메소드.
     void add_kq_event(uintptr_t ident, int16_t filter, uint16_t flags)
@@ -724,13 +728,43 @@ public:
         }
     }
 
-    // char *get_client_ip(void)
-    // {
-    //     struct sockaddr_in client_sockaddr;
-    //     socklen_t client_sockaddr_len = sizof(sockaddr_in);
-    //     getsockname(this->socket_fd, (struct sockaddr_in *)&client_sockaddr, &client_sockaddr_len);
-    //     return (inet_ntoa(client_sockaddr));
-    // }
+    char *get_client_ip(void)
+    {
+        struct sockaddr_in client_sockaddr;
+        socklen_t client_sockaddr_len = sizeof(client_sockaddr);
+        getsockname(this->socket_fd, (struct sockaddr *)&client_sockaddr, &client_sockaddr_len);
+        return (inet_ntoa(client_sockaddr.sin_addr));
+    }
+
+    // CGI 환경변수 (PATH_INFO, SCRIPT_NAME) 설정을 위한 메소드
+    void set_cgi_env_path(std::map<std::string, std::string> &cgi_env_map)
+    {
+        // target 중에서 (상대경로) CGI 프로그램까지의 문자열 : SCRIPT_NAME
+        // 1. program name 찾아오기
+        size_t pos = this->get_cgi_program().rfind("/");
+        std::string program_name;
+        if (pos != std::string::npos)
+            program_name = this->get_cgi_program().substr(pos + 1);
+        else
+            program_name = this->get_cgi_program();
+        // 2. target에서 program_name 찾아서 앞부분 SCRIPT_NAME 으로 넣어주기.
+        size_t pos1 = this->getRequest().getTarget().find(program_name);
+        pos1 += program_name.length();
+        cgi_env_map["SCRIPT_NAME"] = this->getRequest().getTarget().substr(pos1);
+        // 2. 시작지점 옮겨주기 -> PATH_INFO(상대경로 그대로)
+        if (pos1 == this->getRequest().getTarget().length() - 1)
+        {
+            // error
+        }
+        size_t pos2 = pos1 + 1;
+        while (pos2 < this->getRequest().getTarget().length() && this->getRequest().getTarget()[pos2] != '?')
+            pos2++;
+        if (pos2 == pos1 + 1)
+        {
+            // error
+        }
+        cgi_env_map["PATH_INFO"] = this->getRequest().getTarget().substr(pos1 + 1, pos2 - pos1);
+    }
 
     //cgi자식프로세스가 사용할 환경변수 목록을 2차원포인터로 제작하는 메소드.
     char **init_cgi_env(std::string & file_path)
@@ -738,22 +772,23 @@ public:
         // 0. file_path : 서버 상 절대 경로
         // 1. 일단 필요한 정보들 가공해서 map 에 넣기
         std::map<std::string, std::string> cgi_env_map;
-        cgi_env_map["AUTH_TYPE"] = "";
-        cgi_env_map["CONTENT_LENGTH"] = "-1";
+        cgi_env_map["AUTH_TYPE"] = ""; // 인증과정 없으므로 NULL
+        cgi_env_map["CONTENT_LENGTH"] = this->getResponse().getBody().length(); // 길이 모른다면 -1
         cgi_env_map["CONTENT_TYPE"] = this->getResponse().getHeader_map()["Content-Type"];  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
         cgi_env_map["GATEWAY_INTERFACE"] = "CGI/1.1";
         cgi_env_map["REQUEST_METHOD"] = this->getRequest().getMethod();
         cgi_env_map["SERVER_PROTOCOL"] = "HTTP/1.1";
-        cgi_env_map["PATH_INFO"] = ""; // 프로그램명 이후 string 자르는 과정 필요함.
         cgi_env_map["PATH_TRANSLATED"] = std::string(file_path);
-        // cgi_env_map["QUERY_STRING"] = this->getRequest().getTarget().substr(this->getRequest().getTarget().find('?'));
-        // cgi_env_map["REMOTE_ADDR"] = std::string(get_client_ip());
-        cgi_env_map["REMOTE_USER"] = "";
-        cgi_env_map["SCRIPT_NAME"] = this->getRequest().getTarget();
-        //cgi_env_map["SERVER_NAME"] = this->get_myserver()->get_host() + ":" + this->get_myserver()->get_port();
+        size_t pos = this->getRequest().getTarget().find('?');
+        if (pos != std::string::npos || pos < this->getRequest().getTarget().length() - 1)
+            cgi_env_map["QUERY_STRING"] = this->getRequest().getTarget().substr(this->getRequest().getTarget().find('?'));
+        cgi_env_map["REMOTE_ADDR"] = std::string(get_client_ip());
+        cgi_env_map["REMOTE_USER"] = ""; // 인증과정 없으므로 NULL
+        cgi_env_map["SERVER_NAME"] = this->get_myserver()->get_host() + ":" + util::num_to_string(this->get_myserver()->get_port());
         cgi_env_map["SERVER_PORT"] = this->get_myserver()->get_port();
         cgi_env_map["SERVER_PROTOCOL"] = this->getRequest().getVersion();
         cgi_env_map["SERVER_SOFTWARE"] = "soo-je-webserv/1.0";
+        this->set_cgi_env_path(cgi_env_map);
         char **cgi_env = new char *[sizeof(char *) * cgi_env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
         // 2. 맵의 내용들 2차원 배열로 저장하기
         int i = 0;
