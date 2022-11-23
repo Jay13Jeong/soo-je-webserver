@@ -15,6 +15,8 @@
 #include <dirent.h>
 #include "util.hpp"
 #include <string.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
 #define BUFFER_SIZE 5120
 
@@ -263,7 +265,8 @@ public:
         if (this->cgi_mode == false)
             this->write_buf = this->write_buf + "/r/n";
         //바디 부분
-        this->write_buf = this->write_buf + response_body;
+        if (response_body.size() != 0)
+            this->write_buf = this->write_buf + response_body;
     }
     
     //오토인데스 응답페이지를 만들고 송신준비를 하는 메소드.
@@ -394,7 +397,19 @@ public:
     //송신할 DELETE 응답정보를 만드는 메소드.
     void init_delete_response()
     {
-        //push_write_buf("\0");
+        this->response.setVersion(this->request.getVersion());
+        this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
+
+        if (this->response.getHeader_map().find("server") == this->response.getHeader_map().end())
+            this->response.setHeader_map("server", "soo-je-webserver");
+        if (this->response.getHeader_map().find("Date") == this->response.getHeader_map().end())
+            this->response.setHeader_map("Date", util::get_date());
+        if (this->response.getHeader_map().find("Connection") == this->response.getHeader_map().end())
+            this->response.setHeader_map("Connection", "keep-alive");
+        if (this->response.getHeader_map().find("Accept-Ranges") == this->response.getHeader_map().end())
+            this->response.setHeader_map("Accept-Ranges", "bytes");
+
+        push_write_buf("\0");
         //DELETE용 응답데이터 (시작줄 + 헤더 + 바디)만들기....
     }
 
@@ -689,7 +704,7 @@ public:
                 arg[2] = NULL;
                 if (execve(arg[0], arg, env) == -1) //cgi 실행.
                 {
-                    perror("execve err nomal");
+                    perror("execve err normal");
                     exit(1);
                 }
             }
@@ -703,37 +718,46 @@ public:
         }
     }
 
+    char *get_client_ip(void)
+    {
+        struct sockaddr_in client_sockaddr;
+        socklen_t client_sockaddr_len = sizof(sockaddr_in);
+        getsockname(this->socket_fd, (struct sockaddr_in *)&client_sockaddr, &client_sockaddr_len);
+        return (inet_ntoa(client_sockaddr));
+    }
+
     //cgi자식프로세스가 사용할 환경변수 목록을 2차원포인터로 제작하는 메소드.
     char **init_cgi_env(std::string & file_path)
     {
+        // 0. file_path : 서버 상 절대 경로
         // 1. 일단 필요한 정보들 가공해서 map 에 넣기
         std::map<std::string, std::string> cgi_env_map;
-        // cgi_env_map["AUTH_TYPE"] = "";
-        // cgi_env_map["CONTENT_LENGTH"] = "-1";
-        // cgi_env_map["CONTENT_TYPE"] = this->getResponse().getHeader_map()["Content-Type"];  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
-        // cgi_env_map["GATEWAY_INTERFACE"] = "CGI/1.1";
-        // cgi_env_map["REQUEST_METHOD"] = this->getRequest().getMethod();
-        // cgi_env_map["SERVER_PROTOCOL"] = "";
-        // cgi_env_map["AUTH_TYPE"] = "";
-        // cgi_env_map["AUTH_TYPE"] = "";
-        // cgi_env_map["AUTH_TYPE"] = "";
-        // cgi_env_map["AUTH_TYPE"] = "";
-        // cgi_env_map["AUTH_TYPE"] = "";
-        // cgi_env_map["AUTH_TYPE"] = "";
-        // cgi_env_map["AUTH_TYPE"] = "";
-        // cgi_env_map["AUTH_TYPE"] = "";
-        // cgi_env_map["AUTH_TYPE"] = "";
-        // cgi_env_map["AUTH_TYPE"] = "";
-        // cgi_env_map["AUTH_TYPE"] = "";
-        // char **cgi_env = new char *[sizeof(char *) * cgi_env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
-        // // 2. 맵의 내용들 2차원 배열로 저장하기
-        // int i = 0;
-        // for(std::map<std::string, std::string>::iterator iter = cgi_env_map.begin(); iter != cgi_env_map.end(); iter++)
-        // {
-        //     cgi_env[i] = strdup(((*iter).first + "=", (*iter).second).c_str());
-        //     i++;
-        // }
-        //*cgi_env = NULL;
+        cgi_env_map["AUTH_TYPE"] = "";
+        cgi_env_map["CONTENT_LENGTH"] = "-1";
+        cgi_env_map["CONTENT_TYPE"] = this->getResponse().getHeader_map()["Content-Type"];  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
+        cgi_env_map["GATEWAY_INTERFACE"] = "CGI/1.1";
+        cgi_env_map["REQUEST_METHOD"] = this->getRequest().getMethod();
+        cgi_env_map["SERVER_PROTOCOL"] = "HTTP/1.1";
+        cgi_env_map["PATH_INFO"] = ""; // 프로그램명 이후 string 자르는 과정 필요함.
+        cgi_env_map["PATH_TRANSLATED"] = std::string(file_path);
+        cgi_env_map["QUERY_STRING"] = this->getRequest().getTarget().substr(this->getRequest().getTarget().find('?'));
+        cgi_env_map["REMOTE_ADDR"] = std::string(get_client_ip());
+        cgi_env_map["REMOTE_USER"] = "";
+        cgi_env_map["SCRIPT_NAME"] = this->getRequest().getTarget();
+        cgi_env_map["SERVER_NAME"] = this->get_myserver()->get_host + ":" + this->get_myserver()->get_port();
+        cgi_env_map["SERVER_PORT"] = this->get_myserver()->get_port();
+        cgi_env_map["SERVER_PROTOCOL"] = this->getRequest().getVersion();
+        cgi_env_map["SERVER_SOFTWARE"] = "soo-je-webserv/1.0"
+        char **cgi_env = new char *[sizeof(char *) * cgi_env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
+        // 2. 맵의 내용들 2차원 배열로 저장하기
+        int i = 0;
+        for(std::map<std::string, std::string>::iterator iter = cgi_env_map.begin(); iter != cgi_env_map.end(); iter++)
+        {
+            cgi_env[i] = strdup(((*iter).first + "=", (*iter).second).c_str());
+            i++;
+        }
+        cgi_env[cgi_env_map.size()] = NULL;
+        return (cgi_env);
         //단톡DM방 책갈피의 cgi IBM문서 참조...., https://www.oreilly.com/openbook/cgi/ch02_02.html
         /*
         - AUTH_TYPE : 사용자 인증이 사용되는 경우, 이 사용자가 인증된 사용자라면 그 사용자를 인증하기 위해 사용한 메소드. 우리는 인증 과정이 없으므로 NULL
@@ -746,16 +770,16 @@ public:
         - PATH_TRANSLATED : 서버상의 절대경로
         - QUERY_STRING : after ?
         - REMOTE_ADDR : client IP address
-        - REMOTE_HOST : The remote hostname
+        - REMOTE_HOST : The remote hostname (만약에 서버가 hostname을 모르고, REMOTE_ADDR이 설정되어 있다면 이 변수는 unset 되어도 괜찮다.)
         - REMOTE_USER : 사용자가 인증된경우 로그인을 넣고, 인증되지 않은 경우 NULL. 우리는 인증 과정이 없으므로 무조건 NULL
         - SCRIPT_NAME : 프로토콜 이름에서 HTTP 요청의 첫 번째 라인에 있는 조회 문자열까지, URL의 부분을 리턴. this->getRequest().getTarget()
         - SERVER_NAME : The server's hostname or IP address. this->get_myserver()->get_host + ":" + this->get_myserver()->get_port()
         - SERVER_PORT : 요청이 수신된 포트번호. this->get_myserver()->get_port();
         - SERVER_PROTOCOL : 요청이 사용하는 프로토콜 이름과 버전. this->getRequest().getVersion()
         - SERVER_SOFTWARE : 컨테이너의 이름과 버전을 리턴합니다. format : name/version ? 임의로 적어도 되는듯?
-        - HTTP_COOKIE : ?
-        - WEBTOP_USER : ?
-        - NCHOME : ?
+        - HTTP_COOKIE : ? 필요하다면 추가
+        - WEBTOP_USER : ? 필요하다면 추가
+        - NCHOME : ? 필요하다면 추가
         */
         /*
             * from : https://www.oreilly.com/openbook/cgi/ch02_04.html
@@ -765,7 +789,6 @@ public:
             * Meanwhile, the variable PATH_TRANSLATED is also set, which maps the information stored in PATH_INFO to the document root directory
             * (e.g., /usr/local/etc/httpd/ public/cgi/cgi-doc.txt).
         */
-        return (cgi_env);
     }
 };
 

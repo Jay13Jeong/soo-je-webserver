@@ -12,6 +12,7 @@ class Server
 {
 public:
     int                                 port; //서버포트. (기본값 있음)
+    std::string                         host; // host (기본적으로 127.0.0.1);
     std::string                         server_name; //서버이름. (기본값 있음)
     std::string                         root; //실행되는 최상위 폴더. (기본값 있음)
     std::vector<std::string>            index; //인덱스 파일목록. (기본값 있음 - index.html)
@@ -29,6 +30,7 @@ private:
 public:
     Server() : fd(-1) {
         port = 80;
+        host = "127.0.0.1";
         server_name = "soo-je";
         // root = "";
         //index = {"index.html"};
@@ -41,10 +43,17 @@ public:
         if (this->fd != -1)
             close(this->fd);
     }
-
+    void    set_host(std::string host)
+    {
+        this->host = host;
+    }
     std::string get_root()
     {
         return this->root;
+    }
+    std::string get_host()
+    {
+        return (this->host);
     }
     std::string get_server_name()
     {

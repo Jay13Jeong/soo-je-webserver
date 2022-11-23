@@ -380,7 +380,9 @@ public:
                     }
                 }
             }
-            else if (split_result[0] == "}" || split_result[0] == "host")
+            else if (split_result[0] == "host")
+                _server_list.back().set_host(split_result[1]);
+            else if (split_result[0] == "}")
                 continue;
             else
             {
