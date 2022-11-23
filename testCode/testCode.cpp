@@ -20,6 +20,6 @@ int main(){
     std::string test = "   	123{ 	 		123	4 	  123	456   }	 	";
     std::vector<std::string> result = ft_split(test, "\t ");
     for (int i=0; i < result.size(); i++){
-        std::cout << i << ':' << result[i] << std::endl;
+        std::cerr << i << ':' << result[i] << std::endl;
     }
 }

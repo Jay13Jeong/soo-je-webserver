@@ -42,7 +42,9 @@ private:
     std::string  cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")
 
 public:
-    Client(std::vector<struct kevent> * cmds) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) {};
+    Client(std::vector<struct kevent> * cmds) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) \
+    ,read_buf(""), write_buf(""), file_buf(""), write_size(0), read_size(0), my_loc(NULL), server_fd(-1) \
+    , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file("") {};
     ~Client()
     {
         perror("close Client!");
@@ -258,7 +260,7 @@ public:
         //4번.
         this->push_write_buf(this->file_buf);
 
-        add_kq_event(this->socket_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //소켓을을 쓰기감지에 예약.
+        // add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓을을 쓰기감지에 예약.
         return true; //문제없이 응답클래스를 초기화했으면 true반환
     }
     
@@ -356,6 +358,7 @@ public:
         //경로에서 확장자를 확인하고 해당하는 헤더를 반환하는
         if (s.get_default_error_page().count(this->response.getStatus()) == 0)
         {
+            perror("no default err page");
             this->response.setVersion(this->request.getVersion());
             this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
             //헤더도 넣기
@@ -368,11 +371,10 @@ public:
             this->response.setBody(this->response.getStatus());
             
             push_write_buf(this->response.getBody());
-            // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
-            add_kq_event(this->file_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //파일을 쓰기감지에 예약.
         }
         else
         {
+            perror("default err page");
             struct stat sb;
             if (stat(s.get_default_error_page().find(this->response.getStatus())->second.c_str(), &sb) != 0)//루트경로 추가할 것
                 return (this->response.setStatus("500"), this->ready_err_response_meta());
@@ -611,16 +613,14 @@ public:
         //socket_fd,server_fd,_ev_cmds,my_server,status_msg빼고 모두 초기상태로 초기화한다...
         this->read_buf.clear();
         this->write_buf.clear();
-        // request
-        // response
         this->file_fd = -1;
         this->file_buf.clear();
         this->write_size = 0;
         this->read_size = 0;
-        this->server_fd = -1;
         this->cgi_mode = false; // ?
-        this->_ev_cmds->clear();
-        this->my_server = NULL;
+        this->my_loc = NULL;
+        this->cgi_program.clear();
+        this->cgi_file.clear();
 
         return true; //문제없으면 true리턴.
     }

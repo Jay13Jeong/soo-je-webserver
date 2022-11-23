@@ -408,6 +408,7 @@ public:
     //fd와 "감지할 행동", kevent지시문을 인자로 받아서 감지목록에 추가하는 메소드.
     void add_kq_event(uintptr_t ident, int16_t filter, uint16_t flags)
     {
+        // std::cerr << "add_kq_event1" << std::endl;
         struct kevent new_event;
 
         EV_SET(&new_event, ident, filter, flags, 0, 0, NULL);
@@ -426,8 +427,8 @@ public:
         for (int i(0);i < this->get_server_list().size();i++)
         {
             this->_server_map[this->_server_list[i].fd] = this->_server_list[i];
-            this->_server_list[i].init_location_map(); //로케이션 맵도 같이 초기화.
-            this->_server_list[i].init_default_location(); //로케이션 초기화대상이없으면 하나 만들어주기.
+            // this->_server_map[this->_server_list[i].fd].init_location_map(); //로케이션 맵도 같이 초기화.
+            // this->_server_map[this->_server_list[i].fd].init_default_location(); //로케이션 초기화대상이없으면 하나 만들어주기.
         }
             
     }
@@ -486,7 +487,8 @@ public:
             // {
                 detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, NULL);
                 // perror("detected_something");
-                std::cout << "detect : " << detected_count << std::endl;
+                std::cerr << "detect : " << detected_count << std::endl;
+                // std::cerr << "add_kq_event size : " << _ev_cmds.size() << std::endl;
                 // return;
                 _ev_cmds.clear(); //사용한 이벤트명령은 비운다.
                 for (int i(0); i < detected_count; i++)
@@ -500,7 +502,14 @@ public:
                                 shutdown(detecteds[i].ident,SHUT_RDWR);
                                 return;
                             }
-                        perror("client_socket_flag_err");
+                        for (int j(0); j < get_client_list().size(); j++)
+                            if (detecteds[i].ident == get_client_list()[j].getSocket_fd())
+                            {
+                                perror("client_socket_flag_err");
+                                shutdown(detecteds[i].ident,SHUT_RDWR);
+                                return;        
+                            }
+                        perror("file_socket_flag_err");
                         shutdown(detecteds[i].ident,SHUT_RDWR);
                         return ;
                     }
@@ -513,18 +522,20 @@ public:
                         {   //감지된 fd가 서버쪽 일 때.
                             if (detecteds[i].ident == get_server_list()[j].get_fd())
                             {
-                                Client new_client(&this->_ev_cmds);
-                                new_client.setSocket_fd(get_server_list()[j].accept_client()); //브라우저의 연결을 수락.
-                                std::cout << "listen : " << new_client.getSocket_fd() << std::endl;
-                                new_client.set_status_msg(&(this->status_map));
-                                std::cout << "111 " << std::endl;
-                                new_client.set_myserver(&(this->_server_map[detecteds[i].ident])); //클라이언트클래스에서 서버클래스에 접근 할 수 있도록.
-                                std::cout << "222 " << std::endl;
-                                add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE); //감지목록에 등록.
-                                std::cout << "333 " << std::endl;
-                                this->set_client_list(new_client); //클라이언트리스트에도 추가.
-                                std::cout << "444 " << std::endl;
+                                perror("read server");
                                 used = true;
+                                Client new_client(&(this->_ev_cmds));
+                                new_client.setSocket_fd(get_server_list()[j].accept_client()); //브라우저의 연결을 수락.
+                                std::cerr << "listen : " << new_client.getSocket_fd() << std::endl;
+                                new_client.set_status_msg(&(this->status_map));
+                                std::cerr << "111 " << std::endl;
+                                new_client.set_myserver(&(this->_server_map[detecteds[i].ident])); //클라이언트클래스에서 서버클래스에 접근 할 수 있도록.
+                                std::cerr << "222 " << std::endl;
+                                add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE); //감지목록에 등록.
+                                add_kq_event(new_client.getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE);
+                                std::cerr << "333 " << std::endl;
+                                this->set_client_list(new_client); //클라이언트리스트에도 추가.
+                                std::cerr << "444 " << std::endl;
                                 break;
                             }
                         }
@@ -534,38 +545,43 @@ public:
                         {   //감지된 fd가 클라쪽 일 때.
                             if (detecteds[i].ident == (*it).getSocket_fd())
                             {
+                                perror("read client");
+                                std::cerr << "fd : " << (*it).getSocket_fd() << std::endl;
                                 used = true;
                                 int result = (*it).recv_data();
                                 if (result == FAIL)
                                 {
-                                    perror("read client");
+                                    perror("recv client err");
+                                    close((*it).getSocket_fd());
                                     this->_client_list.erase(it); //kq에서 읽기가능이라고 했는데도 데이터를 읽을 수 없다면 삭제한다.
                                 }
                                 else if (result == RECV_ALL) //모두수신받았을 때.
                                 {
                                     ///////////////////////////////////
-                                    std::cout << "+++++++++++++++++" << std::endl;
-                                    std::cout << (*it).get_read_buf() << std::endl;
-                                    std::cout << "+++++++++++++++++" << std::endl;
+                                    std::cerr << "+++++++++++++++++" << std::endl;
+                                    std::cerr << (*it).get_read_buf() << std::endl;
+                                    std::cerr << "+++++++++++++++++" << std::endl;
                                     //////////////////////////////////
-                                    add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE); //"읽기가능"감지 끄기.
-                                    std::cout << "aaaa" << std::endl;
+                                    // add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DISABLE); //"읽기가능"감지 끄기.
+                                    std::cerr << "aaaa" << std::endl;
                                     if ((*it).parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
                                     {
-                                        std::cout << "wwwww" << std::endl;
+                                        std::cerr << "wwwww" << std::endl;
                                         (*it).ready_err_response_meta(); //에러응답 준비.
-                                        std::cout << "zzzzz" << std::endl;
+                                        std::cerr << "zzzzz" << std::endl;
                                         break;
                                     }
-                                    std::cout << "qqqq" << std::endl;
+                                    std::cerr << "qqqq" << std::endl;
                                     (*it).init_client_location(); //경로가 로케이션 경로중에 해당하면 그 경로로 정보를 변경한다.
-                                    std::cout << "eeee" << std::endl;
+                                    std::cerr << "eeee" << std::endl;
                                     if ((*it).check_client_err() == true) //400번대 에러가 발생했는지 검사. 있다면 상태코드 설정.
                                     {
+                                        std::cerr << "rrrrr" << std::endl;
                                         (*it).ready_err_response_meta(); //에러응답 준비.
+                                        std::cerr << "ttttt" << std::endl;
                                         break;
                                     }
-                                    std::cout << "dddd" << std::endl;
+                                    std::cerr << "dddd" << std::endl;
                                     if ((*it).check_need_cgi() == false) //파싱된 데이터에 cgi요청이 없을 때.
                                     {
                                         if ((*it).ready_response_meta() == false) //요청에 필요한 데이터 IO하기.
@@ -576,7 +592,7 @@ public:
                                         (*it).setCgi_mode(true); //cgi모드로 설정.
                                         (*it).excute_cgi(); //fork로 보내고 파생된result파일을 읽도록 kq에 등록.
                                     }
-                                    std::cout << "cccc" << std::endl;
+                                    std::cerr << "cccc" << std::endl;
                                 }
                                 break;
                             }
@@ -588,9 +604,10 @@ public:
                         {   //먼저 어떤 클라이언트의 파일인지 찾는다.
                             if (detecteds[i].ident == (*it).getFile_fd())
                             {
+                                perror("read file");
                                 int result = (*it).read_file(); //클라이언트객체는 파일을 읽는다.
-                                if (result == FAIL || result == RECV_ALL)
-                                    add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비.
+                                // if (result == FAIL || result == RECV_ALL)
+                                //     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비.
                                 if (result == FAIL) //파일 읽기 오류났을 때.
                                     perror("read file");
                                 else if (result == RECV_ALL) //모두수신받았을 때.
@@ -598,6 +615,8 @@ public:
                                 break;
                             }
                         }
+                        perror("?????????????");
+                        return;
                     }
                     else if (detecteds[i].flags & EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
                     {
@@ -613,13 +632,14 @@ public:
                                 int result = (*it).send_data(); //클라이언트 객체가 완성된 response데이터를 전송.
                                 if (result == FAIL)
                                 {
+                                    close((*it).getSocket_fd());
                                     _client_list.erase(it); //이 클라이언트 소켓 제거.
                                     perror("send client");
                                 }
                                 else if (result == SEND_ALL)
                                 {
-                                    add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_DELETE | EV_DISABLE); //"쓰기가능"감지목록에서 제외.
-                                    add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE); //다시 "읽기가능"감지목록에 등록.
+                                    // add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_DISABLE); //"쓰기가능"감지목록에서 제외.
+                                    // add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE); //다시 "읽기가능"감지목록에 등록.
                                     (*it).clear_client();//fd를 제외한 클라이언트 정보를 초기화한다.
                                 }
                                 break;
@@ -633,8 +653,8 @@ public:
                             if (detecteds[i].ident == (*it).getFile_fd())
                             {
                                 int result = (*it).write_file(); //클라이언트객체는 파일을 작성한다.
-                                if (result == FAIL || result == SEND_ALL)
-                                    add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비. (리스폰스제작과 연계)
+                                // if (result == FAIL || result == SEND_ALL)
+                                //     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비. (리스폰스제작과 연계)
                                 if (result == FAIL) //파일 쓰기 오류났을 때.
                                     perror("write file");
                                 else if (result == SEND_ALL) //모두작성했을 때.
@@ -656,7 +676,7 @@ public:
             //     this->regist_servers_to_kq();
             //     std::cerr << e.what() << '\n';
             // }
-            std::cout << "================ " << std::endl;
+            std::cerr << "================ " << std::endl;
         }
     }
 };

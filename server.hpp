@@ -140,7 +140,7 @@ public:
         t_address.sin_family = AF_INET; //주조체계를 ipv4로 초기화한다.
         t_address.sin_addr.s_addr = htonl(INADDR_ANY); //주조를 localhost로 초기화한다.
         t_address.sin_port = htons(this->port); //포트를 네트워크형식으로 전환해서 초기화.
-        std::cout << this->port << std::endl;
+        std::cerr << this->port << std::endl;
     
         //초기화된 주소구조체로 소켓을 바인드.
         if (bind(this->fd, (struct sockaddr*)&t_address, sizeof(t_address)) == -1) {
@@ -154,7 +154,7 @@ public:
         }
         fcntl(this->fd, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정 
         // g_io_infos[this->fd] = IO_manager(this->fd, "server", 0);
-        std::cout << "fd_num : " << this->fd << std::endl;
+        std::cerr << "fd_num : " << this->fd << std::endl;
         perror("end of open func");
     }
 
