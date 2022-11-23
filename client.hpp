@@ -243,22 +243,29 @@ public:
             this->find_mime_type(this->request.getTarget());
         this->response.setBody(this->file_buf);
 
-        //4번.스타트라인
+        //4번.
+        this->push_write_buf(this->file_buf);
+
+        add_kq_event(this->socket_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //소켓을을 쓰기감지에 예약.
+        return true; //문제없이 응답클래스를 초기화했으면 true반환
+    }
+    
+    void push_write_buf(std::string &response_body)
+    {
+        //스타트라인
         this->write_buf = this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() + "/r/n";
         //헤더 부분
         std::map<std::string, std::string> temp = this->request.getHeaders();
     	std::map<std::string,std::string>::iterator iter;
 	    for(iter = temp.begin() ; iter != temp.end(); iter++)
 		    this->write_buf = this->write_buf + iter->first + ": " + iter->second + "/r/n";
+        //개행추가 부분, cgi의 경우 바디 윗부분에 개행이 추가되어있다.바디에 개행이 추가되는 것을 방지.
         if (this->cgi_mode == false)
             this->write_buf = this->write_buf + "/r/n";
         //바디 부분
-        this->write_buf = this->write_buf + this->file_buf;
-
-        add_kq_event(this->socket_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //소켓을을 쓰기감지에 예약.
-        return true; //문제없이 응답클래스를 초기화했으면 true반환
+        this->write_buf = this->write_buf + response_body;
     }
-
+    
     //오토인데스 응답페이지를 만들고 송신준비를 하는 메소드.
     void init_autoindex_response(std::string path)
     {
@@ -300,7 +307,8 @@ public:
         this->response.setHeader_map("Content-Length", util::num_to_string(this->response.getBody().length()));//바디 크기
         this->response.setBody(temp_body);//바디 입력
         closedir(dir);
-        this->write_buf = "응답데이터";
+
+        push_write_buf(this->response.getBody());
     }
 
     void find_mime_type(std::string path)
@@ -345,14 +353,15 @@ public:
             this->response.setHeader_map("Connection", "keep-alive");
             this->response.setHeader_map("Accept-Ranges", "bytes");
             this->response.setBody(this->response.getStatus());
-            this->write_buf = "응답데이터";
-            fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
+            
+            push_write_buf(this->response.getBody());
+            // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
             add_kq_event(this->file_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //파일을 쓰기감지에 예약.
         }
         else
         {
             struct stat sb;
-            if (stat(s.get_default_error_page().find(this->response.getStatus())->second.c_str(), &sb) != 0);//루트경로 추가할 것
+            if (stat(s.get_default_error_page().find(this->response.getStatus())->second.c_str(), &sb) != 0)//루트경로 추가할 것
                 return (this->response.setStatus("500"), this->ready_err_response_meta());
             if ((S_IFMT & sb.st_mode) != S_IFREG)//일반파일이 아닐 경우
                 return (this->response.setStatus("500"), this->ready_err_response_meta());
@@ -385,7 +394,7 @@ public:
     //송신할 DELETE 응답정보를 만드는 메소드.
     void init_delete_response()
     {
-        this->write_buf = "응답데이터";
+        push_write_buf(this->response.getBody());
         //DELETE용 응답데이터 (시작줄 + 헤더 + 바디)만들기....
     }
 
@@ -450,7 +459,7 @@ public:
             if (stat(path.c_str(), &sb) == 0) // 디렉토리일 때.(맨뒤에 슬래시달린상태로 stat되면 디렉토리).
             {
                 path.erase(--(path.end())); //맨뒤 슬래시 제거.
-                if (rm_sub_files(path.c_str()) == false) //재귀로 하위폴더 비우기.
+                if (util::rm_sub_files(path.c_str()) == false) //재귀로 하위폴더 비우기.
                     return (this->getResponse().setStatus("500"), false); //500처리.
             }
             else //디렉토리가 아닐 때.
@@ -475,7 +484,7 @@ public:
                 this->getResponse().setStatus("400"); //400처리.
                     return false; //바로 에러 페이지 제작 필요.
             }
-            if (make_middle_pathes() == false) //경로의 중간 경로들이 없다면 만든다.
+            if (util::make_middle_pathes(path) == false) //경로의 중간 경로들이 없다면 만든다.
             {
                 this->getResponse().setStatus("500"); //500처리.
                     return false; //바로 에러 페이지 제작 필요.
@@ -697,19 +706,46 @@ public:
     //cgi자식프로세스가 사용할 환경변수 목록을 2차원포인터로 제작하는 메소드.
     char **init_cgi_env(std::string & file_path)
     {
-        char **cgi_env;
-        *cgi_env = NULL;
-        //단톡DM방 책갈피의 cgi IBM문서 참조....
+        std::map<std::string, std::string> cgi_env_map;
+        char **cgi_env = new char *[sizeof(char *) * cgi_env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
+        //cgi_env_map
+        int i = 0;
+        for(std::map<std::string, std::string>::iterator iter = cgi_env_map.begin(); iter != cgi_env_map.end(); iter++)
+        {
+            cgi_env[i] = strdup(((*iter).first + "=", (*iter).second).c_str());
+            i++;
+        }
+        //*cgi_env = NULL;
+        //단톡DM방 책갈피의 cgi IBM문서 참조...., https://www.oreilly.com/openbook/cgi/ch02_02.html
         /*
         - AUTH_TYPE : NULL
         - CONTENT_LENGTH : 요청 본문의 길이, 모르면 -1
         - CONTENT_TYPE : this->response.getHeader_map()["Content-Type"], 모르는 경우가 있다면? null
-        - GATEWAY_INTERFACE : "CGI/1.1"
-        - REQUEST_METHOD : this->request.getMethod()
+        - GATEWAY_INTERFACE : "CGI/1.1" CGI 스펙의 버전
+        - REQUEST_METHOD : 이 요청을 작성할 때 사용된 메소드. this->request.getMethod()
         - SERVER_PROTOCOL : "HTTP/1.1"
-        - PATH_INFO : 
-        - PATH_TRANSLATED : 
-        - QUERY_STRING : 
+        - PATH_INFO : CGI 프로그램명 이후의 uri
+        - PATH_TRANSLATED : 서버상의 절대경로
+        - QUERY_STRING : after ?
+        - REMOTE_ADDR : client IP address
+        - REMOTE_HOST : The remote hostname
+        - REMOTE_USER : 사용자가 인증된경우 로그인을 넣고, 인증되지 않은 경우 NULL. 우리는 인증 과정이 없으므로 무조건 NULL
+        - SCRIPT_NAME : 프로토콜 이름에서 HTTP 요청의 첫 번째 라인에 있는 조회 문자열까지, URL의 부분을 리턴. this->getRequest().getTarget()
+        - SERVER_NAME : The server's hostname or IP address. this->get_myserver()->get_host + ":" + this->get_myserver()->get_port()
+        - SERVER_PORT : 요청이 수신된 포트번호. this->get_myserver()->get_port();
+        - SERVER_PROTOCOL : 요청이 사용하는 프로토콜 이름과 버전. this->getRequest().getVersion()
+        - SERVER_SOFTWARE : 컨테이너의 이름과 버전을 리턴합니다. format : name/version ? 임의로 적어도 되는듯?
+        - HTTP_COOKIE : ?
+        - WEBTOP_USER : ?
+        - NCHOME : ?
+        */
+        /*
+            * from : https://www.oreilly.com/openbook/cgi/ch02_04.html
+            * http://some.machine/cgi-bin/display.pl/cgi/cgi_doc.txt
+            * Since the server knows that display.pl is the name of the program, 
+            * the string "/cgi/cgi_doc.txt" is stored in the environment variable PATH_INFO.
+            * Meanwhile, the variable PATH_TRANSLATED is also set, which maps the information stored in PATH_INFO to the document root directory
+            * (e.g., /usr/local/etc/httpd/ public/cgi/cgi-doc.txt).
         */
         return (cgi_env);
     }

@@ -31,7 +31,8 @@ public:
         port = 80;
         server_name = "soo-je";
         // root = "";
-        index = {"index.html"};
+        //index = {"index.html"};
+        index.push_back("index.html");
         autoindex = false;
         client_max_body_size = 1000000;
     };

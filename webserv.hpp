@@ -452,6 +452,7 @@ public:
         status_map.insert(std::make_pair("413","Payload Too Large"));
         status_map.insert(std::make_pair("414","URI Too Long"));
         status_map.insert(std::make_pair("500","Internal Server Error"));
+        status_map.insert(std::make_pair("501","Not Implemented"));
         status_map.insert(std::make_pair("503","Service Unavailable"));
         status_map.insert(std::make_pair("504","Gateway Timeout"));
         status_map.insert(std::make_pair("505","HTTP Version Not Supported"));
@@ -492,7 +493,7 @@ public:
                     if (detecteds[i].flags & EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
                     {
                         //감지된 fd가 정규파일인지 서버인지 클라이언트꺼인지 검사한다.
-                        bool used = false; //찾았는지 여부.
+                        bool used = false; //찾아서 사용했는지 여부.
                         for (int j(0); j < get_server_list().size(); j++)
                         {   //감지된 fd가 서버쪽 일 때.
                             if (detecteds[i].ident == get_server_list()[j].fd)
@@ -501,8 +502,7 @@ public:
                                 new_client.setSocket_fd(get_server_list()[j].accept_client()); //브라우저의 연결을 수락.
                                 new_client.set_status_msg(&(this->status_map));
                                 new_client.set_myserver(&(this->_server_map[detecteds[i].ident])); //클라이언트클래스에서 서버클래스에 접근 할 수 있도록.
-                                //감지목록에 등록.
-                                add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
+                                add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE); //감지목록에 등록.
                                 this->set_client_list(new_client); //클라이언트리스트에도 추가.
                                 used = true;
                                 break;
@@ -610,7 +610,7 @@ public:
                             }
                         }
                     } 
-                    else { /* error... */ }
+                    else { perror("flag err"); /* error... */ }
                 }
             }
             catch(const std::exception& e)

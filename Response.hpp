@@ -31,6 +31,8 @@ public:
     }
     void setStatus(std::string status)
     {
+        if (status != "200")
+            perror(("status code" + status).c_str());
         this->status = status;
     }
     std::string & getStatus_msg()

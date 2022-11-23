@@ -17,7 +17,10 @@ public:
         // redirection.insert(std::make_pair("", ""));
         this->index = index;
         this->autoindex = autoindex;
-        accept_method = {"GET", "POST", "DELETE"};
+        accept_method.push_back("GET");
+        accept_method.push_back("POST");
+        accept_method.push_back("DELETE");
+        //accept_method = {"GET", "POST", "DELETE"};
     };
     ~Location(){}
     std::string path; // 이 패턴으로 시작하는 경우에 location block 적용.
