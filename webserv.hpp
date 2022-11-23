@@ -518,8 +518,8 @@ public:
                                 int result = (*it).recv_data();
                                 if (result == FAIL)
                                 {
-                                    //kq에서 읽기가능이라고 했는데도 데이터를 읽을 수 없다면 삭제한다.
-                                    this->_client_list.erase(it);
+                                    perror("read client");
+                                    this->_client_list.erase(it); //kq에서 읽기가능이라고 했는데도 데이터를 읽을 수 없다면 삭제한다.
                                 }
                                 else if (result == RECV_ALL) //모두수신받았을 때.
                                 {
@@ -556,20 +556,13 @@ public:
                         {   //먼저 어떤 클라이언트의 파일인지 찾는다.
                             if (detecteds[i].ident == (*it).getFile_fd())
                             {
-                                //클라이언트객체는 파일을 읽는다
-                                int result = (*it).read_file();
+                                int result = (*it).read_file(); //클라이언트객체는 파일을 읽는다.
                                 if (result == FAIL || result == RECV_ALL)
-                                {
                                     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비.
-                                }
                                 if (result == FAIL) //파일 읽기 오류났을 때.
-                                {
-                                    // cerr...
-                                }
+                                    perror("read file");
                                 else if (result == RECV_ALL) //모두수신받았을 때.
-                                {
                                     (*it).init_response(this->_server_map); //클라이언트는 응답 데이터를 제작한다.
-                                }
                                 break;
                             }
                         }
@@ -588,6 +581,7 @@ public:
                                 if (result == FAIL)
                                 {
                                     _client_list.erase(it); //이 클라이언트 소켓 제거.
+                                    perror("send client");
                                 }
                                 else if (result == SEND_ALL)
                                 {
@@ -607,17 +601,11 @@ public:
                             {
                                 int result = (*it).write_file(); //클라이언트객체는 파일을 작성한다.
                                 if (result == FAIL || result == SEND_ALL)
-                                {
                                     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비. (리스폰스제작과 연계)
-                                }
                                 if (result == FAIL) //파일 쓰기 오류났을 때.
-                                {
-                                    // cerr...
-                                }
+                                    perror("write file");
                                 else if (result == SEND_ALL) //모두작성했을 때.
-                                {
                                     (*it).init_response(this->_server_map); //업로드 완료 후 처리?... (kq와 연계)
-                                }
                                 break;
                             }
                         }

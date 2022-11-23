@@ -6,6 +6,7 @@
 #include <cstring>
 #include <time.h>
 #include <sstream>
+#include <dirent.h> //DT_DIR
 // #include <algorithm>
 
 namespace util
@@ -109,6 +110,48 @@ namespace util
 		std::string ret = buf;
 		return (ret);
 	}
+
+	//하위 폴더 및 파일을 모두 제거하는 함수.
+	bool rm_sub_files(std::string path)
+	{
+		DIR *curr_dir; //현재 pwd위치.
+		struct dirent *target; //현재 디렉토리의 구성 파일 또는 디렉토리.
+
+		if ((curr_dir = opendir(path.c_str())) == NULL) //디렉토리 열기.
+			return (false);
+		if (path[path.length() - 1] != '/') //str.back()은 c++11이다...
+			path += '/';
+		while ((target = readdir(curr_dir)) != NULL) //파일리스트를 하나씩 읽기.(read할때마다 자동으로 넘어감).
+		{
+			std::string file_name(target->d_name);
+			if (file_name == "." || file_name == "..")
+				continue ;
+			if (target->d_type == DT_DIR) //파일 타입이 디렉토리면...
+			{
+				if (rm_sub_files(path + file_name) == false) //디렉토리 비우기 및 삭제. (재귀로 하위폴더 처리).
+					return (false);
+			}
+			else //파일이 정규파일이면 그냥 삭제.
+				unlink((path + file_name).c_str()); 
+		}
+		rmdir(path.c_str()); //비워진 현재 디렉토리는 지운다.
+		return (true);
+	}
+
+	//중간 디렉토리 경로를 만들어주는 메소드.
+	bool make_middle_pathes(std::string path)
+    {
+        size_t n = 0;
+        size_t pos = path.find("/", n); //경로의 첫번째 디렉토리를 지정.
+        while (pos != std::string::npos) //디렉토리가 더이상 없다면 종료.
+        {
+            std::string temp = path.substr(0, pos); //찾은 단계까지의 총 경로.
+            mkdir(temp.c_str(), 0755); //디렉토리 생성
+            n = pos + 1; //문자하나씩 읽기.
+            pos = path.find("/", n); //다음 폴더가 있는지 찾는다.
+        }
+        return true; //성공적으로 생성되었으면 true반환.
+    }
 }
 
 #endif
