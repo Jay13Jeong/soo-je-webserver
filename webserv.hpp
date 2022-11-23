@@ -36,19 +36,19 @@ private:
 public:
     Webserv(/* args */){};
     ~Webserv(){};
-    std::vector<Server> get_server_list()
+    std::vector<Server> &get_server_list()
     {
         return this->_server_list;
     };
-    void set_server_list(Server new_server)
+    void set_server_list(Server & new_server)
     {
         this->_server_list.push_back(new_server);
     };
-    std::vector<Client> get_client_list()
+    std::vector<Client> &get_client_list()
     {
         return this->_client_list;
     };
-    void set_client_list(Client new_client)
+    void set_client_list(Client & new_client)
     {
         this->_client_list.push_back(new_client);
     };
@@ -418,9 +418,7 @@ public:
     void regist_servers_to_kq()
     {
         for (int i(0);i < this->get_server_list().size();i++)
-        {
-            add_kq_event(this->get_server_list()[i].fd, EVFILT_READ, EV_ADD | EV_ENABLE);
-        }
+            add_kq_event(this->get_server_list()[i].get_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
     }
 
     void init_servers_map()
@@ -464,8 +462,8 @@ public:
     void start()
     {
         int kq_fd; //커널큐 fd.
-        int detected_count; //감지된 이벤트 갯수.
-        std::vector<struct kevent> detecteds; //감지 된 이벤트벡터.
+        int detected_count = 0; //감지된 이벤트 갯수.
+        struct kevent detecteds[DETECT_SIZE]; //감지 된 이벤트벡터.
 
         // struct kevent k_set;
         /**
@@ -477,7 +475,6 @@ public:
             필터 데이터값 0,
             사용자 정의 데이터 NULL);
         **/
-
         this->open_ports(); //서버포트 열기
         this->regist_servers_to_kq(); //감지목록에 서버들 추가.
         this->init_servers_map();
@@ -487,27 +484,46 @@ public:
         {
             // try
             // {
-                detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), &detecteds[0], DETECT_SIZE, NULL);
-                // perror("abc");
+                detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, NULL);
+                // perror("detected_something");
+                std::cout << "detect : " << detected_count << std::endl;
                 // return;
                 _ev_cmds.clear(); //사용한 이벤트명령은 비운다.
                 for (int i(0); i < detected_count; i++)
                 {
-                    perror("abc");
+                    if (detecteds[i].flags & EV_ERROR)
+                    {
+                        for (int j(0); j < get_server_list().size(); j++)
+                            if (detecteds[i].ident == get_server_list()[j].get_fd())
+                            {
+                                perror("server_socket_flag_err");
+                                shutdown(detecteds[i].ident,SHUT_RDWR);
+                                return;
+                            }
+                        perror("client_socket_flag_err");
+                        shutdown(detecteds[i].ident,SHUT_RDWR);
+                        return ;
+                    }
                     if (detecteds[i].flags & EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
                     {
+                        perror("read something");
                         //감지된 fd가 정규파일인지 서버인지 클라이언트꺼인지 검사한다.
                         bool used = false; //찾아서 사용했는지 여부.
                         for (int j(0); j < get_server_list().size(); j++)
                         {   //감지된 fd가 서버쪽 일 때.
-                            if (detecteds[i].ident == get_server_list()[j].fd)
+                            if (detecteds[i].ident == get_server_list()[j].get_fd())
                             {
-                                Client new_client = Client(&this->_ev_cmds);
+                                Client new_client(&this->_ev_cmds);
                                 new_client.setSocket_fd(get_server_list()[j].accept_client()); //브라우저의 연결을 수락.
+                                std::cout << "listen : " << new_client.getSocket_fd() << std::endl;
                                 new_client.set_status_msg(&(this->status_map));
+                                std::cout << "111 " << std::endl;
                                 new_client.set_myserver(&(this->_server_map[detecteds[i].ident])); //클라이언트클래스에서 서버클래스에 접근 할 수 있도록.
+                                std::cout << "222 " << std::endl;
                                 add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE); //감지목록에 등록.
+                                std::cout << "333 " << std::endl;
                                 this->set_client_list(new_client); //클라이언트리스트에도 추가.
+                                std::cout << "444 " << std::endl;
                                 used = true;
                                 break;
                             }
@@ -527,18 +543,29 @@ public:
                                 }
                                 else if (result == RECV_ALL) //모두수신받았을 때.
                                 {
+                                    ///////////////////////////////////
+                                    std::cout << "+++++++++++++++++" << std::endl;
+                                    std::cout << (*it).get_read_buf() << std::endl;
+                                    std::cout << "+++++++++++++++++" << std::endl;
+                                    //////////////////////////////////
                                     add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE); //"읽기가능"감지 끄기.
+                                    std::cout << "aaaa" << std::endl;
                                     if ((*it).parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
                                     {
+                                        std::cout << "wwwww" << std::endl;
                                         (*it).ready_err_response_meta(); //에러응답 준비.
+                                        std::cout << "zzzzz" << std::endl;
                                         break;
                                     }
+                                    std::cout << "qqqq" << std::endl;
                                     (*it).init_client_location(); //경로가 로케이션 경로중에 해당하면 그 경로로 정보를 변경한다.
+                                    std::cout << "eeee" << std::endl;
                                     if ((*it).check_client_err() == true) //400번대 에러가 발생했는지 검사. 있다면 상태코드 설정.
                                     {
                                         (*it).ready_err_response_meta(); //에러응답 준비.
                                         break;
                                     }
+                                    std::cout << "dddd" << std::endl;
                                     if ((*it).check_need_cgi() == false) //파싱된 데이터에 cgi요청이 없을 때.
                                     {
                                         if ((*it).ready_response_meta() == false) //요청에 필요한 데이터 IO하기.
@@ -549,6 +576,7 @@ public:
                                         (*it).setCgi_mode(true); //cgi모드로 설정.
                                         (*it).excute_cgi(); //fork로 보내고 파생된result파일을 읽도록 kq에 등록.
                                     }
+                                    std::cout << "cccc" << std::endl;
                                 }
                                 break;
                             }
@@ -573,6 +601,7 @@ public:
                     }
                     else if (detecteds[i].flags & EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
                     {
+                        perror("write something");
                         bool used = false; //찾았는지 여부.
                         for (std::vector<Client>::iterator it = _client_list.begin(); it != get_client_list().end(); it++)
                         {   //감지된 fd가 클라쪽 일 때.
@@ -627,6 +656,7 @@ public:
             //     this->regist_servers_to_kq();
             //     std::cerr << e.what() << '\n';
             // }
+            std::cout << "================ " << std::endl;
         }
     }
 };

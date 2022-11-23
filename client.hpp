@@ -45,8 +45,14 @@ public:
     Client(std::vector<struct kevent> * cmds) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) {};
     ~Client()
     {
-        if (this->socket_fd != -1)
-            close(this->socket_fd);
+        perror("close Client!");
+        // if (this->socket_fd != -1)
+        //     close(this->socket_fd);
+    }
+
+    std::string get_read_buf()
+    {
+        return this->read_buf;
     }
     Server * get_myserver()
     {
@@ -76,7 +82,7 @@ public:
     {
         this->file_buf = file_buf;
     }
-    int getFile_fd()
+    int & getFile_fd()
     {
         return this->file_fd;
     }
@@ -84,7 +90,7 @@ public:
     {
         this->file_fd = file_fd;
     }
-    int getSocket_fd()
+    int & getSocket_fd()
     {
         return this->socket_fd;
     }
@@ -92,7 +98,7 @@ public:
     {
         this->socket_fd = socket_fd;
     }
-    Request getRequest()
+    Request & getRequest()
     {
         return this->request;
     }
@@ -100,7 +106,7 @@ public:
     {
         this->request = request;
     }
-    Response getResponse()
+    Response & getResponse()
     {
         return this->response;
     }
@@ -302,7 +308,7 @@ public:
         while ((ent = readdir(dir)) != NULL)//경로의 파일들 바디에 넣기
         {
             // .  .. 이건 빼자, 숨긴 파일은 출력을 해보자
-            if (ent->d_name == "." || ent->d_name == "..")
+            if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
                 continue ;
             temp_body = temp_body + "    <a href= " + ent->d_name + ">" + ent->d_name + "</a><br>";
         }
@@ -342,7 +348,7 @@ public:
         //  2. 설정된 파일이 있고, 열리면 논블로킹 설정하고, 현 클라객체 file fd에 등록.
         //  3. 열린파일fd를 "읽기 가능"감지에 등록.  288에서 read 로 변경하기
 
-        Server s = *this->my_server;
+        Server & s = *this->my_server;
         //경로에서 확장자를 확인하고 해당하는 헤더를 반환하는
         if (s.get_default_error_page().count(this->response.getStatus()) == 0)
         {
@@ -740,8 +746,8 @@ public:
         cgi_env_map["SERVER_PROTOCOL"] = "HTTP/1.1";
         cgi_env_map["PATH_INFO"] = ""; // 프로그램명 이후 string 자르는 과정 필요함.
         cgi_env_map["PATH_TRANSLATED"] = std::string(file_path);
-        cgi_env_map["QUERY_STRING"] = this->getRequest().getTarget().substr(this->getRequest().getTarget().find('?'));
-        //cgi_env_map["REMOTE_ADDR"] = std::string(get_client_ip());
+        // cgi_env_map["QUERY_STRING"] = this->getRequest().getTarget().substr(this->getRequest().getTarget().find('?'));
+        // cgi_env_map["REMOTE_ADDR"] = std::string(get_client_ip());
         cgi_env_map["REMOTE_USER"] = "";
         cgi_env_map["SCRIPT_NAME"] = this->getRequest().getTarget();
         //cgi_env_map["SERVER_NAME"] = this->get_myserver()->get_host() + ":" + this->get_myserver()->get_port();
