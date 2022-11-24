@@ -514,7 +514,7 @@ public:
                         shutdown(detecteds[i].ident,SHUT_RDWR);
                         return ;
                     }
-                    if (detecteds[i].flags & EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
+                    if (detecteds[i].filter == EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
                     {
                         perror("read something");
                         //감지된 fd가 정규파일인지 서버인지 클라이언트꺼인지 검사한다.
@@ -614,7 +614,7 @@ public:
                                 // if (result == FAIL || result == RECV_ALL)
                                 //     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비.
                                 if (result == FAIL) //파일 읽기 오류났을 때.
-                                    perror("read file");
+                                    perror("read file fail");
                                 else if (result == RECV_ALL) //모두수신받았을 때.
                                     (*it).init_response(this->_server_map); //클라이언트는 응답 데이터를 제작한다.
                                 break;
@@ -623,7 +623,7 @@ public:
                         perror("?????????????");
                         return;
                     }
-                    else if (detecteds[i].flags & EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
+                    else if (detecteds[i].filter == EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
                     {
                         perror("write something");
                         bool used = false; //찾았는지 여부.
