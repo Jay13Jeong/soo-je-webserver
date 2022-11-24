@@ -31,7 +31,6 @@ private:
     int file_fd; // cgi가 출력한 결과물을 담는 파일의 fd.
     std::string file_buf; //파일의 정보가 저장되는 변수.
     int write_size; //보낸 데이터 크기.
-    int read_size; //파일의 읽은 데이터 크기.
     Location * my_loc; //요청이 처리될 영역을 지정한 로케이션 구조체.
     int server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
     bool cgi_mode; // cgi모드여부.
@@ -43,7 +42,7 @@ private:
 
 public:
     Client(std::vector<struct kevent> * cmds) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) \
-    ,read_buf(""), write_buf(""), file_buf(""), write_size(0), read_size(0), my_loc(NULL), server_fd(-1) \
+    ,read_buf(""), write_buf(""), file_buf(""), write_size(0), my_loc(NULL), server_fd(-1) \
     , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file("") {};
     ~Client()
     {
@@ -148,8 +147,8 @@ public:
             return -1;
         else
         {
-            this->read_buf += std::string(buffer, read_size); //1.읽은 데이터 char[] -> string으로 변환해서 저장.
-            if (read_size < BUFFER_SIZE) //모두 읽었다면..
+            this->read_buf += std::string(buffer, size); //1.읽은 데이터 char[] -> string으로 변환해서 저장.
+            if (size < BUFFER_SIZE) //모두 읽었다면..
                 return 1;
         }
         return 0;
@@ -261,7 +260,7 @@ public:
         if (this->response.getHeader_map().find("content-Type") == this->response.getHeader_map().end())
             this->find_mime_type(this->request.getTarget());
         this->response.setBody(this->file_buf);
-
+        
         //4번.
         std::cerr << "----init_response()->push_write_bud()" << std::endl;
         this->push_write_buf(this->file_buf);
@@ -341,7 +340,7 @@ public:
         //값"text/html",text/css, images/png, jpeg, gif
         //헤더파일형식 Content-Type: text/html;
         std::string temp = util::ft_split(util::ft_split(path, "/").back(), ".").back();//파일 확장자만 반환하기
-
+        
         if (temp == "css")
             this->response.setHeader_map("Content-Type", "text/css");
         else if (temp == "png")
@@ -363,7 +362,7 @@ public:
         //  1. stat으로 지정된 에러페이지(설정되어있다면)가 정규파일이면 바로 open, 에러시 500처리.
         //  2. 설정된 파일이 있고, 열리면 논블로킹 설정하고, 현 클라객체 file fd에 등록.
         //  3. 열린파일fd를 "읽기 가능"감지에 등록.  288에서 read 로 변경하기
-
+        
         Server & s = *this->my_server;
         //경로에서 확장자를 확인하고 해당하는 헤더를 반환하는
         if (s.get_default_error_page().count(this->response.getStatus()) == 0)
@@ -638,7 +637,6 @@ public:
         this->file_fd = -1;
         this->file_buf.clear();
         this->write_size = 0;
-        this->read_size = 0;
         this->cgi_mode = false; // ?
         this->my_loc = NULL;
         this->cgi_program.clear();
