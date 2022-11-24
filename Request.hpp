@@ -110,9 +110,9 @@ public:
                 return (status_code = "400", false);
             else if (util::count_sp(temp_str[0]) != 0)
                 return (status_code = "400", false);
-            for (int j = 1; j < temp_str.size(); j++)
+            temp = temp_str[1];
+            for (int j = 2; j < temp_str.size(); j++)
                 temp = temp + ":" + temp_str[j];
-            std::cout << temp_str[0] << std::endl;
             setHeaders(temp_str[0], temp);
             i++;
         }

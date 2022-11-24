@@ -542,7 +542,7 @@ public:
                                 std::cerr << "222 " << std::endl;
                                 add_kq_event(client_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //감지목록에 등록.
                                 // add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_DELETE); //감지목록에 등록.
-                                //add_kq_event(client_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
+                                add_kq_event(client_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
                                 std::cerr << "333 " << std::endl;
                                 this->set_client_list(new_client); //클라이언트리스트에도 추가.
                                 std::cerr << "444 " << std::endl;
@@ -637,7 +637,7 @@ public:
                             }
                         }
                         perror("?????????????");
-                        return;
+                        //return;
                     }
                     else if (curr_det->filter == EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
                     {
