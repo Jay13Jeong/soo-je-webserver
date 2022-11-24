@@ -111,7 +111,7 @@ public:
             else if (util::count_sp(temp_str[0]) != 0)
                 return (status_code = "400", false);
             for (int j = 1; j < temp_str.size(); j++)
-                temp = temp + temp_str[j];
+                temp = temp + ":" + temp_str[j];
             setHeaders(temp_str[0], temp);
             i++;
         }

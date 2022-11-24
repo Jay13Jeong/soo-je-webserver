@@ -229,7 +229,7 @@ public:
         Server s = server_map[this->server_fd];
         this->response.setVersion(this->request.getVersion());
         this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
-        
+
         if (this->response.getHeader_map().find("server") == this->response.getHeader_map().end())
             this->response.setHeader_map("server", "soo-je-webserver");
         if (this->response.getHeader_map().find("Date") == this->response.getHeader_map().end())
@@ -238,14 +238,14 @@ public:
             this->response.setHeader_map("Connection", "keep-alive");
         if (this->response.getHeader_map().find("Accept-Ranges") == this->response.getHeader_map().end())
             this->response.setHeader_map("Accept-Ranges", "bytes");
-        
-        
+
+
         //1. 위와 같이 응답클래스를 초기화한다.
         //2. file_buf의 크기를 헤더필드 Content-Length에 추가한다. 그외에 필요한 정보가 있으면 추가.
         //3. (cgi냐 단순html파일이냐 에따라 다르게 file_buf 컨트롤 필요).
         //4. 맴버변수 write_buf에 하나의 데이터로 저장한다. (시작줄 + 헤더 + file_buf).
         //5. kq에 소켓을 "쓰기가능"감지로 등록.
-        
+
         //2번내용
         if (this->response.getHeader_map().find("Content-Length") != this->response.getHeader_map().end())
             this->response.getHeader_map().erase("Content-Length");
@@ -256,29 +256,34 @@ public:
         this->response.setBody(this->file_buf);
 
         //4번.
+        std::cout << "----init_response()->push_write_bud()" << std::endl;
         this->push_write_buf(this->file_buf);
 
         add_kq_event(this->socket_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //소켓을을 쓰기감지에 예약.
         return true; //문제없이 응답클래스를 초기화했으면 true반환
     }
-    
+
     void push_write_buf(std::string response_body)
     {
         //스타트라인
-        this->write_buf = this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() + "/r/n";
+        this->write_buf = this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() + "\r\n";
         //헤더 부분
         std::map<std::string, std::string> temp = this->request.getHeaders();
     	std::map<std::string,std::string>::iterator iter;
 	    for(iter = temp.begin() ; iter != temp.end(); iter++)
-		    this->write_buf = this->write_buf + iter->first + ": " + iter->second + "/r/n";
+		    this->write_buf = this->write_buf + iter->first + ": " + iter->second + "\r\n";
         //개행추가 부분, cgi의 경우 바디 윗부분에 개행이 추가되어있다.바디에 개행이 추가되는 것을 방지.
         if (this->cgi_mode == false)
-            this->write_buf = this->write_buf + "/r/n";
+            this->write_buf = this->write_buf + "\r\n";
         //바디 부분
         if (response_body.size() != 0)
             this->write_buf = this->write_buf + response_body;
+
+        std::cout << "----push_write_bud()에서 실행, write_buf 출력--------------------" << std::endl;
+        std::cout << write_buf << std::endl;
+        std::cout << "--------------------------------------------------------------" << std::endl;
     }
-    
+
     //오토인데스 응답페이지를 만들고 송신준비를 하는 메소드.
     void init_autoindex_response(std::string path)
     {
@@ -320,7 +325,7 @@ public:
         this->response.setHeader_map("Content-Length", util::num_to_string(this->response.getBody().length()));//바디 크기
         this->response.setBody(temp_body);//바디 입력
         closedir(dir);
-
+        std::cout << "----init_autoindex_response()->push_write_bud()에서 실행--------------------" << std::endl;
         push_write_buf(this->response.getBody());
     }
 
@@ -366,7 +371,7 @@ public:
             this->response.setHeader_map("Connection", "keep-alive");
             this->response.setHeader_map("Accept-Ranges", "bytes");
             this->response.setBody(this->response.getStatus());
-            
+             std::cout << "----ready_err_response_meta()->if()->push_write_bud()" << std::endl;
             push_write_buf(this->response.getBody());
             // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
             add_kq_event(this->file_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //파일을 쓰기감지에 예약.
@@ -418,7 +423,7 @@ public:
             this->response.setHeader_map("Connection", "keep-alive");
         if (this->response.getHeader_map().find("Accept-Ranges") == this->response.getHeader_map().end())
             this->response.setHeader_map("Accept-Ranges", "bytes");
-
+        std::cout << "----init_delete_response()->push_write_bud()" << std::endl;
         push_write_buf("\0");
         //DELETE용 응답데이터 (시작줄 + 헤더 + 바디)만들기....
     }
@@ -492,7 +497,7 @@ public:
                 path.erase(--(path.end()));
                 unlink(path.c_str()); //있든없든 지우고본다. (RFC: 서버는 삭제를 보장하지않음.)
             }
-            this->init_delete_response(); 
+            this->init_delete_response();
             //3.kq에 "쓰기가능"감지으로 등록한다.
             //구현중...
         }
@@ -590,7 +595,7 @@ public:
         if (match_cgi == cgi_infos.end()) //지원하는 cgi가 없다면 false반환
             return (false);
         else    //지원한다면 값을 맴버변수에 할당.
-            this->cgi_program = match_cgi->second; 
+            this->cgi_program = match_cgi->second;
         while (this->getRequest().getTarget()[offset] != '/') //현재 확장자의 파일이름이 있는 곳으로 포인터를 옮긴다.
             offset--;
         this->cgi_file = this->getRequest().getTarget().substr(offset + 1, curr - offset - 1); //파일이름 + 확장자 형식의 순수 파일명을 뽑기.
@@ -602,6 +607,18 @@ public:
     {
         if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
             return false;
+        std::cout << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
+        std::cout << "Method : " << this->request.getMethod() << std::endl;
+	    std::cout << "Target : " << this->request.getTarget() << std::endl;
+	    std::cout << "Version : " << this->request.getVersion() << std::endl;
+	    std::cout << "Headers: " << std::endl;
+	    std::map<std::string, std::string> temp = this->request.getHeaders();
+	    std::map<std::string,std::string>::iterator iter;
+	    for(iter = temp.begin() ; iter != temp.end(); iter++){
+		    std::cout << iter->first << ":"<< iter->second << std::endl;
+	    }
+	    std::cout << "Body : " << this->request.getBody() << std::endl;
+        std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
         return true; //문제없이 파싱이 끝나면 true반환.
     }
 
@@ -702,7 +719,7 @@ public:
                 char **arg = (char **)malloc(sizeof(char *) * 2);
                 arg[0] = strdup("./cgi-bin/cgi_tester");
                 arg[1] = NULL;
-                if (execve(arg[0], arg, env) == -1) 
+                if (execve(arg[0], arg, env) == -1)
                 {
                     perror("execve err bla");
                     exit(1);
@@ -825,7 +842,7 @@ public:
         /*
             * from : https://www.oreilly.com/openbook/cgi/ch02_04.html
             * http://some.machine/cgi-bin/display.pl/cgi/cgi_doc.txt
-            * Since the server knows that display.pl is the name of the program, 
+            * Since the server knows that display.pl is the name of the program,
             * the string "/cgi/cgi_doc.txt" is stored in the environment variable PATH_INFO.
             * Meanwhile, the variable PATH_TRANSLATED is also set, which maps the information stored in PATH_INFO to the document root directory
             * (e.g., /usr/local/etc/httpd/ public/cgi/cgi-doc.txt).
