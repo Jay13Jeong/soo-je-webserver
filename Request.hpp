@@ -121,7 +121,7 @@ public:
         else if ((getMethod() == "GET" || getMethod() == "DELETE") && !(i == temp_data.size() || i == temp_data.size() - 1))
             return (status_code = "400", false);
         else if ((getMethod() == "POST") && (i == temp_data.size() || i == temp_data.size() - 1))
-            return (status_code = "400", false);
+            return (status_code = "411", false);
         //바디부분
         temp = "";
         while (i < temp_data.size())
