@@ -32,7 +32,7 @@ private:
     std::map<int,Server> _server_map; //서버 맵.
     std::map<int,Client> _client_map; //클라이언트 맵.
     std::map<std::string, std::string> status_map;
- 
+
 public:
     Webserv(/* args */){};
     ~Webserv(){};
@@ -67,7 +67,7 @@ public:
     bool    check_config_validation(std::ifstream &config_fd)
     {
         /*  체크사항
-            노션 - 결정 사항 (11/16) 페이지에 정리해둠. 
+            노션 - 결정 사항 (11/16) 페이지에 정리해둠.
         */
         std::string line;
         std::stack<std::string> bracket_stack;
@@ -93,7 +93,7 @@ public:
                 // 가능한 유일한 입력 : server {
                 if (semicolon_cnt != 0)
                     return (false);
-                    
+
                 if (split_result.size() != 2 || split_result[1] != "{")
                     return (false);
                 bracket_stack.push("{"); // 여는 괄호를 넣어준다.
@@ -101,7 +101,7 @@ public:
             else if (split_result[0] == "listen")
             {
                 // 가능한 입력 : listen 80; listen 70 ;
-                if (set == false || semicolon_cnt != 1 || split_result.size() != 2) // 
+                if (set == false || semicolon_cnt != 1 || split_result.size() != 2) //
                     return (false);
                 if (util::is_numeric(split_result[1]) == false)
                     return (false);
@@ -109,7 +109,7 @@ public:
             else if (split_result[0] == "host")
             {
                 // 가능한 입력 : host 127.0.0.1; host 127.0.0.1 ;
-                if (set == false || semicolon_cnt != 1 || split_result.size() != 2) // 
+                if (set == false || semicolon_cnt != 1 || split_result.size() != 2) //
                     return (false);
                 if ((split_result[1] != "127.0.0.1"))
                     return (false);
@@ -207,7 +207,7 @@ public:
                     else if (split_result[0] == "index" || split_result[0] == "accept_method")
                     {
                         if (split_result.size() == 1)
-                            return (false); 
+                            return (false);
                     }
                 }
             }
@@ -219,7 +219,7 @@ public:
                     return (false);
                 bracket_stack.pop();
             }
-            else 
+            else
             {
                 // error
                 return (false);
@@ -414,10 +414,12 @@ public:
         EV_SET(&new_event, ident, filter, flags, 0, 0, NULL);
         this->_ev_cmds.push_back(new_event);
     }
-    
+
     //서버들을 감지목록에 추가하는 메소드.
     void regist_servers_to_kq()
     {
+        std::cout << "server_list : " << this->get_server_list().size() << ",," << this->get_server_list().back().get_fd() << std::endl;
+
         for (int i(0);i < this->get_server_list().size();i++)
             add_kq_event(this->get_server_list()[i].get_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
     }
@@ -430,7 +432,7 @@ public:
             // this->_server_map[this->_server_list[i].fd].init_location_map(); //로케이션 맵도 같이 초기화.
             // this->_server_map[this->_server_list[i].fd].init_default_location(); //로케이션 초기화대상이없으면 하나 만들어주기.
         }
-            
+
     }
 
     void init_status_map()
@@ -517,6 +519,7 @@ public:
                         return ;
                     }
                     if (curr_det->filter & EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
+
                     {
                         perror("read something");
                         //감지된 fd가 정규파일인지 서버인지 클라이언트꺼인지 검사한다.
@@ -546,6 +549,7 @@ public:
                                 break;
                             }
                         }
+                        std::cout << "cli back() fd : " << this->get_client_list().back().getSocket_fd() << std::endl;
                         if (used == true)
                             continue;
                         for (std::vector<Client>::iterator it = _client_list.begin(); it != get_client_list().end(); it++)
