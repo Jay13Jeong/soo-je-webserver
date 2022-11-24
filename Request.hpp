@@ -27,7 +27,7 @@ public:
     }
 
 public:
-    std::string & getTarget()
+    std::string &getTarget()
     {
         return this->target;
     }
