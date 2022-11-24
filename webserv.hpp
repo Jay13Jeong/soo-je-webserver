@@ -518,7 +518,7 @@ public:
                         shutdown(curr_det->ident,SHUT_RDWR);
                         return ;
                     }
-                    if (curr_det->filter & EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
+                    if (curr_det->filter == EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
 
                     {
                         perror("read something");
@@ -639,7 +639,7 @@ public:
                         perror("?????????????");
                         return;
                     }
-                    else if (curr_det->filter & EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
+                    else if (curr_det->filter == EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
                     {
                         perror("write something");
                         bool used = false; //찾았는지 여부.
