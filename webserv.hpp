@@ -429,8 +429,8 @@ public:
         for (int i(0);i < this->get_server_list().size();i++)
         {
             this->_server_map[this->_server_list[i].fd] = this->_server_list[i];
-            // this->_server_map[this->_server_list[i].fd].init_location_map(); //로케이션 맵도 같이 초기화.
-            // this->_server_map[this->_server_list[i].fd].init_default_location(); //로케이션 초기화대상이없으면 하나 만들어주기.
+            this->_server_map[this->_server_list[i].fd].init_location_map(); //로케이션 맵도 같이 초기화.
+            this->_server_map[this->_server_list[i].fd].init_default_location(); //로케이션 초기화대상이없으면 하나 만들어주기.
         }
 
     }
@@ -512,7 +512,7 @@ public:
                             {
                                 perror("client_socket_flag_err");
                                 shutdown(curr_det->ident,SHUT_RDWR);
-                                return;        
+                                return;
                             }
                         perror("file_socket_flag_err");
                         shutdown(curr_det->ident,SHUT_RDWR);
@@ -542,7 +542,7 @@ public:
                                 std::cerr << "222 " << std::endl;
                                 add_kq_event(client_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //감지목록에 등록.
                                 // add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_DELETE); //감지목록에 등록.
-                                add_kq_event(client_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
+                                //add_kq_event(client_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
                                 std::cerr << "333 " << std::endl;
                                 this->set_client_list(new_client); //클라이언트리스트에도 추가.
                                 std::cerr << "444 " << std::endl;

@@ -281,10 +281,11 @@ public:
             this->response.getHeader_map().erase("Content-Length");
         this->response.setHeader_map("Content-Length", util::num_to_string(this->file_buf.size()));
         //1번 내용, cgi 경우로 인해 못 한 것 추가
+
         if (this->response.getHeader_map().find("content-Type") == this->response.getHeader_map().end())
             this->find_mime_type(this->request.getTarget());
         this->response.setBody(this->file_buf);
-        
+
         //4번.
         std::cerr << "----init_response()->push_write_bud()" << std::endl;
         this->push_write_buf(this->file_buf);
@@ -361,10 +362,13 @@ public:
 
     void find_mime_type(std::string path)
     {
+        std::string temp = "";
         //값"text/html",text/css, images/png, jpeg, gif
         //헤더파일형식 Content-Type: text/html;
-        std::string temp = util::ft_split(util::ft_split(path, "/").back(), ".").back();//파일 확장자만 반환하기
-        
+
+        if (util::ft_split(path, "./").size() != 0)
+            temp = util::ft_split_s(util::ft_split_s(path, "/").back(), ".").back();//파일 확장자만 반환하기
+
         if (temp == "css")
             this->response.setHeader_map("Content-Type", "text/css");
         else if (temp == "png")
@@ -386,7 +390,7 @@ public:
         //  1. stat으로 지정된 에러페이지(설정되어있다면)가 정규파일이면 바로 open, 에러시 500처리.
         //  2. 설정된 파일이 있고, 열리면 논블로킹 설정하고, 현 클라객체 file fd에 등록.
         //  3. 열린파일fd를 "읽기 가능"감지에 등록.  288에서 read 로 변경하기
-        
+
         Server & s = *this->my_server;
         //경로에서 확장자를 확인하고 해당하는 헤더를 반환하는
         if (s.get_default_error_page().count(this->response.getStatus()) == 0)
@@ -404,7 +408,7 @@ public:
             this->response.setBody(this->response.getStatus());
              std::cerr << "----ready_err_response_meta()->if()->push_write_bud()" << std::endl;
             push_write_buf(this->response.getBody());
-            // add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); 
+            // add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
         }
         else
         {
