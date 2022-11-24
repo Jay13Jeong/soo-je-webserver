@@ -47,6 +47,7 @@ public:
     ~Client()
     {
         perror("close Client!");
+        std::cout << "cli socket fd :" << this->socket_fd << ", cli file fd : " << this->file_fd << std::endl;
         // if (this->socket_fd != -1)
         //     close(this->socket_fd);
     }
