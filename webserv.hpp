@@ -427,8 +427,8 @@ public:
         for (int i(0);i < this->get_server_list().size();i++)
         {
             this->_server_map[this->_server_list[i].fd] = this->_server_list[i];
-            this->_server_map[this->_server_list[i].fd].init_location_map(); //로케이션 맵도 같이 초기화.
-            this->_server_map[this->_server_list[i].fd].init_default_location(); //로케이션 초기화대상이없으면 하나 만들어주기.
+            // this->_server_map[this->_server_list[i].fd].init_location_map(); //로케이션 맵도 같이 초기화.
+            // this->_server_map[this->_server_list[i].fd].init_default_location(); //로케이션 초기화대상이없으면 하나 만들어주기.
         }
             
     }
@@ -539,7 +539,7 @@ public:
                                 std::cerr << "222 " << std::endl;
                                 add_kq_event(client_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //감지목록에 등록.
                                 // add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_DELETE); //감지목록에 등록.
-                                // add_kq_event(new_client.getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE);
+                                add_kq_event(client_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
                                 std::cerr << "333 " << std::endl;
                                 this->set_client_list(new_client); //클라이언트리스트에도 추가.
                                 std::cerr << "444 " << std::endl;
@@ -619,8 +619,8 @@ public:
                                 perror("read file");
                                 int result = (*it).read_file(); //클라이언트객체는 파일을 읽는다.
                                 perror("z1111111");
-                                if (result == FAIL || result == RECV_ALL)
-                                    add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비.
+                                // if (result == FAIL || result == RECV_ALL)
+                                //     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비.
                                 perror("z222222");
                                 if (result == FAIL) //파일 읽기 오류났을 때.
                                 {
@@ -670,8 +670,8 @@ public:
                             if (curr_det->ident == (*it).getFile_fd())
                             {
                                 int result = (*it).write_file(); //클라이언트객체는 파일을 작성한다.
-                                if (result == FAIL || result == SEND_ALL)
-                                    add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비. (리스폰스제작과 연계)
+                                // if (result == FAIL || result == SEND_ALL)
+                                //     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비. (리스폰스제작과 연계)
                                 if (result == FAIL) //파일 쓰기 오류났을 때.
                                     perror("write file");
                                 else if (result == SEND_ALL) //모두작성했을 때.

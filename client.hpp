@@ -288,7 +288,7 @@ public:
         std::cerr << "----init_response()->push_write_bud()" << std::endl;
         this->push_write_buf(this->file_buf);
 
-        add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓을을 쓰기감지에 예약.
+        // add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓을을 쓰기감지에 예약.
         return true; //문제없이 응답클래스를 초기화했으면 true반환
     }
 
@@ -403,7 +403,7 @@ public:
             this->response.setBody(this->response.getStatus());
              std::cerr << "----ready_err_response_meta()->if()->push_write_bud()" << std::endl;
             push_write_buf(this->response.getBody());
-            add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); 
+            // add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); 
         }
         else
         {
