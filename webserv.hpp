@@ -483,6 +483,7 @@ public:
         kq_fd = kqueue();
         while ("soo-je-webserv")
         {
+            std::cerr << "================ while start ===================== " << std::endl;
             // try
             // {
                 detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, NULL);
@@ -545,13 +546,13 @@ public:
                         {   //감지된 fd가 클라쪽 일 때.
                             if (detecteds[i].ident == (*it).getSocket_fd())
                             {
+                                std::cerr << "---------client start ------------------" << std::endl;
                                 perror("read client");
                                 std::cerr << "fd : " << (*it).getSocket_fd() << std::endl;
                                 used = true;
                                 int result = (*it).recv_data();
                                 if (result == FAIL)
                                 {
-                                    perror("recv client err");
                                     close((*it).getSocket_fd());
                                     this->_client_list.erase(it); //kq에서 읽기가능이라고 했는데도 데이터를 읽을 수 없다면 삭제한다.
                                 }
@@ -566,34 +567,38 @@ public:
                                     std::cerr << "aaaa" << std::endl;
                                     if ((*it).parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
                                     {
-                                        std::cerr << "wwwww" << std::endl;
+                                        std::cerr << "bbbbbb" << std::endl;
                                         (*it).ready_err_response_meta(); //에러응답 준비.
-                                        std::cerr << "zzzzz" << std::endl;
+                                        std::cerr << "ccccccc" << std::endl;
                                         break;
                                     }
-                                    std::cerr << "qqqq" << std::endl;
+                                    std::cerr << "ddddddd" << std::endl;
                                     (*it).init_client_location(); //경로가 로케이션 경로중에 해당하면 그 경로로 정보를 변경한다.
-                                    std::cerr << "eeee" << std::endl;
+                                    std::cerr << "eeeeeee" << std::endl;
                                     if ((*it).check_client_err() == true) //400번대 에러가 발생했는지 검사. 있다면 상태코드 설정.
                                     {
-                                        std::cerr << "rrrrr" << std::endl;
+                                        std::cerr << "fffffff" << std::endl;
                                         (*it).ready_err_response_meta(); //에러응답 준비.
-                                        std::cerr << "ttttt" << std::endl;
+                                        std::cerr << "gggggg" << std::endl;
                                         break;
                                     }
-                                    std::cerr << "dddd" << std::endl;
+                                    std::cerr << "hhhhh" << std::endl;
                                     if ((*it).check_need_cgi() == false) //파싱된 데이터에 cgi요청이 없을 때.
                                     {
+                                        std::cerr << "iiiiii" << std::endl;
                                         if ((*it).ready_response_meta() == false) //요청에 필요한 데이터 IO하기.
                                             (*it).ready_err_response_meta();
+                                        std::cerr << "jjjjjjj" << std::endl;
                                     }
                                     else //cgi요청이 있을 때. (POST)
                                     {
+                                        std::cerr << "kkkkkk" << std::endl;
                                         (*it).setCgi_mode(true); //cgi모드로 설정.
                                         (*it).excute_cgi(); //fork로 보내고 파생된result파일을 읽도록 kq에 등록.
+                                        std::cerr << "lllllll" << std::endl;
                                     }
-                                    std::cerr << "cccc" << std::endl;
                                 }
+                                std::cerr << "--------- client end ------------------" << std::endl;
                                 break;
                             }
                         }
@@ -676,7 +681,7 @@ public:
             //     this->regist_servers_to_kq();
             //     std::cerr << e.what() << '\n';
             // }
-            std::cerr << "================ " << std::endl;
+            std::cerr << "================ while end ===================== " << std::endl;
         }
     }
 };

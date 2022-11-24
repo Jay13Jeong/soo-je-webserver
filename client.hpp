@@ -30,8 +30,8 @@ private:
     Response response; //response를 제작하는 클래스.
     int file_fd; // cgi가 출력한 결과물을 담는 파일의 fd.
     std::string file_buf; //파일의 정보가 저장되는 변수.
-    size_t write_size; //보낸 데이터 크기.
-    size_t read_size; //파일의 읽은 데이터 크기.
+    int write_size; //보낸 데이터 크기.
+    int read_size; //파일의 읽은 데이터 크기.
     Location * my_loc; //요청이 처리될 영역을 지정한 로케이션 구조체.
     int server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
     bool cgi_mode; // cgi모드여부.
@@ -133,13 +133,18 @@ public:
     //클라이언트 소켓에서 데이터를 읽어서 본인의 read_buf버퍼에 저장하는 메소드. 실패 -1 성공 0 모두받음 1 반환.
     int recv_data( void )
     {
-        size_t read_size;
+        int size;
         char    buffer[BUFFER_SIZE];
 
-        if ((this->read_buf.size() + BUFFER_SIZE) < this->read_buf.size()) //string 용량 초과시 예외처리.
+        // if ((this->read_buf.size() + BUFFER_SIZE) < this->read_buf.size()) //string 용량 초과시 예외처리.
+        //     return -1;
+        size = recv(this->socket_fd, buffer, BUFFER_SIZE, 0);
+        if (size == -1)
+        {
+            perror("recv client err");
             return -1;
-        read_size = recv(this->socket_fd, buffer, BUFFER_SIZE, 0);
-        if (read_size == -1 || read_size == 0)
+        }
+        if (size == 0)
             return -1;
         else
         {
@@ -153,17 +158,17 @@ public:
     //지정한 파일에서 데이터를 읽어서 본인의 file_buf버퍼에 저장하는 메소드. 실패 -1 성공 0 모두받음 1 반환.
     int read_file( void )
     {
-        size_t read_size;
+        int size;
         char    buffer[BUFFER_SIZE];
 
-        if ((this->file_buf.size() + BUFFER_SIZE) < this->file_buf.size()) //string 용량 초과시 예외처리.
-        {
-            close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
-            this->file_fd = -1;
-            return -1;
-        }
-        read_size = read(this->getFile_fd(), buffer, BUFFER_SIZE);
-        if (read_size == -1)
+        // if ((this->file_buf.size() + BUFFER_SIZE) < this->file_buf.size()) //string 용량 초과시 예외처리.
+        // {
+        //     close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
+        //     this->file_fd = -1;
+        //     return -1;
+        // }
+        size = read(this->getFile_fd(), buffer, BUFFER_SIZE);
+        if (size == -1)
         {
             close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
             this->file_fd = -1;
@@ -171,8 +176,8 @@ public:
         }
         else
         {
-            this->file_buf += std::string(buffer, read_size);
-            if (read_size < BUFFER_SIZE)
+            this->file_buf += std::string(buffer, size);
+            if (size < BUFFER_SIZE)
             {
                 close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
                 this->file_fd = -1;
@@ -185,7 +190,7 @@ public:
     //지정한 파일에 file_buf를 write하는 메소드. 실패 -1 성공 0 모두보냄 1 반환.
     int write_file( void )
     {
-        size_t size;
+        int size;
 
         size = write(this->getFile_fd(), file_buf.c_str() + (this->write_size), file_buf.length() - (this->write_size));
         if (size == -1)
@@ -209,13 +214,13 @@ public:
     //응답데이터를 소켓에게 전송하는 메소드.
     int send_data()
     {
-        size_t send_size;
+        int size;
 
-        send_size = send(this->socket_fd, this->write_buf.c_str() + (this->write_size), this->write_buf.length() - (this->write_size), 0);
-        if (send_size == -1) //데이터전송 실패 했을 때.
+        size = send(this->socket_fd, this->write_buf.c_str() + (this->write_size), this->write_buf.length() - (this->write_size), 0);
+        if (size == -1) //데이터전송 실패 했을 때.
             return -1; //호출한 부분에서 이 클라이언트 제거.
 
-        this->write_size += send_size;
+        this->write_size += size;
         if (this->write_size >= this->write_buf.length())
         {
             //**추가적으로 송신 완료여부 검사 필요할지도.
@@ -258,7 +263,7 @@ public:
         this->response.setBody(this->file_buf);
 
         //4번.
-        std::cout << "----init_response()->push_write_bud()" << std::endl;
+        std::cerr << "----init_response()->push_write_bud()" << std::endl;
         this->push_write_buf(this->file_buf);
 
         // add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓을을 쓰기감지에 예약.
@@ -281,9 +286,9 @@ public:
         if (response_body.size() != 0)
             this->write_buf = this->write_buf + response_body;
 
-        std::cout << "----push_write_bud()에서 실행, write_buf 출력--------------------" << std::endl;
-        std::cout << write_buf << std::endl;
-        std::cout << "--------------------------------------------------------------" << std::endl;
+        std::cerr << "----push_write_bud()에서 실행, write_buf 출력--------------------" << std::endl;
+        std::cerr << write_buf << std::endl;
+        std::cerr << "--------------------------------------------------------------" << std::endl;
     }
 
     //오토인데스 응답페이지를 만들고 송신준비를 하는 메소드.
@@ -327,7 +332,7 @@ public:
         this->response.setHeader_map("Content-Length", util::num_to_string(this->response.getBody().length()));//바디 크기
         this->response.setBody(temp_body);//바디 입력
         closedir(dir);
-        std::cout << "----init_autoindex_response()->push_write_bud()에서 실행--------------------" << std::endl;
+        std::cerr << "----init_autoindex_response()->push_write_bud()에서 실행--------------------" << std::endl;
         push_write_buf(this->response.getBody());
     }
 
@@ -374,7 +379,7 @@ public:
             this->response.setHeader_map("Connection", "keep-alive");
             this->response.setHeader_map("Accept-Ranges", "bytes");
             this->response.setBody(this->response.getStatus());
-             std::cout << "----ready_err_response_meta()->if()->push_write_bud()" << std::endl;
+             std::cerr << "----ready_err_response_meta()->if()->push_write_bud()" << std::endl;
             push_write_buf(this->response.getBody());
         }
         else
@@ -425,7 +430,7 @@ public:
             this->response.setHeader_map("Connection", "keep-alive");
         if (this->response.getHeader_map().find("Accept-Ranges") == this->response.getHeader_map().end())
             this->response.setHeader_map("Accept-Ranges", "bytes");
-        std::cout << "----init_delete_response()->push_write_bud()" << std::endl;
+        std::cerr << "----init_delete_response()->push_write_bud()" << std::endl;
         push_write_buf("\0");
         //DELETE용 응답데이터 (시작줄 + 헤더 + 바디)만들기....
     }
@@ -609,18 +614,18 @@ public:
     {
         if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
             return false;
-        std::cout << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
-        std::cout << "Method : " << this->request.getMethod() << std::endl;
-	    std::cout << "Target : " << this->request.getTarget() << std::endl;
-	    std::cout << "Version : " << this->request.getVersion() << std::endl;
-	    std::cout << "Headers: " << std::endl;
+        std::cerr << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
+        std::cerr << "Method : " << this->request.getMethod() << std::endl;
+	    std::cerr << "Target : " << this->request.getTarget() << std::endl;
+	    std::cerr << "Version : " << this->request.getVersion() << std::endl;
+	    std::cerr << "Headers: " << std::endl;
 	    std::map<std::string, std::string> temp = this->request.getHeaders();
 	    std::map<std::string,std::string>::iterator iter;
 	    for(iter = temp.begin() ; iter != temp.end(); iter++){
-		    std::cout << iter->first << ":"<< iter->second << std::endl;
+		    std::cerr << iter->first << ":"<< iter->second << std::endl;
 	    }
-	    std::cout << "Body : " << this->request.getBody() << std::endl;
-        std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+	    std::cerr << "Body : " << this->request.getBody() << std::endl;
+        std::cerr << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
         return true; //문제없이 파싱이 끝나면 true반환.
     }
 
