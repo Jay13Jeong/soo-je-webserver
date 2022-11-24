@@ -51,7 +51,20 @@ public:
         // if (this->socket_fd != -1)
         //     close(this->socket_fd);
     }
-
+    // void get_client_status()
+    // {
+    //     std::cerr << this->socket_fd << " //클라이언트 소켓 fd." << std::endl;
+    //     std::cerr << this->read_buf<< "//소켓에서 읽어온 비정제 데이터. (추후 파싱필요)" <<std::endl;
+    //     std::cerr << this->write_buf; //응답 클래스로 보낼 데이터.
+    //     std::cerr << this->file_fd; // cgi가 출력한 결과물을 담는 파일의 fd.
+    //     std::cerr << this->file_buf; //파일의 정보가 저장되는 변수.
+    //     std::cerr << this->write_size; //보낸 데이터 크기.
+    //     std::cerr << this->read_size; //파일의 읽은 데이터 크기.
+    //     std::cerr << this->server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
+    //     std::cerr << this->cgi_mode; // cgi모드여부.
+    //     std::cerr << this->cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")
+    //     std::cerr << this->cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")
+    // }
     std::string get_read_buf()
     {
         return this->read_buf;
@@ -92,7 +105,7 @@ public:
     {
         this->file_fd = file_fd;
     }
-    int & getSocket_fd()
+    int getSocket_fd()
     {
         return this->socket_fd;
     }
@@ -149,6 +162,9 @@ public:
         else
         {
             this->read_buf += std::string(buffer, size); //1.읽은 데이터 char[] -> string으로 변환해서 저장.
+            std::cerr << this->read_buf << " : buff" << std::endl;
+            std::cerr << this->socket_fd << " : sock" << std::endl;
+
             if (size < BUFFER_SIZE) //모두 읽었다면..
                 return 1;
         }
@@ -167,8 +183,15 @@ public:
         //     this->file_fd = -1;
         //     return -1;
         // }
-        size = read(this->getFile_fd(), buffer, BUFFER_SIZE);
+        size = read(this->file_fd, buffer, BUFFER_SIZE);
         if (size == -1)
+        {
+            close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
+            this->file_fd = -1;
+            perror("read file fail...");
+            return -1;
+        }
+        if (size == 0)
         {
             close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
             this->file_fd = -1;
@@ -231,9 +254,9 @@ public:
     }
 
     //응답클래스를 제작하는 메소드.
-    bool init_response(std::map<int,Server> & server_map)
+    bool init_response()
     {
-        Server s = server_map[this->server_fd];
+        Server & s = *this->my_server;
         this->response.setVersion(this->request.getVersion());
         this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
 
@@ -381,6 +404,7 @@ public:
             this->response.setBody(this->response.getStatus());
              std::cerr << "----ready_err_response_meta()->if()->push_write_bud()" << std::endl;
             push_write_buf(this->response.getBody());
+            // add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); 
         }
         else
         {
@@ -474,14 +498,15 @@ public:
                 else //conf에서의 index목록중에 있다면 해당 경로로 대치.
                     path = abs_path;
             }
-            this->file_fd = open(path.c_str(),O_RDONLY);
+            this->file_fd = open(path.c_str(),O_RDONLY, 0755);
             if (this->file_fd == -1) //열기 실패시.
             {
                 this->getResponse().setStatus("500"); //500처리.
                 return false; //바로 에러 페이지 제작 필요.
             }
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
-            add_kq_event(this->file_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //파일을 쓰기감지에 예약.
+            add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //파일을 읽기감지에 예약.
+            std::cerr << "get(post) done : " << this->file_fd << std::endl;
         }
         else if (this->request.getMethod() == "DELETE")
         {
@@ -526,7 +551,7 @@ public:
                 this->getResponse().setStatus("500"); //500처리.
                     return false; //바로 에러 페이지 제작 필요.
             }
-            this->file_fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC); //읽기전용, 없으면만듬, 덮어쓰기.
+            this->file_fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755); //읽기전용, 없으면만듬, 덮어쓰기.
             if (this->file_fd == -1)
             {
                 this->getResponse().setStatus("500"); //500처리.
@@ -695,7 +720,7 @@ public:
     bool excute_cgi()
     {
         std::string file_name = "cgi_result_" + util::num_to_string(this->socket_fd);
-        if ((this->file_fd = open(file_name.c_str(), O_RDWR | O_CREAT | O_APPEND)) == -1)//읽쓰기, 없으면만듬, 이어쓰기가능.
+        if ((this->file_fd = open(file_name.c_str(), O_RDWR | O_CREAT | O_APPEND, 0755)) == -1)//읽쓰기, 없으면만듬, 이어쓰기가능.
         {
             perror("open cgi_result err");
             this->getResponse().setStatus("500"); //500처리.

@@ -130,7 +130,7 @@ public:
         
         int opt = 1;
         // 예약) 포트가 선점되어 있을 시 강제로 열도록 예약한다.
-        if (setsockopt(this->fd, SOL_SOCKET, SO_REUSEADDR , &opt, sizeof(opt))) {
+        if (setsockopt(this->fd, SOL_SOCKET, SO_REUSEADDR , &opt, sizeof(opt)) == -1) {
             perror("set_sockopt");
             //**throw
         }
