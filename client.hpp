@@ -302,7 +302,7 @@ public:
         std::map<std::string, std::string> temp = this->request.getHeaders();
     	std::map<std::string,std::string>::iterator iter;
 	    for(iter = temp.begin() ; iter != temp.end(); iter++)
-		    this->write_buf = this->write_buf + iter->first + ": " + iter->second + "\r\n";
+		    this->write_buf = this->write_buf + iter->first + ":" + iter->second + "\r\n";
         //개행추가 부분, cgi의 경우 바디 윗부분에 개행이 추가되어있다.바디에 개행이 추가되는 것을 방지.
         if (this->cgi_mode == false)
             this->write_buf = this->write_buf + "\r\n";
