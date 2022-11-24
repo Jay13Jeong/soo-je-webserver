@@ -498,6 +498,7 @@ public:
                 for (int i(0); i < detected_count; i++)
                 {
                     curr_det = &detecteds[i];
+                    std::cout << i << std::endl;
                     if (curr_det->flags & EV_ERROR)
                     {
                         for (int j(0); j < get_server_list().size(); j++)
@@ -519,7 +520,6 @@ public:
                         return ;
                     }
                     if (curr_det->filter == EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
-
                     {
                         perror("read something");
                         //감지된 fd가 정규파일인지 서버인지 클라이언트꺼인지 검사한다.
@@ -642,11 +642,13 @@ public:
                     else if (curr_det->filter == EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
                     {
                         perror("write something");
+
                         bool used = false; //찾았는지 여부.
                         for (std::vector<Client>::iterator it = _client_list.begin(); it != get_client_list().end(); it++)
                         {   //감지된 fd가 클라쪽 일 때.
                             if (curr_det->ident == (*it).getSocket_fd())
                             {
+                                std::cout << curr_det->ident << "::" << (*it).getSocket_fd() << std::endl;
                                 used = true;
                                 if ((*it).getFile_fd() != -1) //아직 처리중인 파일이 있다면 송신하지 않는다.
                                     break;
