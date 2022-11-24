@@ -85,9 +85,9 @@ public:
         temp_str = util::ft_split_s(temp_data[0], " ");
         if (temp_str.size() != 3)
             return (status_code = "400", false);
-        else if (temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST")
+        else if (temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT")
             setMethod(temp_str[0]);
-        else if (!(temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST"))
+        else if (!(temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT"))
             return (status_code = "405", false);
 
         if (temp_str[2] == "HTTP/1.1")
@@ -120,8 +120,8 @@ public:
             return (status_code = "400", false);
         else if ((getMethod() == "GET" || getMethod() == "DELETE") && !(i == temp_data.size() || i == temp_data.size() - 1))
             return (status_code = "400", false);
-        else if ((getMethod() == "POST") && (i == temp_data.size() || i == temp_data.size() - 1))
-            return (status_code = "411", false);
+        // else if ((getMethod() == "POST") && (i == temp_data.size() || i == temp_data.size() - 1))
+        //     return (status_code = "411", false);
         //바디부분
         temp = "";
         while (i < temp_data.size())
@@ -132,6 +132,14 @@ public:
         }
         setBody(temp);
         return (status_code = "200", true); //문제없으면 true반환;
+    }
+    void clear_request()
+    {
+        this->body.clear();
+        this->headers.clear();
+        this->method.clear();
+        this->target.clear();
+        this->version.clear();
     }
 
 public:

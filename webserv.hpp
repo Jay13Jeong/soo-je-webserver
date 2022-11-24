@@ -351,7 +351,7 @@ public:
                         loc_temp.accept_method.clear();
                         while (i < split_result.size())
                         {
-                            if (split_result[i] == "GET" || split_result[i] == "POST" || split_result[i] == "DELETE")
+                            if (split_result[i] == "GET" || split_result[i] == "POST" || split_result[i] == "DELETE" || split_result[i] == "PUT")
                                 loc_temp.accept_method.push_back(split_result[i]);
                             else
                                 ;// 예외처리
@@ -408,7 +408,6 @@ public:
     //fd와 "감지할 행동", kevent지시문을 인자로 받아서 감지목록에 추가하는 메소드.
     void add_kq_event(uintptr_t ident, int16_t filter, uint16_t flags)
     {
-        // std::cerr << "add_kq_event1" << std::endl;
         struct kevent new_event;
 
         EV_SET(&new_event, ident, filter, flags, 0, 0, NULL);
@@ -492,7 +491,6 @@ public:
                 detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, NULL);
                 // perror("detected_something");
                 std::cerr << "detect : " << detected_count << std::endl;
-                // std::cerr << "add_kq_event size : " << _ev_cmds.size() << std::endl;
                 // return;
                 _ev_cmds.clear(); //사용한 이벤트명령은 비운다.
                 for (int i(0); i < detected_count; i++)
@@ -541,8 +539,7 @@ public:
                                 new_client.set_myserver(&(this->_server_map[curr_det->ident])); //클라이언트클래스에서 서버클래스에 접근 할 수 있도록.
                                 std::cerr << "222 " << std::endl;
                                 add_kq_event(client_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //감지목록에 등록.
-                                // add_kq_event(new_client.getSocket_fd(), EVFILT_READ, EV_DELETE); //감지목록에 등록.
-                                add_kq_event(client_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
+                                // add_kq_event(client_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
                                 std::cerr << "333 " << std::endl;
                                 this->set_client_list(new_client); //클라이언트리스트에도 추가.
                                 std::cerr << "444 " << std::endl;
@@ -574,7 +571,7 @@ public:
                                     std::cerr << (*it).get_read_buf() << std::endl;
                                     std::cerr << "+++++++++++++++++" << std::endl;
                                     //////////////////////////////////
-                                    // add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DISABLE); //"읽기가능"감지 끄기.
+                                    add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE); //"읽기가능"감지 끄기.
                                     std::cerr << "aaaa" << std::endl;
                                     if ((*it).parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
                                     {
@@ -623,8 +620,8 @@ public:
                                 perror("read file");
                                 int result = (*it).read_file(); //클라이언트객체는 파일을 읽는다.
                                 perror("z1111111");
-                                // if (result == FAIL || result == RECV_ALL)
-                                //     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비.
+                                if (result == FAIL || result == RECV_ALL)
+                                    add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비.
                                 perror("z222222");
                                 if (result == FAIL) //파일 읽기 오류났을 때.
                                 {
@@ -661,8 +658,8 @@ public:
                                 }
                                 else if (result == SEND_ALL)
                                 {
-                                    // add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_DISABLE); //"쓰기가능"감지목록에서 제외.
-                                    // add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE); //다시 "읽기가능"감지목록에 등록.
+                                    add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE); //다시 "읽기가능"감지목록에 등록.
+                                    add_kq_event((*it).getSocket_fd(), EVFILT_WRITE,  EV_DELETE | EV_DISABLE); //"쓰기가능"감지목록에서 제외.
                                     (*it).clear_client();//fd를 제외한 클라이언트 정보를 초기화한다.
                                 }
                                 break;
@@ -676,8 +673,8 @@ public:
                             if (curr_det->ident == (*it).getFile_fd())
                             {
                                 int result = (*it).write_file(); //클라이언트객체는 파일을 작성한다.
-                                // if (result == FAIL || result == SEND_ALL)
-                                //     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비. (리스폰스제작과 연계)
+                                if (result == FAIL || result == SEND_ALL)
+                                    add_kq_event((*it).getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비. (리스폰스제작과 연계)
                                 if (result == FAIL) //파일 쓰기 오류났을 때.
                                     perror("write file");
                                 else if (result == SEND_ALL) //모두작성했을 때.

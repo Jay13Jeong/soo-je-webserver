@@ -68,6 +68,15 @@ public:
         //정보를 조합해서 send_data를 만들어 반환. 
         return send_data;
     }
+
+    void clear_response()
+    {
+        this->body.clear();
+        this->header_map.clear();
+        this->version.clear();
+        this->status_msg.clear();
+        this->status.clear();
+    }
 };
 
 #endif

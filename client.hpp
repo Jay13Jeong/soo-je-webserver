@@ -46,8 +46,8 @@ public:
     , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file("") {};
     ~Client()
     {
-        perror("close Client!");
-        std::cout << "cli socket fd :" << this->socket_fd << ", cli file fd : " << this->file_fd << std::endl;
+        // perror("close Client!");
+        // std::cout << "cli socket fd :" << this->socket_fd << ", cli file fd : " << this->file_fd << std::endl;
         // if (this->socket_fd != -1)
         //     close(this->socket_fd);
     }
@@ -162,10 +162,11 @@ public:
         else
         {
             this->read_buf += std::string(buffer, size); //1.읽은 데이터 char[] -> string으로 변환해서 저장.
-            std::cerr << this->read_buf << " : buff" << std::endl;
-            std::cerr << this->socket_fd << " : sock" << std::endl;
-
-            if (size < BUFFER_SIZE) //모두 읽었다면..
+            // std::cerr << this->read_buf << " : buff" << std::endl;
+            // std::cerr << this->socket_fd << " : sock" << std::endl;
+            if (this->read_buf.find("\r\n\r\n") != std::string::npos) //모두 읽었다면..
+                return 1;
+            if (this->read_buf.find("\n\n") != std::string::npos) //모두 읽었다면..
                 return 1;
         }
         return 0;
@@ -191,14 +192,14 @@ public:
             perror("read file fail...");
             return -1;
         }
-        if (size == 0)
-        {
-            close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
-            this->file_fd = -1;
-            return -1;
-        }
-        else
-        {
+        // if (size == 0)
+        // {
+        //     close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
+        //     this->file_fd = -1;
+        //     return -1;
+        // }
+        // else
+        // {
             this->file_buf += std::string(buffer, size);
             if (size < BUFFER_SIZE)
             {
@@ -206,7 +207,7 @@ public:
                 this->file_fd = -1;
                 return 1;
             }
-        }
+        // }
         return 0;
     }
 
@@ -246,7 +247,9 @@ public:
         this->write_size += size;
         if (this->write_size >= this->write_buf.length())
         {
-            //**추가적으로 송신 완료여부 검사 필요할지도.
+            std::cerr << "000000000000000" << std::endl;
+            std::cerr << this->write_buf << std::endl;
+            std::cerr << "000000000000000" << std::endl;
             return 1; //호출한 부분에서 클라이언트 객체를 초기화하는 함수 실행.
         }
         //전송중이면 (다 못보냈을 때)
@@ -289,7 +292,7 @@ public:
         std::cerr << "----init_response()->push_write_buf()" << std::endl;
         this->push_write_buf(this->file_buf);
 
-        // add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓을을 쓰기감지에 예약.
+        add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓을을 쓰기감지에 예약.
         return true; //문제없이 응답클래스를 초기화했으면 true반환
     }
 
@@ -395,19 +398,19 @@ public:
         if (s.get_default_error_page().count(this->response.getStatus()) == 0)
         {
             perror("no default err page");
-            this->response.setVersion(this->request.getVersion());
+            this->response.setVersion("HTTP/1.1");
             this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
             //헤더도 넣기
             this->response.setHeader_map("server", "soo-je-webserver");
             this->response.setHeader_map("Date", util::get_date());
             this->response.setHeader_map("content-Type", "text/html");
-            this->response.setHeader_map("Content-Length", "4");
+            this->response.setHeader_map("Content-Length", "3");
             this->response.setHeader_map("Connection", "keep-alive");
             this->response.setHeader_map("Accept-Ranges", "bytes");
             this->response.setBody(this->response.getStatus());
              std::cerr << "----ready_err_response_meta()->if()->push_write_bud()" << std::endl;
             push_write_buf(this->response.getBody());
-            // add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
+            add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
         }
         else
         {
@@ -533,8 +536,7 @@ public:
                 unlink(path.c_str()); //있든없든 지우고본다. (RFC: 서버는 삭제를 보장하지않음.)
             }
             this->init_delete_response();
-            //3.kq에 "쓰기가능"감지으로 등록한다.
-            //구현중...
+            add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓을을 쓰기감지에 예약.
         }
         else if (this->request.getMethod() == "PUT")
         {
@@ -670,7 +672,8 @@ public:
         this->my_loc = NULL;
         this->cgi_program.clear();
         this->cgi_file.clear();
-
+        this->response.clear_response();
+        this->request.clear_request();
         return true; //문제없으면 true리턴.
     }
 
@@ -707,11 +710,11 @@ public:
         // - 408 : Timeout ?
         // - 410 : -> 404 ?
         // - 411 : Content-Length 필요한 경우 확인
-        if (this->getRequest().getMethod() == "POST")
-        {
-            if (this->getRequest().getHeaders().find("Content-Length") == this->getRequest().getHeaders().end())
-                return (this->getResponse().setStatus("411"), true);
-        }
+        // if (this->getRequest().getMethod() == "POST")
+        // {
+        //     if (this->getRequest().getHeaders().find("Content-Length") == this->getRequest().getHeaders().end())
+        //         return (this->getResponse().setStatus("411"), true);
+        // }
         // - 413 : client_max_body_size 확인
         if (this->getRequest().getBody().length() > this->get_myserver()->client_max_body_size)
             return (this->getResponse().setStatus("413"), true);
