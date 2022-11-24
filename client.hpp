@@ -281,13 +281,12 @@ public:
             this->response.getHeader_map().erase("Content-Length");
         this->response.setHeader_map("Content-Length", util::num_to_string(this->file_buf.size()));
         //1번 내용, cgi 경우로 인해 못 한 것 추가
-
         if (this->response.getHeader_map().find("content-Type") == this->response.getHeader_map().end())
             this->find_mime_type(this->request.getTarget());
         this->response.setBody(this->file_buf);
 
         //4번.
-        std::cerr << "----init_response()->push_write_bud()" << std::endl;
+        std::cerr << "----init_response()->push_write_buf()" << std::endl;
         this->push_write_buf(this->file_buf);
 
         // add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓을을 쓰기감지에 예약.
@@ -299,7 +298,7 @@ public:
         //스타트라인
         this->write_buf = this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() + "\r\n";
         //헤더 부분
-        std::map<std::string, std::string> temp = this->request.getHeaders();
+        std::map<std::string, std::string> temp = this->response.getHeader_map();
     	std::map<std::string,std::string>::iterator iter;
 	    for(iter = temp.begin() ; iter != temp.end(); iter++)
 		    this->write_buf = this->write_buf + iter->first + ":" + iter->second + "\r\n";
@@ -378,7 +377,7 @@ public:
         else if (temp == "gif")
             this->response.setHeader_map("Content-Type", "images/gif");
         else
-            this->response.setHeader_map("Content-Type", "text/html");
+            this->response.setHeader_map("Content-Type", "text/html");// ; charset=UTF-8");
     }
     //에러 응답데이터를 만들기전에 필요한 준비를 지시하는 메소드.
     bool ready_err_response_meta()
