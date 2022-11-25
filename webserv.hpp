@@ -153,7 +153,7 @@ public:
                     return (false);
             }
             else if (split_result[0] == "cgi")
-            {
+            { 
                 if (set == false || semicolon_cnt != 1 || split_result.size() != 3)
                     return (false);
                 if (split_result[1] != "none" && split_result[1] != ".py" && split_result[1] != ".php")
@@ -316,6 +316,8 @@ public:
             {
                 if (split_result.size() >= 3 && (split_result[1] == ".py" || split_result[1] == ".php"  || split_result[1] == "none"))
                 {
+                    util::remove_last_semicolon(split_result[1]);
+                    util::remove_last_semicolon(split_result[2]);
                     _server_list.back().cgi_map.insert(std::make_pair(split_result[1],split_result[2]));
                 }
             }
@@ -381,7 +383,10 @@ public:
                 }
             }
             else if (split_result[0] == "host")
+            {
+                util::remove_last_semicolon(split_result[1]);
                 _server_list.back().set_host(split_result[1]);
+            }
             else if (split_result[0] == "}")
                 continue;
             else
@@ -600,10 +605,10 @@ public:
                                     }
                                     else //cgi요청이 있을 때. (POST)
                                     {
-                                        std::cerr << "kkkkkk" << std::endl;
+                                        std::cerr << "[!] CGI Mode Set" << std::endl;
                                         (*it).setCgi_mode(true); //cgi모드로 설정.
                                         (*it).excute_cgi(); //fork로 보내고 파생된result파일을 읽도록 kq에 등록.
-                                        std::cerr << "lllllll" << std::endl;
+                                        std::cerr << "[!] CGI finished" << std::endl;
                                     }
                                 }
                                 std::cerr << "--------- client end ------------------" << std::endl;
