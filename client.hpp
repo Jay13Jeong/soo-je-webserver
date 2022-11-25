@@ -304,12 +304,12 @@ public:
         std::map<std::string, std::string> temp = this->response.getHeader_map();
     	std::map<std::string,std::string>::iterator iter;
 	    for(iter = temp.begin() ; iter != temp.end(); iter++)
-		    this->write_buf = this->write_buf + iter->first + ":" + iter->second + "\r\n";
+		    this->write_buf = this->write_buf + iter->first + ": " + iter->second + "\r\n";
         //개행추가 부분, cgi의 경우 바디 윗부분에 개행이 추가되어있다.바디에 개행이 추가되는 것을 방지.
-        if (this->cgi_mode == false)
+        if (this->cgi_mode == false)// || request.getMethod() != "HEAD")
             this->write_buf = this->write_buf + "\r\n";
         //바디 부분
-        if (response_body.size() != 0)
+        if (response_body.size() != 0 && request.getMethod() != "HEAD")
             this->write_buf = this->write_buf + response_body;
 
         std::cerr << "----push_write_bud()에서 실행, write_buf 출력--------------------" << std::endl;
@@ -471,7 +471,7 @@ public:
         Server s = *this->my_server;
         std::string uri = this->getRequest().getTarget().substr(0, this->getRequest().getTarget().find('?')); //'?'부터 뒷부분 쿼리스트링 제거한 앞부분.
 
-        if (this->request.getMethod() == "GET" || this->request.getMethod() == "POST")
+        if (this->request.getMethod() == "GET" || this->request.getMethod() == "POST" || this->request.getMethod() == "HEAD")
         {
             if (uri[uri.length() - 1] != '/') //경로가 '/'로 끝나지 않으면 만들어준다.
 			    uri += '/';

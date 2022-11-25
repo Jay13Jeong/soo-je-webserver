@@ -351,7 +351,7 @@ public:
                         loc_temp.accept_method.clear();
                         while (i < split_result.size())
                         {
-                            if (split_result[i] == "GET" || split_result[i] == "POST" || split_result[i] == "DELETE" || split_result[i] == "PUT")
+                            if (split_result[i] == "GET" || split_result[i] == "POST" || split_result[i] == "DELETE" || split_result[i] == "PUT" || split_result[i] == "HEAD")
                                 loc_temp.accept_method.push_back(split_result[i]);
                             else
                                 ;// 예외처리
