@@ -660,6 +660,8 @@ public:
                                 {
                                     add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE); //다시 "읽기가능"감지목록에 등록.
                                     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE,  EV_DELETE | EV_DISABLE); //"쓰기가능"감지목록에서 제외.
+                                    // if ((*it).getResponse().getHeader_map()["Connection"] == "close")
+                                    //     close((*it).getSocket_fd());
                                     (*it).clear_client();//fd를 제외한 클라이언트 정보를 초기화한다.
                                 }
                                 break;
@@ -678,7 +680,11 @@ public:
                                 if (result == FAIL) //파일 쓰기 오류났을 때.
                                     perror("write file");
                                 else if (result == SEND_ALL) //모두작성했을 때.
+                                {
+                                    (*it).getResponse().setStatus("201");
                                     (*it).init_response(); //업로드 완료 후 처리?... (kq와 연계)
+                                }
+                                    
                                 break;
                             }
                         }

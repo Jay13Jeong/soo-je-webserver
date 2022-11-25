@@ -164,6 +164,8 @@ public:
             this->read_buf += std::string(buffer, size); //1.읽은 데이터 char[] -> string으로 변환해서 저장.
             // std::cerr << this->read_buf << " : buff" << std::endl;
             // std::cerr << this->socket_fd << " : sock" << std::endl;
+            if (size == BUFFER_SIZE)
+                return 0;
             if (this->read_buf.find("\r\n\r\n") != std::string::npos) //모두 읽었다면..
                 return 1;
             if (this->read_buf.find("\n\n") != std::string::npos) //모두 읽었다면..
@@ -192,21 +194,13 @@ public:
             perror("read file fail...");
             return -1;
         }
-        // if (size == 0)
-        // {
-        //     close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
-        //     this->file_fd = -1;
-        //     return -1;
-        // }
-        // else
-        // {
-            this->file_buf += std::string(buffer, size);
-            if (size < BUFFER_SIZE)
-            {
-                close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
-                this->file_fd = -1;
-                return 1;
-            }
+        this->file_buf += std::string(buffer, size);
+        if (size < BUFFER_SIZE)
+        {
+            close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
+            this->file_fd = -1;
+            return 1;
+        }
         // }
         return 0;
     }
@@ -302,8 +296,8 @@ public:
         this->write_buf = this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() + "\r\n";
         //헤더 부분
         std::map<std::string, std::string> temp = this->response.getHeader_map();
-    	std::map<std::string,std::string>::iterator iter;
-	    for(iter = temp.begin() ; iter != temp.end(); iter++)
+    	std::map<std::string,std::string>::reverse_iterator iter;
+	    for(iter = temp.rbegin() ; iter != temp.rend(); iter++)
 		    this->write_buf = this->write_buf + iter->first + ": " + iter->second + "\r\n";
         //개행추가 부분, cgi의 경우 바디 윗부분에 개행이 추가되어있다.바디에 개행이 추가되는 것을 방지.
         if (this->cgi_mode == false)// || request.getMethod() != "HEAD")
@@ -374,11 +368,11 @@ public:
         if (temp == "css")
             this->response.setHeader_map("Content-Type", "text/css");
         else if (temp == "png")
-            this->response.setHeader_map("Content-Type", "images/png");
+            this->response.setHeader_map("Content-Type", "image/png");
         else if (temp == "jpeg")
-            this->response.setHeader_map("Content-Type", "images/jpeg");
+            this->response.setHeader_map("Content-Type", "image/jpeg");
         else if (temp == "gif")
-            this->response.setHeader_map("Content-Type", "images/gif");
+            this->response.setHeader_map("Content-Type", "image/gif");
         else
             this->response.setHeader_map("Content-Type", "text/html");// ; charset=UTF-8");
     }
@@ -404,10 +398,10 @@ public:
             this->response.setHeader_map("server", "soo-je-webserver");
             this->response.setHeader_map("Date", util::get_date());
             this->response.setHeader_map("content-Type", "text/html");
-            this->response.setHeader_map("Content-Length", "3");
-            this->response.setHeader_map("Connection", "keep-alive");
-            this->response.setHeader_map("Accept-Ranges", "bytes");
-            this->response.setBody(this->response.getStatus());
+            this->response.setHeader_map("Content-Length", "4");
+            this->response.setHeader_map("Connection", "close");
+            // this->response.setHeader_map("Accept-Ranges", "bytes");
+            this->response.setBody(this->response.getStatus() + '\0');
              std::cerr << "----ready_err_response_meta()->if()->push_write_bud()" << std::endl;
             push_write_buf(this->response.getBody());
             add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
@@ -512,6 +506,7 @@ public:
             }
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
             add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //파일을 읽기감지에 예약.
+            // this->find_mime_type()
             std::cerr << "get(post) done : " << this->file_fd << std::endl;
         }
         else if (this->request.getMethod() == "DELETE")
@@ -628,6 +623,7 @@ public:
             if (this->getRequest().getTarget()[curr] != '/' && this->getRequest().getTarget()[curr] != '?') //문자열에 '/'또는'?'가 있다면 검사중단.
                 curr++;
         std::string pure_exe = this->getRequest().getTarget().substr(offset, curr - offset); //순수 확장자만 파싱해서 뽑는다.
+
         std::map<std::string, std::string>::const_iterator match_cgi = cgi_infos.find(pure_exe); //지원하는 cgi가 있는지 검사.
         if (match_cgi == cgi_infos.end()) //지원하는 cgi가 없다면 false반환
             return (false);
@@ -642,20 +638,25 @@ public:
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
     bool parse_request()
     {
+         std::cerr << "************this->read_buf***" << this->read_buf.size() << std::endl;
+            for (int j = 0; j < this->read_buf.size() ; j++)
+                std::cerr << (int)this->read_buf[j] << ".";
+            std::cerr <<  std::endl;
+
         if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
             return false;
-        std::cerr << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
-        std::cerr << "Method : " << this->request.getMethod() << std::endl;
-	    std::cerr << "Target : " << this->request.getTarget() << std::endl;
-	    std::cerr << "Version : " << this->request.getVersion() << std::endl;
-	    std::cerr << "Headers: " << std::endl;
-	    std::map<std::string, std::string> temp = this->request.getHeaders();
-	    std::map<std::string,std::string>::iterator iter;
-	    for(iter = temp.begin() ; iter != temp.end(); iter++){
-		    std::cerr << iter->first << ":"<< iter->second << std::endl;
-	    }
-	    std::cerr << "Body : " << this->request.getBody() << std::endl;
-        std::cerr << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+        // std::cerr << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
+        // std::cerr << "Method : " << this->request.getMethod() << std::endl;
+	    // std::cerr << "Target : " << this->request.getTarget() << std::endl;
+	    // std::cerr << "Version : " << this->request.getVersion() << std::endl;
+	    // std::cerr << "Headers: " << std::endl;
+	    // std::map<std::string, std::string> temp = this->request.getHeaders();
+	    // std::map<std::string,std::string>::iterator iter;
+	    // for(iter = temp.begin() ; iter != temp.end(); iter++){
+		//     std::cerr << iter->first << ":"<< iter->second << std::endl;
+	    // }
+	    // std::cerr << "Body : " << this->request.getBody() << std::endl;
+        // std::cerr << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
         return true; //문제없이 파싱이 끝나면 true반환.
     }
 
@@ -698,10 +699,10 @@ public:
         // - 400 : request parse 에서 처리
         // - 401 : ? 인증 여부 확인
         // - 404 : access(path, F_OK), ready_response_meta 에서 처리
-        if (access(path.c_str(), F_OK) == -1)
+        if (this->getRequest().getMethod() != "PUT" && access(path.c_str(), F_OK) == -1)
             return (this->getResponse().setStatus("404"), true);
         // - 403 : access(path, R_OK) (읽기권한)
-        if (access(path.c_str(), R_OK) == -1)
+        if (this->getRequest().getMethod() != "PUT" && access(path.c_str(), R_OK) == -1)
             return (this->getResponse().setStatus("403"), true);
         // - 405 : accept_method 확인, request에서 확인 완.
         if (find(this->my_loc->accept_method.begin(), this->my_loc->accept_method.end(), \
@@ -829,7 +830,6 @@ public:
         cgi_env_map["CONTENT_TYPE"] = this->getResponse().getHeader_map()["Content-Type"];  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
         cgi_env_map["GATEWAY_INTERFACE"] = "CGI/1.1";
         cgi_env_map["REQUEST_METHOD"] = this->getRequest().getMethod();
-        cgi_env_map["SERVER_PROTOCOL"] = "HTTP/1.1";
         cgi_env_map["PATH_TRANSLATED"] = std::string(file_path);
         size_t pos = this->getRequest().getTarget().find('?');
         if (pos != std::string::npos || pos < this->getRequest().getTarget().length() - 1)
@@ -840,6 +840,7 @@ public:
         cgi_env_map["SERVER_PORT"] = this->get_myserver()->get_port();
         cgi_env_map["SERVER_PROTOCOL"] = this->getRequest().getVersion();
         cgi_env_map["SERVER_SOFTWARE"] = "soo-je-webserv/1.0";
+        // 1-1 request에 있던 헤더들을 추가해줘야 함. (Connection, Content-type, Content-length 제외)
         this->set_cgi_env_path(cgi_env_map);
         char **cgi_env = new char *[sizeof(char *) * cgi_env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
         // 2. 맵의 내용들 2차원 배열로 저장하기
