@@ -739,7 +739,7 @@ public:
                 this->getResponse().setStatus("500"); //500처리.
                     return false; //바로 에러 페이지 제작 필요.
             }
-        if ((this->file_fd = open(this->cgi_file_name.c_str(), O_RDWR | O_CREAT | O_APPEND, 0755)) == -1)//읽쓰기, 없으면만듬, 이어쓰기가능.
+        if ((this->file_fd = open(this->cgi_file_name.c_str(), O_RDWR | O_CREAT, 0755)) == -1)//읽쓰기, 없으면만듬, 이어쓰기가능.
         {
             perror("open cgi_result err");
             this->getResponse().setStatus("500"); //500처리.
@@ -760,6 +760,7 @@ public:
             char *buf = realpath(file_path.c_str(), NULL); //상대경로를 절대경로로 변경.
             if (buf != NULL) //변환성공 했을 때.
                 file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
+            std::cerr << "!!!!!!!!!! cgi program : " << this->cgi_program << std::endl;
             std::cerr << "!!!!!!!!!! cgi file_path : " << file_path << std::endl;
             char **env = this->init_cgi_env(); //환경변수 준비.
             dup2(this->file_fd, 1); //출력 리다이렉트.
@@ -796,6 +797,11 @@ public:
             this->file_fd = open(this->cgi_file_name.c_str(), O_RDWR | O_CREAT | O_APPEND, 0755); // 이후 읽기를 위해 새로 open
             if (this->file_fd == -1)
                 return (false);
+            ///////////////test/////////
+            // char *buf;
+            // int rs = read(this->file_fd, buf, 9999);
+            // std::cerr << "!!!!!!!!! buf data : " << std::string(buf,rs) << std::endl;
+            //////////////test//////////////
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
             add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
             return true;
