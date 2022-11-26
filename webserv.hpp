@@ -587,6 +587,7 @@ public:
                                             std::string backup = (*it).get_read_buf();
                                             (*it).clear_client();
                                             (*it).revert_read_data(backup);
+                                            add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
                                             break;
                                         }
                                         std::cerr << "bbbbbb" << std::endl;

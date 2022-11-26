@@ -113,9 +113,9 @@ public:
     //데이터를 받아서 파싱하는 메소드. 200,400,405,505......414에러는 길이 기준이 현재 없음
     bool parse(std::string & data, std::string & status_code)
     {
-        std::cerr << "request.parse() 함수에 들어온 데이터"<< std::endl;
-        std::cerr << data << std::endl;
-        std::cerr << "여기까지"<< std::endl;
+        // std::cerr << "request.parse() 함수에 들어온 데이터"<< std::endl;
+        // std::cerr << data << std::endl;
+        // std::cerr << "여기까지"<< std::endl;
         std::vector<std::string> temp_data = util::ft_split_s(data, "\r\n");
         std::vector<std::string> temp_str;
         std::string temp = "";
