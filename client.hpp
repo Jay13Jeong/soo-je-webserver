@@ -788,9 +788,16 @@ public:
         }
         else //부모프로세스는 논블럭설정하고 "읽기가능"감지에 등록한다.
         {
+            int status;
+            waitpid(pid, &status, 0);
+            if (status != 0)
+                return (false);
+            close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
+            this->file_fd = open(this->cgi_file_name.c_str(), O_RDWR | O_CREAT | O_APPEND, 0755); // 이후 읽기를 위해 새로 open
+            if (this->file_fd == -1)
+                return (false);
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
             add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
-            wait(0);  // 수정 필요.
             return true;
         }
     }
