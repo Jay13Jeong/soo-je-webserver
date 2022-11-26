@@ -1,10 +1,10 @@
 NAME = webserv
 # W3FLAG = -Wall -Wextra -Werror -std=c++98
 
-.main.o : main.cpp
+.main.o : main.cpp *.hpp
 	c++ $(W3FLAG)  -c -o $@ $<
 
-$(NAME) : .main.o *.hpp
+$(NAME) : .main.o 
 	c++ $(W3FLAG) -o $@ $<
 
 all : $(NAME)
