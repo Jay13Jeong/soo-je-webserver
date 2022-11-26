@@ -21,7 +21,7 @@
 #define BUFFER_SIZE 5120
 
 class Client
-{
+{ 
 private:
     int socket_fd; //클라이언트 소켓 fd.
     std::string read_buf; //소켓에서 읽어온 비정제 데이터. (추후 파싱필요)
@@ -39,11 +39,12 @@ private:
     std::map<std::string, std::string> * status_msg;
     std::string  cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")
     std::string  cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")
+    std::string  cgi_file_name;
 
 public:
     Client(std::vector<struct kevent> * cmds) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) \
     ,read_buf(""), write_buf(""), file_buf(""), write_size(0), my_loc(NULL), server_fd(-1) \
-    , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file("") {};
+    , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name("") {};
     ~Client()
     {
         // perror("close Client!");
@@ -133,7 +134,10 @@ public:
     {
         return this->cgi_program;
     }
-
+    void revert_read_data(std::string backup)
+    {
+        this->read_buf = backup;
+    }
     //fd와 "감지할 행동", kevent지시문을 인자로 받아서 감지목록에 추가하는 메소드.
     void add_kq_event(uintptr_t ident, int16_t filter, uint16_t flags)
     {
@@ -190,6 +194,8 @@ public:
         if (size == -1)
         {
             close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
+            if (this->cgi_mode == true)
+                unlink(this->cgi_file_name.c_str());
             this->file_fd = -1;
             perror("read file fail...");
             return -1;
@@ -198,6 +204,8 @@ public:
         if (size < BUFFER_SIZE)
         {
             close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
+            if (this->cgi_mode == true)
+                unlink(this->cgi_file_name.c_str());
             this->file_fd = -1;
             return 1;
         }
@@ -205,12 +213,12 @@ public:
         return 0;
     }
 
-    //지정한 파일에 file_buf를 write하는 메소드. 실패 -1 성공 0 모두보냄 1 반환.
+    //지정한 파일에 바디데이터를 write하는 메소드. 실패 -1 성공 0 모두보냄 1 반환.
     int write_file( void )
     {
         int size;
 
-        size = write(this->getFile_fd(), file_buf.c_str() + (this->write_size), file_buf.length() - (this->write_size));
+        size = write(this->getFile_fd(), request.getBody().c_str() + (this->write_size), request.getBody().length() - (this->write_size));
         if (size == -1)
         {
             close(this->file_fd);
@@ -219,7 +227,7 @@ public:
             return -1;
         }
         this->write_size += size;
-        if (this->write_size >= this->file_buf.length())
+        if (this->write_size >= request.getBody().length())
         {
             close(this->file_fd);
             this->file_fd = -1;
@@ -241,9 +249,9 @@ public:
         this->write_size += size;
         if (this->write_size >= this->write_buf.length())
         {
-            std::cerr << "000000000000000" << std::endl;
+            std::cerr << "0000000000000000000000000000000000000000000" << std::endl;
             std::cerr << this->write_buf << std::endl;
-            std::cerr << "000000000000000" << std::endl;
+            std::cerr << "0000000000000000000000000000000000000000000" << std::endl;
             return 1; //호출한 부분에서 클라이언트 객체를 초기화하는 함수 실행.
         }
         //전송중이면 (다 못보냈을 때)
@@ -306,9 +314,9 @@ public:
         if (response_body.size() != 0 && request.getMethod() != "HEAD")
             this->write_buf = this->write_buf + response_body;
 
-        std::cerr << "----push_write_bud()에서 실행, write_buf 출력--------------------" << std::endl;
-        std::cerr << write_buf << std::endl;
-        std::cerr << "--------------------------------------------------------------" << std::endl;
+        // std::cerr << "----push_write_bud()에서 실행, write_buf 출력--------------------" << std::endl;
+        // std::cerr << write_buf << std::endl;
+        // std::cerr << "--------------------------------------------------------------" << std::endl;
     }
 
     //오토인데스 응답페이지를 만들고 송신준비를 하는 메소드.
@@ -637,7 +645,7 @@ public:
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
     bool parse_request()
     {
-        //  std::cerr << "************this->read_buf***\n" << this->read_buf.size() << std::endl;
+        //  std::cerr << "************this->read_buf***" << this->read_buf.size() << std::endl;
         //     for (int j = 0; j < this->read_buf.size() ; j++)
         //         std::cerr << (int)this->read_buf[j] << ".";
         //     std::cerr <<  std::endl;
@@ -673,6 +681,7 @@ public:
         this->cgi_file.clear();
         this->response.clear_response();
         this->request.clear_request();
+        this->cgi_file_name.clear();
         return true; //문제없으면 true리턴.
     }
 
@@ -724,8 +733,13 @@ public:
     //cgi를 실행하는 메소드.
     bool excute_cgi()
     {
-        std::string file_name = "cgi_result_" + util::num_to_string(this->socket_fd);
-        if ((this->file_fd = open(file_name.c_str(), O_RDWR | O_CREAT | O_APPEND, 0755)) == -1)//읽쓰기, 없으면만듬, 이어쓰기가능.
+        this->cgi_file_name = ".payload/cgi_result_" + util::num_to_string(this->socket_fd);
+        if (util::make_middle_pathes(this->cgi_file_name) == false) //경로의 중간 경로들이 없다면 만든다.
+            {
+                this->getResponse().setStatus("500"); //500처리.
+                    return false; //바로 에러 페이지 제작 필요.
+            }
+        if ((this->file_fd = open(this->cgi_file_name.c_str(), O_RDWR | O_CREAT | O_APPEND, 0755)) == -1)//읽쓰기, 없으면만듬, 이어쓰기가능.
         {
             perror("open cgi_result err");
             this->getResponse().setStatus("500"); //500처리.
@@ -746,6 +760,7 @@ public:
             char *buf = realpath(file_path.c_str(), NULL); //상대경로를 절대경로로 변경.
             if (buf != NULL) //변환성공 했을 때.
                 file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
+            std::cerr << "!!!!!!!!!! cgi file_path : " << file_path << std::endl;
             char **env = this->init_cgi_env(); //환경변수 준비.
             dup2(this->file_fd, 1); //출력 리다이렉트.
             if (file_path.substr(file_path.rfind('.')) == ".bla") //인트라 cgi테스터용 특별처리.
@@ -755,7 +770,7 @@ public:
                 arg[1] = NULL;
                 if (execve(arg[0], arg, env) == -1)
                 {
-                    perror("execve err bla");
+                    perror("execve err bla cgi");
                     exit(1);
                 }
             } else {
@@ -765,7 +780,7 @@ public:
                 arg[2] = NULL;
                 if (execve(arg[0], arg, env) == -1) //cgi 실행.
                 {
-                    perror("execve err normal");
+                    perror("execve err normal cgi");
                     exit(1);
                 }
             }
