@@ -7,6 +7,9 @@
 #include <time.h>
 #include <sstream>
 #include <dirent.h> //DT_DIR
+#include <sys/stat.h>//mkdir
+#include <sys/types.h>//mkdir
+#include <unistd.h>//unlink, rmdir
 // #include <algorithm>
 
 namespace util
@@ -132,7 +135,7 @@ namespace util
 					return (false);
 			}
 			else //파일이 정규파일이면 그냥 삭제.
-				unlink((path + file_name).c_str()); 
+				unlink((path + file_name).c_str());
 		}
 		rmdir(path.c_str()); //비워진 현재 디렉토리는 지운다.
 		return (true);

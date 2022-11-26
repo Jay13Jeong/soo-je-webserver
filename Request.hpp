@@ -4,6 +4,7 @@
 #include <string>
 #include <map>
 #include "util.hpp"
+#include <cstdlib>
 
 class Request
 {
@@ -13,6 +14,41 @@ private:
     std::string version; //프로토콜버전. http1.1고정이기 때문에 float보다 string.
     std::map<std::string,std::string> headers; //콜론을 기준으로 나눈 헤더 키:값 들.
     std::string body; //바디부분 데이터.
+
+private:
+    bool ft_chunk_fin_check(std::string data, std::string temp_str, std::string &status_code)
+    {
+        std::vector<std::string> temp = util::ft_split(temp_str, ", ");
+
+        for (int i = 0; i < temp.size(); i++)
+        {
+            if (temp[i] == "chunked")
+            {
+                status_code = "800";
+                break ;
+            }
+        }
+        if (status_code != "800")// 청크가 아닐 경우
+            return (status_code = "200", true);
+        if ((data.size() - 5) == data.rfind("0\r\n\r\n"))//종료 위지 같으면
+            return (status_code = "800", true);
+        return (status_code = "800", false);
+    }
+private:
+    bool ft_chunk_push_body(std::vector<std::string> temp_data, int i, std::string &status_code)
+    {
+        std::string temp = "";
+        for (int j = i + 1; j < temp_data.size(); j+=2)//바디부터 시작
+        {
+            if (j + 1 >= temp_data.size())
+                return (status_code = "400", false);
+            if (strtol(temp_data[j].c_str(), NULL, 10) != temp_data[j + 1].size())
+                return (status_code = "400", false);
+            temp = temp + temp_data[j + 1];
+        }
+        setBody(temp);
+        return (status_code = "200", true);
+    }
 
 public:
     std::string getMethod()
@@ -77,9 +113,13 @@ public:
     //데이터를 받아서 파싱하는 메소드. 200,400,405,505......414에러는 길이 기준이 현재 없음
     bool parse(std::string & data, std::string & status_code)
     {
+        std::cerr << "request.parse() 함수에 들어온 데이터"<< std::endl;
+        std::cerr << data << std::endl;
+        std::cerr << "여기까지"<< std::endl;
         std::vector<std::string> temp_data = util::ft_split_s(data, "\r\n");
         std::vector<std::string> temp_str;
         std::string temp = "";
+        status_code = "";//초기화
 
         //스타트라인
         temp_str = util::ft_split_s(temp_data[0], " ");
@@ -110,6 +150,12 @@ public:
                 return (status_code = "400", false);
             else if (util::count_sp(temp_str[0]) != 0)
                 return (status_code = "400", false);
+
+            if (temp_str[0] == "Transfer-Encoding")//청크부분 처리
+            {
+                if (!ft_chunk_fin_check(data, temp_str[1], status_code))
+                    return (false);
+            }
             temp = temp_str[1];
             for (int j = 2; j < temp_str.size(); j++)
                 temp = temp + ":" + temp_str[j];
@@ -122,7 +168,10 @@ public:
             return (status_code = "400", false);
         // else if ((getMethod() == "POST") && (i == temp_data.size() || i == temp_data.size() - 1))
         //     return (status_code = "411", false);
+
         //바디부분
+        if (status_code == "800")
+            return (ft_chunk_push_body(temp_data, i, status_code));
         temp = "";
         while (i < temp_data.size())
         {
@@ -133,6 +182,7 @@ public:
         setBody(temp);
         return (status_code = "200", true); //문제없으면 true반환;
     }
+
     void clear_request()
     {
         this->body.clear();
