@@ -614,7 +614,6 @@ public:
     {
         Server s = *this->my_server;
         std::map<std::string, std::string> & cgi_infos = s.get_cgi_map();
-
         size_t offset = this->getRequest().getTarget().find('.'); //확장자를 암시하는 부분을 찾는다.
         if (offset == std::string::npos) //없다면 검사종료.
             return (false);
@@ -642,7 +641,6 @@ public:
         //     for (int j = 0; j < this->read_buf.size() ; j++)
         //         std::cerr << (int)this->read_buf[j] << ".";
         //     std::cerr <<  std::endl;
-
         if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
             return false;
         // std::cerr << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
@@ -748,7 +746,7 @@ public:
             char *buf = realpath(file_path.c_str(), NULL); //상대경로를 절대경로로 변경.
             if (buf != NULL) //변환성공 했을 때.
                 file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
-            char **env = this->init_cgi_env(file_path); //환경변수 준비.
+            char **env = this->init_cgi_env(); //환경변수 준비.
             dup2(this->file_fd, 1); //출력 리다이렉트.
             if (file_path.substr(file_path.rfind('.')) == ".bla") //인트라 cgi테스터용 특별처리.
             {   //(인트라 cgi프로그램은 인자를 직접 받지않고 환경변수로 받는다.)
@@ -761,7 +759,7 @@ public:
                     exit(1);
                 }
             } else {
-                char **arg = (char **)malloc(sizeof(char *) * 3);
+                char **arg = new char *[sizeof(char *) * 3];
                 arg[0] = strdup(this->cgi_program.c_str()); //예시 "/usr/bin/python"
                 arg[1] = strdup(file_path.c_str()); //실행할 파일의 절대경로.
                 arg[2] = NULL;
@@ -777,10 +775,24 @@ public:
         {
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
             add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+            wait(0);  // 수정 필요.
             return true;
         }
     }
 
+    // request target에서 ?를 기준으로 url과 query를 분리해주는 메소드 (first : url, second : query)
+    std::pair<std::string, std::string> get_target_info(std::string target)
+    {   
+        size_t qmark_pos = target.find('?');
+        if (qmark_pos == std::string::npos)
+            return (std::make_pair(target, ""));
+        else if (qmark_pos == target.length())
+            return (std::make_pair(target.substr(0, target.length() - 1), ""));
+        else
+            return (std::make_pair(target.substr(0, qmark_pos), target.substr(qmark_pos + 1)));
+    }
+
+    // 요청한 클라이언트의 ip를 char형 문자열로 받아오는 메소드
     char *get_client_ip(void)
     {
         struct sockaddr_in client_sockaddr;
@@ -789,64 +801,65 @@ public:
         return (inet_ntoa(client_sockaddr.sin_addr));
     }
 
-    // CGI 환경변수 (PATH_INFO, SCRIPT_NAME) 설정을 위한 메소드
-    void set_cgi_env_path(std::map<std::string, std::string> &cgi_env_map)
+    // CGI 환경변수 (PATH_INFO, PATH_TRANSLATED, SCRIPT_NAME) 설정을 위한 메소드
+    bool set_cgi_env_path(std::map<std::string, std::string> &cgi_env_map, std::string target)
     {
-        // target 중에서 (상대경로) CGI 프로그램까지의 문자열 : SCRIPT_NAME
-        // 1. program name 찾아오기
-        size_t pos = this->get_cgi_program().rfind("/");
-        std::string program_name;
-        if (pos != std::string::npos)
-            program_name = this->get_cgi_program().substr(pos + 1);
+        // PATH_INFO : 스크립트 확장자 이후의 문자열
+        // PATH_TRANSLATED : 스크립트 확장자 이후의 절대경로 (PATH_INFO의 절대경로)
+        // SCRIPT_NAME : 요청의 시작부터 스크립트 확장자까지의 문자열
+
+        // 1. PATH_INFO
+        size_t dot_pos = target.rfind(this->cgi_file);
+        cgi_env_map["PATH_INFO"] = std::string(target, dot_pos + this->cgi_file.length());
+        // 2. PATH_TRANSLATED
+        if (cgi_env_map["PATH_INFO"].length() != 0)
+        {
+            char *buf = realpath(cgi_env_map["PATH_INFO"].c_str(), NULL);
+            if (buf != NULL) //변환성공 했을 때.
+                cgi_env_map["PATH_TRANSLATED"] = std::string(buf);
+            else
+                return (false);
+        }
         else
-            program_name = this->get_cgi_program();
-        // 2. target에서 program_name 찾아서 앞부분 SCRIPT_NAME 으로 넣어주기.
-        size_t pos1 = this->getRequest().getTarget().find(program_name);
-        pos1 += program_name.length();
-        cgi_env_map["SCRIPT_NAME"] = this->getRequest().getTarget().substr(pos1);
-        // 2. 시작지점 옮겨주기 -> PATH_INFO(상대경로 그대로)
-        if (pos1 == this->getRequest().getTarget().length() - 1)
-        {
-            // error
-        }
-        size_t pos2 = pos1 + 1;
-        while (pos2 < this->getRequest().getTarget().length() && this->getRequest().getTarget()[pos2] != '?')
-            pos2++;
-        if (pos2 == pos1 + 1)
-        {
-            // error
-        }
-        cgi_env_map["PATH_INFO"] = this->getRequest().getTarget().substr(pos1 + 1, pos2 - pos1);
+            cgi_env_map["PATH_TRANSLATED"] = "";
+        // 3. SCRIPT_NAME
+            cgi_env_map["SCRIPT_NAME"] = target.substr(0, dot_pos + this->cgi_file.length());
+        return (true);
     }
 
     //cgi자식프로세스가 사용할 환경변수 목록을 2차원포인터로 제작하는 메소드.
-    char **init_cgi_env(std::string & file_path)
+    char **init_cgi_env()
     {
         // 0. file_path : 서버 상 절대 경로
         // 1. 일단 필요한 정보들 가공해서 map 에 넣기
         std::map<std::string, std::string> cgi_env_map;
+        std::pair<std::string, std::string> target_info = get_target_info(this->request.getTarget());
         cgi_env_map["AUTH_TYPE"] = ""; // 인증과정 없으므로 NULL
-        cgi_env_map["CONTENT_LENGTH"] = this->getResponse().getBody().length(); // 길이 모른다면 -1
-        cgi_env_map["CONTENT_TYPE"] = this->getResponse().getHeader_map()["Content-Type"];  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
+        cgi_env_map["CONTENT_LENGTH"] = "-1"; // 길이 모른다면 -1
+        cgi_env_map["CONTENT_TYPE"] = "";  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
         cgi_env_map["GATEWAY_INTERFACE"] = "CGI/1.1";
         cgi_env_map["REQUEST_METHOD"] = this->getRequest().getMethod();
-        cgi_env_map["PATH_TRANSLATED"] = std::string(file_path);
-        size_t pos = this->getRequest().getTarget().find('?');
-        if (pos != std::string::npos || pos < this->getRequest().getTarget().length() - 1)
-            cgi_env_map["QUERY_STRING"] = this->getRequest().getTarget().substr(this->getRequest().getTarget().find('?'));
+        size_t pos = this->getRequest().getTarget().find('?'); // 쿼리가 있다면 넣어주기 (쿼리 테스트 필요함.)
+        cgi_env_map["QUERY_STRING"] = target_info.second;
         cgi_env_map["REMOTE_ADDR"] = std::string(get_client_ip());
         cgi_env_map["REMOTE_USER"] = ""; // 인증과정 없으므로 NULL
         cgi_env_map["SERVER_NAME"] = this->get_myserver()->get_host() + ":" + util::num_to_string(this->get_myserver()->get_port());
-        cgi_env_map["SERVER_PORT"] = this->get_myserver()->get_port();
+        cgi_env_map["SERVER_PORT"] = util::num_to_string(this->get_myserver()->get_port());
         cgi_env_map["SERVER_PROTOCOL"] = this->getRequest().getVersion();
         cgi_env_map["SERVER_SOFTWARE"] = "soo-je-webserv/1.0";
         // 1-1 request에 있던 헤더들을 추가해줘야 함. (Connection, Content-type, Content-length 제외)
-        this->set_cgi_env_path(cgi_env_map);
+        if (this->set_cgi_env_path(cgi_env_map, target_info.first) == false)
+        {
+            // set 500 error
+            // return
+        }
         char **cgi_env = new char *[sizeof(char *) * cgi_env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
         // 2. 맵의 내용들 2차원 배열로 저장하기
         int i = 0;
+        std::cerr << "**** CGI ENV ****\n";
         for(std::map<std::string, std::string>::iterator iter = cgi_env_map.begin(); iter != cgi_env_map.end(); iter++)
         {
+            std::cerr << (*iter).first << "=" << (*iter).second << "\n";
             cgi_env[i] = strdup(((*iter).first + "=", (*iter).second).c_str());
             i++;
         }
