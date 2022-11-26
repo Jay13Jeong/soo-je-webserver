@@ -22,6 +22,7 @@
 #define FAIL        -1 //실패를 의미하는 매크로.
 #define RECV_ALL    1 //모두 수신 받음을 의미.
 #define SEND_ALL    1 //모두 수신 받음을 의미.
+#define CHUNKED     "800" //te헤더의 상태.
 
 class Webserv
 {
@@ -487,6 +488,7 @@ public:
         this->regist_servers_to_kq(); //감지목록에 서버들 추가.
         this->init_servers_map();
         this->init_status_map();
+        util::rm_sub_files(".payload/"); //cgi전송용 payload 폴더 비우기.
         kq_fd = kqueue();
         while ("soo-je-webserv")
         {
@@ -572,14 +574,21 @@ public:
                                 else if (result == RECV_ALL) //모두수신받았을 때.
                                 {
                                     ///////////////////////////////////
-                                    std::cerr << "+++++++++++++++++" << std::endl;
+                                    std::cerr << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
                                     std::cerr << (*it).get_read_buf() << std::endl;
-                                    std::cerr << "+++++++++++++++++" << std::endl;
+                                    std::cerr << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
                                     //////////////////////////////////
                                     add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE); //"읽기가능"감지 끄기.
                                     std::cerr << "aaaa" << std::endl;
                                     if ((*it).parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
                                     {
+                                        if ((*it).getResponse().getStatus() == CHUNKED)
+                                        {
+                                            std::string backup = (*it).get_read_buf();
+                                            (*it).clear_client();
+                                            (*it).revert_read_data(backup);
+                                            break;
+                                        }
                                         std::cerr << "bbbbbb" << std::endl;
                                         (*it).ready_err_response_meta(); //에러응답 준비.
                                         std::cerr << "ccccccc" << std::endl;
