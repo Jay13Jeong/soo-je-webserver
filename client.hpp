@@ -21,7 +21,7 @@
 #define BUFFER_SIZE 5120
 
 class Client
-{
+{ 
 private:
     int socket_fd; //클라이언트 소켓 fd.
     std::string read_buf; //소켓에서 읽어온 비정제 데이터. (추후 파싱필요)
@@ -205,12 +205,12 @@ public:
         return 0;
     }
 
-    //지정한 파일에 file_buf를 write하는 메소드. 실패 -1 성공 0 모두보냄 1 반환.
+    //지정한 파일에 바디데이터를 write하는 메소드. 실패 -1 성공 0 모두보냄 1 반환.
     int write_file( void )
     {
         int size;
 
-        size = write(this->getFile_fd(), file_buf.c_str() + (this->write_size), file_buf.length() - (this->write_size));
+        size = write(this->getFile_fd(), request.getBody().c_str() + (this->write_size), request.getBody().length() - (this->write_size));
         if (size == -1)
         {
             close(this->file_fd);
@@ -219,7 +219,7 @@ public:
             return -1;
         }
         this->write_size += size;
-        if (this->write_size >= this->file_buf.length())
+        if (this->write_size >= request.getBody().length())
         {
             close(this->file_fd);
             this->file_fd = -1;
@@ -306,9 +306,9 @@ public:
         if (response_body.size() != 0 && request.getMethod() != "HEAD")
             this->write_buf = this->write_buf + response_body;
 
-        std::cerr << "----push_write_bud()에서 실행, write_buf 출력--------------------" << std::endl;
-        std::cerr << write_buf << std::endl;
-        std::cerr << "--------------------------------------------------------------" << std::endl;
+        // std::cerr << "----push_write_bud()에서 실행, write_buf 출력--------------------" << std::endl;
+        // std::cerr << write_buf << std::endl;
+        // std::cerr << "--------------------------------------------------------------" << std::endl;
     }
 
     //오토인데스 응답페이지를 만들고 송신준비를 하는 메소드.
@@ -638,10 +638,10 @@ public:
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
     bool parse_request()
     {
-         std::cerr << "************this->read_buf***" << this->read_buf.size() << std::endl;
-            for (int j = 0; j < this->read_buf.size() ; j++)
-                std::cerr << (int)this->read_buf[j] << ".";
-            std::cerr <<  std::endl;
+        //  std::cerr << "************this->read_buf***" << this->read_buf.size() << std::endl;
+        //     for (int j = 0; j < this->read_buf.size() ; j++)
+        //         std::cerr << (int)this->read_buf[j] << ".";
+        //     std::cerr <<  std::endl;
 
         if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
             return false;
