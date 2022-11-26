@@ -629,8 +629,9 @@ public:
         while (curr != this->getRequest().getTarget().length()) //확장자의 문자열을 하나하나검사.
             if (this->getRequest().getTarget()[curr] != '/' && this->getRequest().getTarget()[curr] != '?') //문자열에 '/'또는'?'가 있다면 검사중단.
                 curr++;
+            else
+                break;
         std::string pure_exe = this->getRequest().getTarget().substr(offset, curr - offset); //순수 확장자만 파싱해서 뽑는다.
-
         std::map<std::string, std::string>::const_iterator match_cgi = cgi_infos.find(pure_exe); //지원하는 cgi가 있는지 검사.
         if (match_cgi == cgi_infos.end()) //지원하는 cgi가 없다면 false반환
             return (false);
@@ -739,12 +740,21 @@ public:
                 this->getResponse().setStatus("500"); //500처리.
                     return false; //바로 에러 페이지 제작 필요.
             }
-        if ((this->file_fd = open(this->cgi_file_name.c_str(), O_RDWR | O_CREAT, 0755)) == -1)//읽쓰기, 없으면만듬, 이어쓰기가능.
+        int chiled_file;
+        if ((chiled_file = open(this->cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
         {
             perror("open cgi_result err");
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
+        if ((this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0755)) == -1)//읽기전용.
+        {
+            perror("open cgi_result err");
+            this->getResponse().setStatus("500"); //500처리.
+            return false; //바로 에러 페이지 제작 필요.
+        }
+        fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
+        add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
         int pid = -1;
         if ((pid = fork()) < 0)
         {
@@ -754,16 +764,21 @@ public:
         }
         if (pid == 0) //자식프로세스 일 때.
         {
+            close(this->file_fd);
             std::string file_path = this->request.getTarget(); //실행 할 상대경로 제작.
             file_path = file_path.substr(this->my_loc->path.length());
             file_path = this->my_loc->root + file_path;
+            if (file_path.rfind('?') != std::string::npos)
+                file_path = file_path.substr(0,file_path.rfind('?'));
             char *buf = realpath(file_path.c_str(), NULL); //상대경로를 절대경로로 변경.
             if (buf != NULL) //변환성공 했을 때.
                 file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
+            else
+                exit(0);
             std::cerr << "!!!!!!!!!! cgi program : " << this->cgi_program << std::endl;
             std::cerr << "!!!!!!!!!! cgi file_path : " << file_path << std::endl;
             char **env = this->init_cgi_env(); //환경변수 준비.
-            dup2(this->file_fd, 1); //출력 리다이렉트.
+            dup2(chiled_file, 1); //출력 리다이렉트.
             if (file_path.substr(file_path.rfind('.')) == ".bla") //인트라 cgi테스터용 특별처리.
             {   //(인트라 cgi프로그램은 인자를 직접 받지않고 환경변수로 받는다.)
                 char **arg = (char **)malloc(sizeof(char *) * 2);
@@ -789,21 +804,22 @@ public:
         }
         else //부모프로세스는 논블럭설정하고 "읽기가능"감지에 등록한다.
         {
-            int status;
-            waitpid(pid, &status, 0);
-            if (status != 0)
-                return (false);
-            close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
-            this->file_fd = open(this->cgi_file_name.c_str(), O_RDWR | O_CREAT | O_APPEND, 0755); // 이후 읽기를 위해 새로 open
-            if (this->file_fd == -1)
-                return (false);
+            close(chiled_file);
+            // int status;
+            // waitpid(pid, &status, 0);
+            // if (status != 0)
+            //     return (false);
+            // close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
+            // this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0755); // 이후 읽기를 위해 새로 open
+            // if (this->file_fd == -1)
+                // return (false);
             ///////////////test/////////
             // char *buf;
             // int rs = read(this->file_fd, buf, 9999);
             // std::cerr << "!!!!!!!!! buf data : " << std::string(buf,rs) << std::endl;
             //////////////test//////////////
-            fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-            add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+            // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
+            // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
             return true;
         }
     }
