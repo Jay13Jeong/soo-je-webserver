@@ -758,6 +758,7 @@ public:
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
+        fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
         add_kq_event(this->file_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //"쓰기감지"등록.
         return true;
     }
@@ -812,8 +813,8 @@ public:
             // std::cerr << "!!!!!!!!!! cgi program : " << this->cgi_program << std::endl;
             // std::cerr << "!!!!!!!!!! cgi file_path : " << file_path << std::endl;
             char **env = this->init_cgi_env(); //환경변수 준비.
-            dup2(result_fd, 1); //출력 리다이렉트.
             dup2(stdin_fd, 0); //입력 리다이렉트.
+            dup2(result_fd, 1); //출력 리다이렉트.
             if (file_path.substr(file_path.rfind('.')) == ".bla") //인트라 cgi테스터용 특별처리.
             {   //(인트라 cgi프로그램은 인자를 직접 받지않고 환경변수로 받는다.)
                 char **arg = (char **)malloc(sizeof(char *) * 2);
