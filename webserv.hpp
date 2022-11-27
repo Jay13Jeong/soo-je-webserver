@@ -154,7 +154,7 @@ public:
                     return (false);
             }
             else if (split_result[0] == "cgi")
-            { 
+            {
                 if (set == false || semicolon_cnt != 1 || split_result.size() != 3)
                     return (false);
                 if (split_result[1] != "none" && split_result[1] != ".py" && split_result[1] != ".php")
@@ -423,7 +423,7 @@ public:
     //서버들을 감지목록에 추가하는 메소드.
     void regist_servers_to_kq()
     {
-        std::cout << "server_list : " << this->get_server_list().size() << ",," << this->get_server_list().back().get_fd() << std::endl;
+        std::cerr << "server_list : " << this->get_server_list().size() << ",," << this->get_server_list().back().get_fd() << std::endl;
 
         for (int i(0);i < this->get_server_list().size();i++)
             add_kq_event(this->get_server_list()[i].get_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
@@ -503,7 +503,7 @@ public:
                 for (int i(0); i < detected_count; i++)
                 {
                     curr_det = &detecteds[i];
-                    std::cout << i << std::endl;
+                    std::cerr << i << std::endl;
                     if (curr_det->flags & EV_ERROR)
                     {
                         for (int j(0); j < get_server_list().size(); j++)
@@ -553,7 +553,7 @@ public:
                                 break;
                             }
                         }
-                        std::cout << "cli back() fd : " << this->get_client_list().back().getSocket_fd() << std::endl;
+                        std::cerr << "cli back() fd : " << this->get_client_list().back().getSocket_fd() << std::endl;
                         if (used == true)
                             continue;
                         for (std::vector<Client>::iterator it = _client_list.begin(); it != get_client_list().end(); it++)
@@ -574,8 +574,8 @@ public:
                                 else if (result == RECV_ALL) //모두수신받았을 때.
                                 {
                                     ///////////////////////////////////
-                                    std::cerr << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-                                    std::cerr << (*it).get_read_buf() << std::endl;
+                                    //std::cerr << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
+                                    //std::cerr << (*it).get_read_buf() << std::endl;
                                     std::cerr << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
                                     //////////////////////////////////
                                     add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE); //"읽기가능"감지 끄기.
@@ -660,7 +660,7 @@ public:
                         {   //감지된 fd가 클라쪽 일 때.
                             if (curr_det->ident == (*it).getSocket_fd())
                             {
-                                std::cout << curr_det->ident << "::" << (*it).getSocket_fd() << std::endl;
+                                std::cerr << curr_det->ident << "::" << (*it).getSocket_fd() << std::endl;
                                 used = true;
                                 if ((*it).getFile_fd() != -1) //아직 처리중인 파일이 있다면 송신하지 않는다.
                                     break;
@@ -699,7 +699,7 @@ public:
                                     (*it).getResponse().setStatus("201");
                                     (*it).init_response(); //업로드 완료 후 처리?... (kq와 연계)
                                 }
-                                    
+
                                 break;
                             }
                         }

@@ -36,7 +36,7 @@ public:
         //index = {"index.html"};
         index.push_back("index.html");
         autoindex = false;
-        client_max_body_size = 1000000;
+        client_max_body_size = 100000000;
     };
     ~Server()
     {
@@ -96,7 +96,7 @@ public:
     {
         return this->cgi_map;
     }
-    
+
     //로케이션 맵을 초기화하는 메소드.
     void init_location_map()
     {
@@ -110,7 +110,7 @@ public:
         int new_socket(-1);
 
         int size = sizeof(t_address);
-        if ((new_socket = accept(this->fd, (struct sockaddr*)&t_address, (socklen_t*)&size)) < 0) 
+        if ((new_socket = accept(this->fd, (struct sockaddr*)&t_address, (socklen_t*)&size)) < 0)
         {
             perror("accept_");
             //**throw
@@ -127,7 +127,7 @@ public:
             perror("socket failed");
             //**throw
         }
-        
+
         int opt = 1;
         // 예약) 포트가 선점되어 있을 시 강제로 열도록 예약한다.
         if (setsockopt(this->fd, SOL_SOCKET, SO_REUSEADDR , &opt, sizeof(opt)) == -1) {
@@ -141,7 +141,7 @@ public:
         t_address.sin_addr.s_addr = htonl(INADDR_ANY); //주조를 localhost로 초기화한다.
         t_address.sin_port = htons(this->port); //포트를 네트워크형식으로 전환해서 초기화.
         std::cerr << this->port << std::endl;
-    
+
         //초기화된 주소구조체로 소켓을 바인드.
         if (bind(this->fd, (struct sockaddr*)&t_address, sizeof(t_address)) == -1) {
             perror("bind failed");
@@ -152,7 +152,7 @@ public:
             perror("listen");
             //**throw
         }
-        fcntl(this->fd, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정 
+        fcntl(this->fd, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정
         // g_io_infos[this->fd] = IO_manager(this->fd, "server", 0);
         std::cerr << "fd_num : " << this->fd << std::endl;
         perror("end of open func");
