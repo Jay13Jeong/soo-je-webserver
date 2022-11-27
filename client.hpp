@@ -39,7 +39,8 @@ private:
     std::map<std::string, std::string> * status_msg;
     std::string  cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")
     std::string  cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")
-    std::string  cgi_file_name;
+    std::string  cgi_file_name; //cgi 결과물을 담은 파일 이름.
+    std::string  cgi_body_file; //cgi실행전 사용할 바디 파일 이름.
 
 public:
     Client(std::vector<struct kevent> * cmds) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) \
@@ -200,6 +201,8 @@ public:
             perror("read file fail...");
             return -1;
         }
+        if (this->cgi_mode == true && size == 0) //cgi모드인데 읽은 데이터가 없다면 자식프로세스가 작업이 안끝남.
+            return 0;
         this->file_buf += std::string(buffer, size);
         if (size < BUFFER_SIZE)
         {
@@ -209,7 +212,6 @@ public:
             this->file_fd = -1;
             return 1;
         }
-        // }
         return 0;
     }
 
@@ -249,9 +251,9 @@ public:
         this->write_size += size;
         if (this->write_size >= this->write_buf.length())
         {
-            std::cerr << "0000000000000000000000000000000000000000000" << std::endl;
-            std::cerr << this->write_buf << std::endl;
-            std::cerr << "0000000000000000000000000000000000000000000" << std::endl;
+            // std::cerr << "0000000000000000000000000000000000000000000" << std::endl;
+            // std::cerr << this->write_buf << std::endl;
+            // std::cerr << "0000000000000000000000000000000000000000000" << std::endl;
             return 1; //호출한 부분에서 클라이언트 객체를 초기화하는 함수 실행.
         }
         //전송중이면 (다 못보냈을 때)
@@ -284,7 +286,16 @@ public:
         //2번내용
         if (this->response.getHeader_map().find("Content-Length") != this->response.getHeader_map().end())
             this->response.getHeader_map().erase("Content-Length");
-        this->response.setHeader_map("Content-Length", util::num_to_string(this->file_buf.size()));
+        if (this->cgi_mode == true && this->file_buf.size() != 0) //cgi일때 바디 사이즈 재측정.
+        {
+            size_t pos = this->file_buf.find("\r\n\r\n"); //캐리지리턴 기준으로 그 아래만 사이즈 측정한다.
+            if (pos == std::string::npos)
+                this->response.setHeader_map("Content-Length", "0");
+            else
+                this->response.setHeader_map("Content-Length", util::num_to_string(this->file_buf.size() - pos - 4));
+        }
+        else
+            this->response.setHeader_map("Content-Length", util::num_to_string(this->file_buf.size()));
         //1번 내용, cgi 경우로 인해 못 한 것 추가
         if (this->response.getHeader_map().find("content-Type") == this->response.getHeader_map().end())
             this->find_mime_type(this->request.getTarget());
@@ -360,7 +371,7 @@ public:
         this->response.setHeader_map("Content-Length", util::num_to_string(this->response.getBody().length()));//바디 크기
         this->response.setBody(temp_body);//바디 입력
         closedir(dir);
-        std::cerr << "----init_autoindex_response()->push_write_bud()에서 실행--------------------" << std::endl;
+        // std::cerr << "----init_autoindex_response()->push_write_bud()에서 실행--------------------" << std::endl;
         push_write_buf(this->response.getBody());
     }
 
@@ -410,7 +421,7 @@ public:
             this->response.setHeader_map("Connection", "close");
             // this->response.setHeader_map("Accept-Ranges", "bytes");
             this->response.setBody(this->response.getStatus() + '\0');
-             std::cerr << "----ready_err_response_meta()->if()->push_write_bud()" << std::endl;
+            //  std::cerr << "----ready_err_response_meta()->if()->push_write_bud()" << std::endl;
             push_write_buf(this->response.getBody());
             add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
         }
@@ -462,7 +473,7 @@ public:
             this->response.setHeader_map("Connection", "keep-alive");
         if (this->response.getHeader_map().find("Accept-Ranges") == this->response.getHeader_map().end())
             this->response.setHeader_map("Accept-Ranges", "bytes");
-        std::cerr << "----init_delete_response()->push_write_bud()" << std::endl;
+        // std::cerr << "----init_delete_response()->push_write_bud()" << std::endl;
         push_write_buf("\0");
         //DELETE용 응답데이터 (시작줄 + 헤더 + 바디)만들기....
     }
@@ -515,7 +526,7 @@ public:
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
             add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //파일을 읽기감지에 예약.
             // this->find_mime_type()
-            std::cerr << "get(post) done : " << this->file_fd << std::endl;
+            // std::cerr << "get(post) done : " << this->file_fd << std::endl;
         }
         else if (this->request.getMethod() == "DELETE")
         {
@@ -731,17 +742,39 @@ public:
         return false; //이상 없으면 false반환.
     }
 
+    //cgi가 stdin으로 읽을 파일 만드는 메소드.
+    bool ready_body_file()
+    {
+        this->cgi_body_file = ".payload/cgi_ready_" + util::num_to_string(this->socket_fd);
+        if (util::make_middle_pathes(this->cgi_body_file) == false) //경로의 중간 경로들이 없다면 만든다.
+        {
+            this->getResponse().setStatus("500"); //500처리.
+                return false; //바로 에러 페이지 제작 필요.
+        }
+        if ((this->file_fd = open(this->cgi_body_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
+        {
+            perror("open cgi_ready err");
+            this->getResponse().setStatus("500"); //500처리.
+            return false; //바로 에러 페이지 제작 필요.
+        }
+        add_kq_event(this->file_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //"쓰기감지"등록.
+        return true;
+    }
+
     //cgi를 실행하는 메소드.
     bool excute_cgi()
     {
+        int stdin_fd;
+        int result_fd;
         this->cgi_file_name = ".payload/cgi_result_" + util::num_to_string(this->socket_fd);
-        if (util::make_middle_pathes(this->cgi_file_name) == false) //경로의 중간 경로들이 없다면 만든다.
-            {
-                this->getResponse().setStatus("500"); //500처리.
-                    return false; //바로 에러 페이지 제작 필요.
-            }
-        int chiled_file;
-        if ((chiled_file = open(this->cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
+
+        if ((stdin_fd = open(this->cgi_body_file.c_str(), O_RDONLY, 0755)) == -1)//읽기전용.
+        {
+            perror("open stdin_fd err");
+            this->getResponse().setStatus("500"); //500처리.
+            return false; //바로 에러 페이지 제작 필요.
+        }
+        if ((result_fd = open(this->cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
         {
             perror("open cgi_result err");
             this->getResponse().setStatus("500"); //500처리.
@@ -749,7 +782,7 @@ public:
         }
         if ((this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0755)) == -1)//읽기전용.
         {
-            perror("open cgi_result err");
+            perror("open cgi_file_fd err");
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
@@ -775,10 +808,11 @@ public:
                 file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
             else
                 exit(0);
-            std::cerr << "!!!!!!!!!! cgi program : " << this->cgi_program << std::endl;
-            std::cerr << "!!!!!!!!!! cgi file_path : " << file_path << std::endl;
+            // std::cerr << "!!!!!!!!!! cgi program : " << this->cgi_program << std::endl;
+            // std::cerr << "!!!!!!!!!! cgi file_path : " << file_path << std::endl;
             char **env = this->init_cgi_env(); //환경변수 준비.
-            dup2(chiled_file, 1); //출력 리다이렉트.
+            dup2(result_fd, 1); //출력 리다이렉트.
+            dup2(stdin_fd, 0); //입력 리다이렉트.
             if (file_path.substr(file_path.rfind('.')) == ".bla") //인트라 cgi테스터용 특별처리.
             {   //(인트라 cgi프로그램은 인자를 직접 받지않고 환경변수로 받는다.)
                 char **arg = (char **)malloc(sizeof(char *) * 2);
@@ -804,7 +838,7 @@ public:
         }
         else //부모프로세스는 논블럭설정하고 "읽기가능"감지에 등록한다.
         {
-            close(chiled_file);
+            close(result_fd);
             // int status;
             // waitpid(pid, &status, 0);
             // if (status != 0)
@@ -891,6 +925,8 @@ public:
         cgi_env_map["SERVER_PORT"] = util::num_to_string(this->get_myserver()->get_port());
         cgi_env_map["SERVER_PROTOCOL"] = this->getRequest().getVersion();
         cgi_env_map["SERVER_SOFTWARE"] = "soo-je-webserv/1.0";
+        if (this->response.get_sid() != 0)
+            cgi_env_map["HTTP_COOKIE"] = this->request.getHeaders().find("Cookie")->second;
         // 1-1 request에 있던 헤더들을 추가해줘야 함. (Connection, Content-type, Content-length 제외)
         if (this->set_cgi_env_path(cgi_env_map, target_info.first) == false)
         {
@@ -900,11 +936,12 @@ public:
         char **cgi_env = new char *[sizeof(char *) * cgi_env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
         // 2. 맵의 내용들 2차원 배열로 저장하기
         int i = 0;
-        std::cerr << "**** CGI ENV ****\n";
+        // std::cerr << "**** CGI ENV ****\n";
         for(std::map<std::string, std::string>::iterator iter = cgi_env_map.begin(); iter != cgi_env_map.end(); iter++)
         {
-            std::cerr << (*iter).first << "=" << (*iter).second << "\n";
-            cgi_env[i] = strdup(((*iter).first + "=", (*iter).second).c_str());
+            // std::cerr << (*iter).first << "=" << (*iter).second << "\n";
+            // cgi_env[i] = strdup(((*iter).first + "=", (*iter).second).c_str());
+            cgi_env[i] = strdup(((*iter).first + "=" + (*iter).second).c_str());
             i++;
         }
         cgi_env[cgi_env_map.size()] = NULL;
@@ -940,6 +977,47 @@ public:
             * Meanwhile, the variable PATH_TRANSLATED is also set, which maps the information stored in PATH_INFO to the document root directory
             * (e.g., /usr/local/etc/httpd/ public/cgi/cgi-doc.txt).
         */
+    }
+
+    void manage_session()
+    {
+        if (this->response.get_sid() != 0)
+            return ;
+        long sid = 0;
+        std::stringstream sstream;
+        if (this->request.getHeaders().find("Cookie") != this->request.getHeaders().end())
+        {
+            //1 세션(sid)있는지 체크.. ('; '를 기준으로 값을 스플릿(맵 지역변수 사용))
+            std::vector<std::string> c_vec = util::ft_split(this->request.getHeaders().find("Cookie")->second, "; ");
+            for (std::vector<std::string>::iterator iter(c_vec.begin()); iter != c_vec.end(); iter++)
+            {
+                std::vector<std::string> key_val = util::ft_split(this->request.getHeaders().find("Cookie")->second, "=");
+                if (key_val.size() < 2)
+                    continue;
+                std::string::iterator it2 = key_val[0].begin();
+                while (it2 != key_val[0].end() && ((*it2) == ' ' || isspace((*it2))))
+                    key_val[0].erase(it2++);
+                if (key_val[0] != "session_id")
+                    continue;
+                sid = atol(key_val[1].c_str());
+                break;
+            }
+            //3 세션(sid) 있다면 서버 sid map에 접근
+            if (sid != 0 && (this->my_server->get_sid_map().find(sid) != this->my_server->get_sid_map().end()))
+            {
+                this->response.set_sid(sid);
+                this->my_server->get_sid_map()[sid] = "old"; //4 재확인 후 정말 있다면 값을 old로 재설정.
+                sstream << sid;
+                std::string val = "session_id=" + sstream.str() + "\r\nSet-Cookie: status=" + this->my_server->get_sid_map()[sid];
+                this->response.setHeader_map("Set-Cookie", val);
+                return ;
+            }
+        }   //4 없다면 new로 새로 만들어준다.
+        sid = this->my_server->create_sid(); //서버클래스의 세션map에 "sid=new"형식으로 추가 (반환값을 가진 서버함수로).
+        this->response.set_sid(sid);
+        sstream << sid;
+        std::string val = "session_id=" + sstream.str() + "\r\nSet-Cookie: status=" + this->my_server->get_sid_map()[sid];
+        this->response.setHeader_map("Set-Cookie", val);
     }
 };
 

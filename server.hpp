@@ -23,6 +23,7 @@ public:
     int                                 fd; //linsten용 서버 fd.
     std::map<std::string,std::string>   cgi_map; // 키:확장자, 값:확장자 경로(python,java)
     std::map<std::string, Location>       loc_map; //로케이션 구조체 맵.
+    std::map<long, std::string> sid_map; //세션키=값으로 구성된 맵. 
 
 private:
     struct sockaddr_in          t_address; //포트개방용 변수. 소켓에 이식할 주소구조체.(초기화 안됨)
@@ -43,6 +44,10 @@ public:
         perror("close_server");
         // if (this->fd != -1)
         //     close(this->fd);
+    }
+    std::map<long, std::string> & get_sid_map()
+    {
+        return this->sid_map;
     }
     void    set_host(std::string host)
     {
@@ -140,8 +145,7 @@ public:
         t_address.sin_family = AF_INET; //주조체계를 ipv4로 초기화한다.
         t_address.sin_addr.s_addr = htonl(INADDR_ANY); //주조를 localhost로 초기화한다.
         t_address.sin_port = htons(this->port); //포트를 네트워크형식으로 전환해서 초기화.
-        std::cerr << this->port << std::endl;
-
+        // std::cerr << this->port << std::endl;
         //초기화된 주소구조체로 소켓을 바인드.
         if (bind(this->fd, (struct sockaddr*)&t_address, sizeof(t_address)) == -1) {
             perror("bind failed");
@@ -155,7 +159,7 @@ public:
         fcntl(this->fd, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정
         // g_io_infos[this->fd] = IO_manager(this->fd, "server", 0);
         std::cerr << "fd_num : " << this->fd << std::endl;
-        perror("end of open func");
+        // perror("end of open func");
     }
 
     //로케이션 구조체가 하나도 없으면 서버의 기본 필드로 '/'경로를 만드는 메소드.
@@ -167,6 +171,22 @@ public:
         //default_loc초기화.....
         Location default_loc(this->root, this->index, this->autoindex);
         this->loc_map.insert(std::make_pair("/", default_loc));
+    }
+    //sid를 새로 생성하는 메소드.
+    long create_sid()
+    {
+        char dummy;
+        static long new_id = (long)&dummy; //메모리 주소로 랜덤 값 얻기.
+        while (1)
+        {
+            new_id *= new_id * new_id;
+            if ((this->sid_map.find(new_id) == this->sid_map.end())) //중복확인.
+            {
+                this->sid_map[new_id] = "new"; //키가 유니크면 생성한다.
+                break;
+            }
+        }
+        return new_id;
     }
 };
 

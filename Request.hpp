@@ -87,7 +87,7 @@ public:
     }
 
 public:
-    std::map<std::string, std::string> getHeaders()
+    std::map<std::string, std::string> & getHeaders()
     {
         return this->headers;
     }

@@ -12,11 +12,20 @@ private:
     std::string status_msg; //상태코드 해석 메세지.
     std::map<std::string,std::string> header_map; //헤더필드의 키=값.
     std::string body; //바디.
+    long sid; //세션 id
 
 public:
-    Response(/* args */){};
+    Response(/* args */) : sid(0) {};
     ~Response(){};
 
+    void set_sid(long id)
+    {
+        this->sid = id;
+    }
+    long get_sid()
+    {
+        return this->sid;
+    }
     std::string & getVersion()
     {
         return this->version;
@@ -76,6 +85,7 @@ public:
         this->version.clear();
         this->status_msg.clear();
         this->status.clear();
+        this->sid = 0;
     }
 };
 

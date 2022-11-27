@@ -1,8 +1,14 @@
-// #include <signal.h>
+#include <signal.h>
 #include "webserv.hpp"
+
+void ignore_sigpipe(int sig)
+{
+	(void)sig;
+}
 
 int main(int ac, char* av[])
 {
+    signal(SIGPIPE, ignore_sigpipe);
     Webserv webserv;
 
     if (ac == 1)
