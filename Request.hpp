@@ -42,7 +42,7 @@ private:
         {
             if (j + 1 >= temp_data.size())
                 return (status_code = "400", false);
-            if (strtol(temp_data[j].c_str(), NULL, 10) != temp_data[j + 1].size())
+            if (strtol(temp_data[j].c_str(), NULL, 16) != temp_data[j + 1].size())
                 return (status_code = "400", false);
             temp = temp + temp_data[j + 1];
         }
