@@ -154,7 +154,7 @@ public:
                     return (false);
             }
             else if (split_result[0] == "cgi")
-            { 
+            {
                 if (set == false || semicolon_cnt != 1 || split_result.size() != 3)
                     return (false);
                 if (split_result[1] != ".bla" && split_result[1] != ".py" && split_result[1] != ".php" && split_result[1] != ".pl")
@@ -423,7 +423,7 @@ public:
     //서버들을 감지목록에 추가하는 메소드.
     void regist_servers_to_kq()
     {
-        std::cout << "server_list : " << this->get_server_list().size() << ",," << this->get_server_list().back().get_fd() << std::endl;
+        std::cerr << "server_list : " << this->get_server_list().size() << ",," << this->get_server_list().back().get_fd() << std::endl;
 
         for (int i(0);i < this->get_server_list().size();i++)
             add_kq_event(this->get_server_list()[i].get_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
@@ -654,7 +654,6 @@ public:
                 else if (curr_det->filter == EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
                 {
                     perror("write something");
-
                     bool used = false; //찾았는지 여부.
                     for (std::vector<Client>::iterator it = _client_list.begin(); it != get_client_list().end(); it++)
                     {   //감지된 fd가 클라쪽 일 때.
@@ -703,8 +702,7 @@ public:
                                 }
                                 (*it).getResponse().setStatus("201");
                                 (*it).init_response(); //업로드 완료 후 처리?... (kq와 연계)
-                            }
-                                
+                            }   
                             break;
                         }
                     }

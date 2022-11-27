@@ -40,10 +40,10 @@ private:
         std::string temp = "";
         for (int j = i + 1; j < temp_data.size(); j+=2)//바디부터 시작
         {
-            // if (j + 1 >= temp_data.size())
-            //     return (status_code = "400", false);
-            // if (strtol(temp_data[j].c_str(), NULL, 10) != temp_data[j + 1].size())
-            //     return (status_code = "400", false);
+            if (j + 1 >= temp_data.size())
+                return (status_code = "400", false);
+            if (strtol(temp_data[j].c_str(), NULL, 16) != temp_data[j + 1].size())
+                return (status_code = "400", false);
             temp = temp + temp_data[j + 1];
         }
         setBody(temp);
