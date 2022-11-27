@@ -28,10 +28,10 @@ char** init_cgi_env()
 int main()
 {
     std::string cgi_file_name = "cgi_result_test";
-    int chiled_file;
+    int result_fd;
     std::cerr << "hello" << std::endl;
 
-    if ((chiled_file = open(cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
+    if ((result_fd = open(cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
     {
         std::cerr << "can not create" << std::endl;
         return -1; //바로 에러 페이지 제작 필요.
@@ -51,7 +51,7 @@ int main()
     {
         char **env = init_cgi_env(); //환경변수 준비.
         dup2(post_body_fd, 0);
-        dup2(chiled_file, 1); //출력 리다이렉트.
+        dup2(result_fd, 1); //출력 리다이렉트.
         char **arg = (char **)malloc(sizeof(char *) * 2);
         arg[0] = strdup("../cgi-bin/cgi_tester");
         arg[1] = NULL;
@@ -64,7 +64,7 @@ int main()
     }
     else
     {
-        close(chiled_file);
+        close(result_fd);
         int status;
         waitpid(pid, &status, 0);
         if (status != 0)
