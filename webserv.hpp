@@ -324,14 +324,17 @@ public:
             }
             else if (split_result[0] == "location")
             {
+                // l의 기본값 넣는 부분
                 Location loc_temp(get_server_list().back().get_root(), \
                     get_server_list().back().get_index(), \
-                    get_server_list().back().get_autoindex());
-                //l의 기본값 넣는 부분 추가할 것
+                    get_server_list().back().get_autoindex(), \
+                    get_server_list().back().get_max_body_size(), \
+                    get_server_list().back().get_cgi_map());
                 loc_temp.path = split_result[1];
                 //loc_temp.root = split_result[1];
                 while (1)
                 {
+                    bool cgi_set = false;
                     getline(config_fd, line);
                     util::remove_last_semicolon(line);
                     split_result = util::ft_split(line, "\t ");
@@ -380,6 +383,25 @@ public:
                     {
                         util::remove_last_semicolon(split_result[1]);
                         loc_temp.root = split_result[1];
+                    }
+                    else if (split_result[0] == "client_max_body_size")
+                    {
+                        util::remove_last_semicolon(split_result[1]);
+                        loc_temp.client_max_body_size = util::string_to_num<size_t>(split_result[1]);
+                    }
+                    else if (split_result[0] == "cgi")
+                    {
+                        if (cgi_set == false)
+                        {
+                            loc_temp.cgi_map.clear();
+                            cgi_set = true;
+                        }
+                        if (split_result.size() >= 3)
+                        {
+                            util::remove_last_semicolon(split_result[1]);
+                            util::remove_last_semicolon(split_result[2]);
+                            loc_temp.cgi_map.insert(std::make_pair(split_result[1],split_result[2]));
+                        }
                     }
                 }
             }
@@ -584,7 +606,9 @@ public:
                                     {
                                         std::string backup = (*it).get_read_buf();
                                         (*it).clear_client();
+                                        (*it).getResponse().setStatus(CHUNKED);
                                         (*it).revert_read_data(backup);
+                                        std::cerr << "!" << std::endl;
                                         add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
                                         break;
                                     }

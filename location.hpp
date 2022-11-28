@@ -10,8 +10,9 @@ class Location
 public:
     //생성자..
     Location() { };
-    Location(std::string root, std::vector<std::string> index, bool autoindex)
+    Location(std::string root, std::vector<std::string> index, bool autoindex, size_t client_max_body_size, std::map<std::string, std::string> cgi_map)
     {
+        // 필요한 값들이 비어있는 경우에 대한 처리 필요함 -> exception ?
         this->path = "/";
         this->root = root;
         // redirection.insert(std::make_pair("", ""));
@@ -19,6 +20,8 @@ public:
         this->autoindex = autoindex;
         accept_method.push_back("GET");
         accept_method.push_back("HEAD");
+        this->client_max_body_size = client_max_body_size;
+        this->cgi_map = cgi_map;
         // accept_method.push_back("POST");
         // accept_method.push_back("DELETE");
         // accept_method.push_back("PUT");
@@ -31,6 +34,8 @@ public:
     std::vector<std::string> index; //기본지정파일.벡터로 받게 하기
     bool        autoindex;
     std::vector<std::string> accept_method;//GET POST DELETE 만 받기
+    size_t client_max_body_size;
+    std::map<std::string, std::string> cgi_map; // 기본값으로 location block 밖의 CGI map 을 받는다.
 };
 
 #endif
