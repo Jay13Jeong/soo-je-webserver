@@ -157,7 +157,7 @@ public:
             {
                 if (set == false || semicolon_cnt != 1 || split_result.size() != 3)
                     return (false);
-                if (split_result[1] != ".bla" && split_result[1] != ".py" && split_result[1] != ".php" && split_result[1] != ".pl")
+                if (split_result[1][0] != '.' || split_result[1] != util::to_lower_string(split_result[1]))
                     return (false);
             }
             else if (split_result[0] == "location")
@@ -315,7 +315,7 @@ public:
             }
             else if (split_result[0] == "cgi")
             {
-                if (split_result.size() >= 3 && (split_result[1] == ".py" || split_result[1] == ".php" || split_result[1] == ".pl" || split_result[1] == ".bla"))
+                if (split_result.size() >= 3)
                 {
                     util::remove_last_semicolon(split_result[1]);
                     util::remove_last_semicolon(split_result[2]);
@@ -501,7 +501,7 @@ public:
             for (int i(0); i < detected_count; i++)
             {
                 curr_det = &detecteds[i];
-                std::cout << i << std::endl;
+               std::cout << i << std::endl;
                 if (curr_det->flags & EV_ERROR)
                 {
                     for (int j(0); j < get_server_list().size(); j++)

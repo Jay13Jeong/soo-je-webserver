@@ -10,7 +10,8 @@
 #include <sys/stat.h>//mkdir
 #include <sys/types.h>//mkdir
 #include <unistd.h>//unlink, rmdir
-// #include <algorithm>
+#include <algorithm>
+#include <cctype>
 
 namespace util
 {
@@ -155,6 +156,13 @@ namespace util
         }
         return true; //성공적으로 생성되었으면 true반환.
     }
+
+	std::string to_lower_string(std::string str)
+	{
+		std::string ret = std::string(str.length(), '\0');
+		std::transform(str.begin(), str.end(), ret.begin(), ::tolower);
+		return (ret);
+	}
 }
 
 #endif
