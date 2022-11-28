@@ -15,7 +15,7 @@ private:
     long sid; //세션 id
 
 public:
-    Response(/* args */) : sid(0) {};
+    Response(/* args */) : sid(0), status("") {};
     ~Response(){};
 
     void set_sid(long id)
@@ -41,7 +41,7 @@ public:
     void setStatus(std::string status)
     {
         if (status != "200")
-            perror(("status code" + status).c_str());
+            // perror(("status code" + status).c_str());
         this->status = status;
     }
     std::string & getStatus_msg()

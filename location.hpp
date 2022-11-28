@@ -31,6 +31,8 @@ public:
     std::vector<std::string> index; //기본지정파일.벡터로 받게 하기
     bool        autoindex;
     std::vector<std::string> accept_method;//GET POST DELETE 만 받기
+    std::map<std::string,std::string>   cgi_map; // 키:확장자, 값:확장자 경로(python,java)
+    std::map<std::string, Location>       loc_map; //로케이션 구조체 맵.
 };
 
 #endif
