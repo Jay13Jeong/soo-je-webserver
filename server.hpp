@@ -175,17 +175,19 @@ public:
     //sid를 새로 생성하는 메소드.
     long create_sid()
     {
-        char dummy;
-        static long new_id = (long)&dummy; //메모리 주소로 랜덤 값 얻기.
-        while (1)
-        {
-            new_id *= new_id * new_id;
-            if ((this->sid_map.find(new_id) == this->sid_map.end())) //중복확인.
-            {
-                this->sid_map[new_id] = "new"; //키가 유니크면 생성한다.
-                break;
-            }
-        }
+        // char dummy;
+        // static long new_id = (long)&dummy; //메모리 주소로 랜덤 값 얻기.
+        // while (1)
+        // {
+        //     new_id *= new_id * new_id;
+        //     if ((this->sid_map.find(new_id) == this->sid_map.end())) //중복확인.
+        //     {
+        //         this->sid_map[new_id] = "new"; //키가 유니크면 생성한다.
+        //         break;
+        //     }
+        // }
+        static int new_id = 0;
+        this->sid_map[++new_id] = "new";
         return new_id;
     }
 };

@@ -381,11 +381,12 @@ public:
             temp_body = temp_body + "    <a href= " + ent->d_name + ">" + ent->d_name + "</a><br>";
         }
         temp_body = temp_body + "</pre>  <hr></body></html>";
-        this->response.setHeader_map("Content-Length", util::num_to_string(this->response.getBody().length()));//바디 크기
         this->response.setBody(temp_body);//바디 입력
+        this->response.setHeader_map("Content-Length", util::num_to_string(this->response.getBody().length()));//바디 크기
         closedir(dir);
         // // std::cerr << "----init_autoindex_response()->push_write_bud()에서 실행--------------------" << std::endl;
         push_write_buf(this->response.getBody());
+        add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
     }
 
     void find_mime_type(std::string path)
