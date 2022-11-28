@@ -29,17 +29,17 @@ int main()
 {
     std::string cgi_file_name = "cgi_result_test";
     int result_fd;
-    std::cerr << "hello" << std::endl;
+    // std::cerr << "hello" << std::endl;
 
     if ((result_fd = open(cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
     {
-        std::cerr << "can not create" << std::endl;
+        // std::cerr << "can not create" << std::endl;
         return -1; //바로 에러 페이지 제작 필요.
     }
     int post_body_fd;
-    if ((post_body_fd = open("./socket.cpp", O_RDONLY, 0755)) == -1)//읽기전용.
+    if ((post_body_fd = open("./target.txt", O_RDONLY, 0755)) == -1)//읽기전용.
     {
-        std::cerr << "can not open" << std::endl;
+        // std::cerr << "can not open" << std::endl;
         return -1; //바로 에러 페이지 제작 필요.
     }
     int pid = -1;
@@ -57,7 +57,7 @@ int main()
         arg[1] = NULL;
         if (execve(arg[0], arg, env) == -1)
         {
-            perror("execve err bla cgi");
+            // perror("execve err bla cgi");
             exit(1);
         }
         exit(0);

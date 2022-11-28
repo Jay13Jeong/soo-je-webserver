@@ -12,7 +12,7 @@
 
 using namespace std;
 
-void exit_with_perror(const string& msg)
+void exit_with_// perror(const string& msg)
 {
     cerr << msg << endl;
     exit(EXIT_FAILURE);
@@ -41,23 +41,23 @@ int main()
     struct sockaddr_in server_addr;
 
     if ((server_socket = socket(PF_INET, SOCK_STREAM, 0)) == -1)
-        exit_with_perror("socket() error\n" + string(strerror(errno)));
+        exit_with_// perror("socket() error\n" + string(strerror(errno)));
 
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     server_addr.sin_port = htons(8080);
     if (bind(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1)
-        exit_with_perror("bind() error\n" + string(strerror(errno)));
+        exit_with_// perror("bind() error\n" + string(strerror(errno)));
 
     if (listen(server_socket, 5) == -1)
-        exit_with_perror("listen() error\n" + string(strerror(errno)));
+        exit_with_// perror("listen() error\n" + string(strerror(errno)));
     fcntl(server_socket, F_SETFL, O_NONBLOCK);
     
     /* init kqueue */
     int kq;
     if ((kq = kqueue()) == -1)
-        exit_with_perror("kqueue() error\n" + string(strerror(errno)));
+        exit_with_// perror("kqueue() error\n" + string(strerror(errno)));
 
 
     map<int, string> clients; // map for client socket:data
@@ -76,7 +76,7 @@ int main()
         /*  apply changes and return new events(pending events) */
         new_events = kevent(kq, &change_list[0], change_list.size(), event_list, 8, NULL);
         if (new_events == -1)
-            exit_with_perror("kevent() error\n" + string(strerror(errno)));
+            exit_with_// perror("kevent() error\n" + string(strerror(errno)));
 
         change_list.clear(); // clear change_list for new changes
 
@@ -88,7 +88,7 @@ int main()
             if (curr_event->flags & EV_ERROR)
             {
                 if (curr_event->ident == server_socket)
-                    exit_with_perror("server socket error");
+                    exit_with_// perror("server socket error");
                 else
                 {
                     cerr << "client socket error" << endl;
@@ -102,7 +102,7 @@ int main()
                     /* accept new client */
                     int client_socket;
                     if ((client_socket = accept(server_socket, NULL, NULL)) == -1)
-                        exit_with_perror("accept() error\n" + string(strerror(errno)));
+                        exit_with_// perror("accept() error\n" + string(strerror(errno)));
                     cout << "accept new client: " << client_socket << endl;
                     fcntl(client_socket, F_SETFL, O_NONBLOCK);
 
