@@ -646,7 +646,7 @@ public:
     bool check_need_cgi()
     {
         Server s = *this->my_server;
-        std::map<std::string, std::string> & cgi_infos = s.get_cgi_map();
+        std::map<std::string, std::string> & cgi_infos = this->my_loc->cgi_map;
         size_t offset = this->getRequest().getTarget().find('.'); //확장자를 암시하는 부분을 찾는다.
         if (offset == std::string::npos) //없다면 검사종료.
             return (false);
@@ -733,11 +733,11 @@ public:
         // - 400 : request parse 에서 처리
         // - 401 : ? 인증 여부 확인
         // - 404 : access(path, F_OK), ready_response_meta 에서 처리
-        if (this->getRequest().getMethod() != "PUT" && access(path.c_str(), F_OK) == -1)
-            return (this->getResponse().setStatus("404"), true);
-        // - 403 : access(path, R_OK) (읽기권한)
-        if (this->getRequest().getMethod() != "PUT" && access(path.c_str(), R_OK) == -1)
-            return (this->getResponse().setStatus("403"), true);
+        // if (this->getRequest().getMethod() != "PUT" && access(path.c_str(), F_OK) == -1)
+        //     return (this->getResponse().setStatus("404"), true);
+        // // - 403 : access(path, R_OK) (읽기권한)
+        // if (this->getRequest().getMethod() != "PUT" && access(path.c_str(), R_OK) == -1)
+        //     return (this->getResponse().setStatus("403"), true);
         // - 405 : accept_method 확인, request에서 확인 완.
         if (find(this->my_loc->accept_method.begin(), this->my_loc->accept_method.end(), \
         this->getRequest().getMethod()) == this->my_loc->accept_method.end())
@@ -871,6 +871,9 @@ public:
             //////////////test//////////////
             // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
             // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+            #ifdef TEST
+            std::cerr << "?-?" << std::endl;
+            #endif
             return true;
         }
     }
