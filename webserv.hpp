@@ -702,7 +702,7 @@ public:
                                 }
                                 (*it).getResponse().setStatus("201");
                                 (*it).init_response(); //업로드 완료 후 처리?... (kq와 연계)
-                            }   
+                            }
                             break;
                         }
                     }
