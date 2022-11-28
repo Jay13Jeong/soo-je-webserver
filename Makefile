@@ -17,4 +17,7 @@ fclean : clean
 
 re : fclean all
 
+test : main.cpp *.hpp
+	c++ $(W3FLAG) -o $@ $< -DTEST=1
+
 .PHONY : all clean fclean re
