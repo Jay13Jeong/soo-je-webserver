@@ -55,17 +55,17 @@ public:
     }
     // void get_client_status()
     // {
-    //     // std::cerr << this->socket_fd << " //클라이언트 소켓 fd." << std::endl;
-    //     // std::cerr << this->read_buf<< "//소켓에서 읽어온 비정제 데이터. (추후 파싱필요)" <<std::endl;
-    //     // std::cerr << this->write_buf; //응답 클래스로 보낼 데이터.
-    //     // std::cerr << this->file_fd; // cgi가 출력한 결과물을 담는 파일의 fd.
-    //     // std::cerr << this->file_buf; //파일의 정보가 저장되는 변수.
-    //     // std::cerr << this->write_size; //보낸 데이터 크기.
-    //     // std::cerr << this->read_size; //파일의 읽은 데이터 크기.
-    //     // std::cerr << this->server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
-    //     // std::cerr << this->cgi_mode; // cgi모드여부.
-    //     // std::cerr << this->cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")
-    //     // std::cerr << this->cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")
+        //     std::cerr << this->socket_fd << " //클라이언트 소켓 fd." << std::endl;
+        //     std::cerr << this->read_buf<< "//소켓에서 읽어온 비정제 데이터. (추후 파싱필요)" <<std::endl;
+        //     std::cerr << this->write_buf; //응답 클래스로 보낼 데이터.
+        //     std::cerr << this->file_fd; // cgi가 출력한 결과물을 담는 파일의 fd.
+        //     std::cerr << this->file_buf; //파일의 정보가 저장되는 변수.
+        //     std::cerr << this->write_size; //보낸 데이터 크기.
+        //     std::cerr << this->read_size; //파일의 읽은 데이터 크기.
+        //     std::cerr << this->server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
+        //     std::cerr << this->cgi_mode; // cgi모드여부.
+        //     std::cerr << this->cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")
+        //     std::cerr << this->cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")
     // }
     std::string get_read_buf()
     {
@@ -750,7 +750,7 @@ public:
         //         return (this->getResponse().setStatus("411"), true);
         // }
         // - 413 : client_max_body_size 확인
-        if (this->getRequest().getBody().length() > this->get_myserver()->client_max_body_size)
+        if (this->getRequest().getBody().length() > this->my_loc->client_max_body_size)
             return (this->getResponse().setStatus("413"), true);
         // - 414 : URI 길이 ?
         return false; //이상 없으면 false반환.

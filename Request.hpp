@@ -166,7 +166,7 @@ public:
             return (status_code = "400", false);
         else if ((getMethod() == "GET" || getMethod() == "DELETE" || temp_str[0] == "HEAD") && !(i == temp_data.size() || i == temp_data.size() - 1))
             return (status_code = "400", false);
-        // else if ((getMethod() == "POST") && (i == temp_data.size() || i == temp_data.size() - 1))
+        // else if ((getMethod() == "POST") && (i == temp_data.size() || i == temp_data.size() - 1))// Post에서 바디가 없을 수도 있다
         //     return (status_code = "411", false);
 
         //바디부분
@@ -179,7 +179,14 @@ public:
             //temp = temp + "\r\n";
             i++;
         }
-        setBody(temp);
+
+        if (this->getHeaders().find("Content-Length") == this->getHeaders().end())
+            setBody(temp);
+        else if (strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10) >= temp.size())
+            setBody(temp);
+        else if (strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10) < temp.size())
+            setBody(temp.substr(0, strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10)));
+
         return (status_code = "200", true); //문제없으면 true반환;
     }
 
