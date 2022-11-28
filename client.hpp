@@ -45,7 +45,7 @@ private:
 public:
     Client(std::vector<struct kevent> * cmds) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) \
     ,read_buf(""), write_buf(""), file_buf(""), write_size(0), my_loc(NULL), server_fd(-1) \
-    , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name("") {};
+    , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name(""), cgi_body_file("") {};
     ~Client()
     {
         // perror("close Client!");
@@ -694,6 +694,7 @@ public:
         this->response.clear_response();
         this->request.clear_request();
         this->cgi_file_name.clear();
+        this->cgi_body_file.clear();
         return true; //문제없으면 true리턴.
     }
 
@@ -757,6 +758,7 @@ public:
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
+        fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
         add_kq_event(this->file_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //"쓰기감지"등록.
         return true;
     }
@@ -811,8 +813,8 @@ public:
             // std::cerr << "!!!!!!!!!! cgi program : " << this->cgi_program << std::endl;
             // std::cerr << "!!!!!!!!!! cgi file_path : " << file_path << std::endl;
             char **env = this->init_cgi_env(); //환경변수 준비.
-            dup2(result_fd, 1); //출력 리다이렉트.
             dup2(stdin_fd, 0); //입력 리다이렉트.
+            dup2(result_fd, 1); //출력 리다이렉트.
             if (file_path.substr(file_path.rfind('.')) == ".bla") //인트라 cgi테스터용 특별처리.
             {   //(인트라 cgi프로그램은 인자를 직접 받지않고 환경변수로 받는다.)
                 char **arg = (char **)malloc(sizeof(char *) * 2);
@@ -839,10 +841,11 @@ public:
         else //부모프로세스는 논블럭설정하고 "읽기가능"감지에 등록한다.
         {
             close(result_fd);
-            // int status;
-            // waitpid(pid, &status, 0);
-            // if (status != 0)
-            //     return (false);
+            close(stdin_fd);
+            int status;
+            waitpid(pid, &status, 0);
+            if (status != 0)
+                return (false);
             // close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
             // this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0755); // 이후 읽기를 위해 새로 open
             // if (this->file_fd == -1)
@@ -888,7 +891,8 @@ public:
 
         // 1. PATH_INFO
         size_t dot_pos = target.rfind(this->cgi_file);
-        cgi_env_map["PATH_INFO"] = std::string(target, dot_pos + this->cgi_file.length());
+        // cgi_env_map["PATH_INFO"] = std::string(target, dot_pos + this->cgi_file.length());
+        cgi_env_map["PATH_INFO"] = this->request.getTarget();
         // 2. PATH_TRANSLATED
         if (cgi_env_map["PATH_INFO"].length() != 0)
         {
