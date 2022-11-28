@@ -164,7 +164,7 @@ public:
         }
         else if (size == 0)
         {
-            // // std::cerr << this->read_buf << " : buff" << std::endl;
+            // std::cerr << this->read_buf << " : buff" << std::endl;
             return -1;
         }
         else
@@ -262,9 +262,11 @@ public:
         this->write_size += size;
         if (this->write_size >= this->write_buf.length())
         {
-            // std::cerr << "0000000000000000000000000000000000000000000" << std::endl;
-            // std::cerr << this->write_buf << std::endl;
-            // std::cerr << "0000000000000000000000000000000000000000000" << std::endl;
+            #ifdef TEST
+            std::cerr << "0000000000000000000000000000000000000000000" << std::endl;
+            std::cerr << this->write_buf << std::endl;
+            std::cerr << "0000000000000000000000000000000000000000000" << std::endl;
+            #endif
             return 1; //호출한 부분에서 클라이언트 객체를 초기화하는 함수 실행.
         }
         //전송중이면 (다 못보냈을 때)
