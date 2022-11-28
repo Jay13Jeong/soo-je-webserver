@@ -157,7 +157,7 @@ public:
             {
                 if (set == false || semicolon_cnt != 1 || split_result.size() != 3)
                     return (false);
-                if (split_result[1] != ".bla" && split_result[1] != ".py" && split_result[1] != ".php" && split_result[1] != ".pl")
+                if (split_result[1][0] != '.' || split_result[1] != util::to_lower_string(split_result[1]))
                     return (false);
             }
             else if (split_result[0] == "location")
@@ -315,7 +315,7 @@ public:
             }
             else if (split_result[0] == "cgi")
             {
-                if (split_result.size() >= 3 && (split_result[1] == ".py" || split_result[1] == ".php" || split_result[1] == ".pl" || split_result[1] == ".bla"))
+                if (split_result.size() >= 3)
                 {
                     util::remove_last_semicolon(split_result[1]);
                     util::remove_last_semicolon(split_result[2]);
@@ -324,14 +324,17 @@ public:
             }
             else if (split_result[0] == "location")
             {
+                // l의 기본값 넣는 부분
                 Location loc_temp(get_server_list().back().get_root(), \
                     get_server_list().back().get_index(), \
-                    get_server_list().back().get_autoindex());
-                //l의 기본값 넣는 부분 추가할 것
+                    get_server_list().back().get_autoindex(), \
+                    get_server_list().back().get_max_body_size(), \
+                    get_server_list().back().get_cgi_map());
                 loc_temp.path = split_result[1];
                 //loc_temp.root = split_result[1];
                 while (1)
                 {
+                    bool cgi_set = false;
                     getline(config_fd, line);
                     util::remove_last_semicolon(line);
                     split_result = util::ft_split(line, "\t ");
@@ -380,6 +383,25 @@ public:
                     {
                         util::remove_last_semicolon(split_result[1]);
                         loc_temp.root = split_result[1];
+                    }
+                    else if (split_result[0] == "client_max_body_size")
+                    {
+                        util::remove_last_semicolon(split_result[1]);
+                        loc_temp.client_max_body_size = util::string_to_num<size_t>(split_result[1]);
+                    }
+                    else if (split_result[0] == "cgi")
+                    {
+                        if (cgi_set == false)
+                        {
+                            loc_temp.cgi_map.clear();
+                            cgi_set = true;
+                        }
+                        if (split_result.size() >= 3)
+                        {
+                            util::remove_last_semicolon(split_result[1]);
+                            util::remove_last_semicolon(split_result[2]);
+                            loc_temp.cgi_map.insert(std::make_pair(split_result[1],split_result[2]));
+                        }
                     }
                 }
             }
@@ -501,7 +523,6 @@ public:
             for (int i(0); i < detected_count; i++)
             {
                 curr_det = &detecteds[i];
-                // std::cout << i << std::endl;
                 if (curr_det->flags & EV_ERROR)
                 {
                     for (int j(0); j < get_server_list().size(); j++)
@@ -587,7 +608,6 @@ public:
                                         (*it).getResponse().setStatus(CHUNKED);
                                         (*it).revert_read_data(backup);
                                         std::cerr << "!" << std::endl;
-                                        // add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
                                         break;
                                     }
                                     add_kq_event((*it).getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE); //"읽기가능"감지 끄기.

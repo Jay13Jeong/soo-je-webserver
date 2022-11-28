@@ -169,7 +169,7 @@ public:
         if (this->loc_map.empty() == false)
             return;
         //default_loc초기화.....
-        Location default_loc(this->root, this->index, this->autoindex);
+        Location default_loc(this->root, this->index, this->autoindex, this->client_max_body_size, this->cgi_map);
         this->loc_map.insert(std::make_pair("/", default_loc));
     }
     //sid를 새로 생성하는 메소드.
