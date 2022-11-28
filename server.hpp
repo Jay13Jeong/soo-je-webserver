@@ -41,7 +41,7 @@ public:
     };
     ~Server()
     {
-        perror("close_server");
+        // perror("close_server");
         // if (this->fd != -1)
         //     close(this->fd);
     }
@@ -117,7 +117,7 @@ public:
         int size = sizeof(t_address);
         if ((new_socket = accept(this->fd, (struct sockaddr*)&t_address, (socklen_t*)&size)) < 0)
         {
-            perror("accept_");
+            // perror("accept_");
             //**throw
         }
         fcntl(new_socket, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정
@@ -129,14 +129,14 @@ public:
     {
         //깡통 소켓 생성.
         if ((this->fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-            perror("socket failed");
+            // perror("socket failed");
             //**throw
         }
 
         int opt = 1;
         // 예약) 포트가 선점되어 있을 시 강제로 열도록 예약한다.
         if (setsockopt(this->fd, SOL_SOCKET, SO_REUSEADDR , &opt, sizeof(opt)) == -1) {
-            perror("set_sockopt");
+            // perror("set_sockopt");
             //**throw
         }
 
@@ -145,21 +145,21 @@ public:
         t_address.sin_family = AF_INET; //주조체계를 ipv4로 초기화한다.
         t_address.sin_addr.s_addr = htonl(INADDR_ANY); //주조를 localhost로 초기화한다.
         t_address.sin_port = htons(this->port); //포트를 네트워크형식으로 전환해서 초기화.
-        // std::cerr << this->port << std::endl;
+        // // std::cerr << this->port << std::endl;
         //초기화된 주소구조체로 소켓을 바인드.
         if (bind(this->fd, (struct sockaddr*)&t_address, sizeof(t_address)) == -1) {
-            perror("bind failed");
+            // perror("bind failed");
             //**throw
         }
         //포트열기. 한 서버당 접속대기열을 1024개까지 받는다.
         if (listen(this->fd, 1024) == -1) {
-            perror("listen");
+            // perror("listen");
             //**throw
         }
         fcntl(this->fd, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정
         // g_io_infos[this->fd] = IO_manager(this->fd, "server", 0);
-        std::cerr << "fd_num : " << this->fd << std::endl;
-        // perror("end of open func");
+        // std::cerr << "fd_num : " << this->fd << std::endl;
+        // // perror("end of open func");
     }
 
     //로케이션 구조체가 하나도 없으면 서버의 기본 필드로 '/'경로를 만드는 메소드.
