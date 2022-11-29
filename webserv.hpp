@@ -18,7 +18,7 @@
 #include <map>
 #include "util.hpp"
 
-#define DETECT_SIZE 199999 //한 횟차에 처리할 최대 이벤트 갯수.
+#define DETECT_SIZE 3000 //한 횟차에 처리할 최대 이벤트 갯수.
 #define FAIL        -1 //실패를 의미하는 매크로.
 #define RECV_ALL    1 //모두 수신 받음을 의미.
 #define SEND_ALL    1 //모두 수신 받음을 의미.
@@ -30,9 +30,9 @@ private:
     std::vector<Server> _server_list;
     std::vector<Client> _client_list;
     std::vector<struct kevent> _ev_cmds; //kq 감지대상 벡터.
-    std::map<int,Server> _server_map; //서버 맵.
-    std::map<int,Client> _client_map; //클라이언트 맵.
-    std::map<int,Client> _file_map; //파일 맵.
+    std::map<int, Server> _server_map; //서버 맵.
+    std::map<int, Client> _client_map; //클라이언트 맵.
+    std::map<int, Client*> _file_map; //파일 맵.
     std::map<std::string, std::string> status_map;
 
 public:
@@ -530,77 +530,68 @@ public:
                 {
                     if (this->_server_map.find(curr_det->ident) != this->_server_map.end())
                     {
+                        perror("server_socket_flag_err");
                         this->_server_map.erase(this->_server_map.find(curr_det->ident));
                         shutdown(curr_det->ident,SHUT_RDWR);
                         continue;
                     }
                     if (this->_client_map.find(curr_det->ident) != this->_client_map.end())
                     {
-                        // perror("client_socket_flag_err");
+                        perror("client_socket_flag_err");
                         this->_client_map.erase(this->_client_map.find(curr_det->ident));
                         shutdown(curr_det->ident,SHUT_RDWR);
                         continue;
                     }
-                    // perror("file_socket_flag_err");
+                    perror("file_socket_flag_err");
                     shutdown(curr_det->ident,SHUT_RDWR);
                     continue;
                     // return ;
                 }
                 if (curr_det->filter == EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
                 {
-                    // perror("read something");
-                    //감지된 fd가 정규파일인지 서버인지 클라이언트꺼인지 검사한다.
-                    bool used = false; //찾아서 사용했는지 여부.
-                    for (int j(0); j < get_server_list().size(); j++)
-                    {   //감지된 fd가 서버쪽 일 때.
-                        if (curr_det->ident == get_server_list()[j].get_fd())
-                        {
-                            #ifdef TEST
-                            perror("read server");
-                            #endif
-                            used = true;
-                            int client_fd = get_server_list()[j].accept_client();
-                            if (client_fd == -1)
-                                continue;
-                            Client new_client(&(this->_ev_cmds), &(this->_file_map));
-                            new_client.setSocket_fd(client_fd); //브라우저의 연결을 수락.
-                            #ifdef TEST
-                            // std::cerr << "listen : " << new_client.getSocket_fd() << std::endl;
-                            #endif
-                            new_client.set_status_msg(&(this->status_map));
-                            #ifdef TEST
-                            // std::cerr << "111 " << std::endl;
-                            #endif
-                            new_client.set_myserver(&(this->_server_map[curr_det->ident])); //클라이언트클래스에서 서버클래스에 접근 할 수 있도록.
-                            #ifdef TEST
-                            // std::cerr << "222 " << std::endl;
-                            #endif
-                            add_kq_event(client_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //감지목록에 등록.
-                            #ifdef TEST
-                            // std::cerr << "333 " << std::endl;
-                            #endif
-                            this->set_client_list(new_client); //클라이언트리스트에도 추가.
-                            this->_client_map[client_fd] = new_client;
-                            #ifdef TEST
-                            // std::cerr << "444 " << std::endl;
-                            #endif
-                            break;
-                        }
-                    }
-                    // std::cout << "cli back() fd : " << this->get_client_list().back().getSocket_fd() << std::endl;
-                    if (used == true)
+                    //감지된 fd가 서버일 때.
+                    if (this->_server_map.find(curr_det->ident) != this->_server_map.end())
+                    { 
+                        Server & s = this->_server_map.find(curr_det->ident)->second;
+                        #ifdef TEST
+                        perror("read server");
+                        #endif
+                        int client_fd = s.accept_client();
+                        if (client_fd == -1)
+                            continue;
+                        Client new_client(&(this->_ev_cmds), &(this->_file_map));
+                        new_client.setSocket_fd(client_fd); //브라우저의 연결을 수락.
+                        #ifdef TEST
+                        // std::cerr << "listen : " << new_client.getSocket_fd() << std::endl;
+                        #endif
+                        new_client.set_status_msg(&(this->status_map));
+                        #ifdef TEST
+                        // std::cerr << "111 " << std::endl;
+                        #endif
+                        new_client.set_myserver(&(this->_server_map[curr_det->ident])); //클라이언트클래스에서 서버클래스에 접근 할 수 있도록.
+                        #ifdef TEST
+                        // std::cerr << "222 " << std::endl;
+                        #endif
+                        add_kq_event(client_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //감지목록에 등록.
+                        #ifdef TEST
+                        // std::cerr << "333 " << std::endl;
+                        #endif
+                        // this->set_client_list(new_client); //클라이언트리스트에도 추가.
+                        this->_client_map.insert(std::make_pair(client_fd, new_client));
+                        #ifdef TEST
+                        // std::cerr << "444 " << std::endl;
+                        #endif
                         continue;
-                    //////////ssss/////
+                    }
                     if (this->_client_map.find(curr_det->ident) != this->_client_map.end())
                     {
-                        Client & c = this->_client_map[curr_det->ident];
+                        Client & c = this->_client_map.find(curr_det->ident)->second;
                         #ifdef TEST
                         std::cerr << "---------client start ------------------" << std::endl;
                         // // std::cerr <<  << std::endl;
                         perror("read client");
                         // std::cerr << "fd : " << c.getSocket_fd() << std::endl;
                         #endif
-                        used = true;
                         int result = c.recv_data();
                         if (result == FAIL)
                         {
@@ -609,6 +600,7 @@ public:
                         }
                         else if (result == RECV_ALL) //모두수신받았을 때.
                         {
+                            // std::cerr << c.get_read_buf().length() << " : buff" << std::endl;
                             #ifdef TEST
                             ///////////////////////////////////
                             std::cerr << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
@@ -695,14 +687,10 @@ public:
                         #endif
                         continue;
                     }
-                    /////////ddddd////////
-                    if (used == true)
-                        continue;
-                    /////////ccccc/////
                     //감지된 fd가 파일쪽 일 때.
                     if (this->_file_map.find(curr_det->ident) != this->_file_map.end())
                     {
-                        Client & c = this->_file_map[curr_det->ident];
+                        Client & c = *this->_file_map.find(curr_det->ident)->second;
                         #ifdef TEST
                         perror("read file");
                         #endif
@@ -726,22 +714,18 @@ public:
                         #endif
                         continue;
                     }
-                    /// ggggg////////
                 }
                 else if (curr_det->filter == EVFILT_WRITE) //감지된 이벤트가 "쓰기가능"일 때.
                 {
                     #ifdef TEST
                     perror("write something");
                     #endif
-                    bool used = false; //찾았는지 여부.
-                    /////wwww//////
                     if (this->_client_map.find(curr_det->ident) != this->_client_map.end())
                     {
-                        Client & c = this->_client_map[curr_det->ident];
+                        Client & c = this->_client_map.find(curr_det->ident)->second;
                         #ifdef TEST
                         perror("send socket 1");
                         #endif
-                        used = true;
                         if (c.getFile_fd() != -1) //아직 처리중인 파일이 있다면 송신하지 않는다.
                             continue;
                         int result = c.send_data(); //클라이언트 객체가 완성된 response데이터를 전송.
@@ -764,14 +748,10 @@ public:
                         }
                         continue;
                     }
-                    /// rrrrr/////
-                    if (used == true)
-                        continue;
-                    //감지된 fd가 파일쪽 일 때. (PUT).
-                    /////tttttt//////
+                    //감지된 fd가 파일쪽 일 때. (PUT, POST(stdin)).
                     if (this->_file_map.find(curr_det->ident) != this->_file_map.end())
                     {
-                        Client & c = this->_file_map[curr_det->ident];
+                        Client & c = *this->_file_map.find(curr_det->ident)->second;
                         int result = c.write_file(); //클라이언트객체는 파일을 작성한다.
                         if (result == FAIL || result == SEND_ALL)
                             add_kq_event(c.getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비. (리스폰스제작과 연계)
@@ -804,7 +784,6 @@ public:
                         }
                         continue;
                     }
-                    /// uuuuuuu/////
                 }
                 else {
                     #ifdef TEST
@@ -813,7 +792,7 @@ public:
                 }
             }
             #ifdef TEST
-            // std::cerr << "================ while end ===================== " << std::endl;
+            std::cerr << "================ while end ===================== " << std::endl;
             #endif
         }
     }

@@ -16,7 +16,7 @@ private:
     std::string body; //바디부분 데이터.
 
 private:
-    bool ft_chunk_fin_check(std::string data, std::string temp_str, std::string &status_code)
+    bool ft_chunk_fin_check(std::string & data, std::string & temp_str, std::string &status_code)
     {
         std::vector<std::string> temp = util::ft_split(temp_str, ", ");
 
@@ -35,7 +35,7 @@ private:
         return (status_code = "800", false);
     }
 private:
-    bool ft_chunk_push_body(std::string temp_data, std::string &status_code)
+    bool ft_chunk_push_body(const std::string & temp_data, std::string &status_code)
     {
         std::string temp = "";
         size_t count;
@@ -61,7 +61,7 @@ private:
         return (status_code = "200", true);
     }
 private:
-    size_t ft_find_header_end(std::string data)
+    size_t ft_find_header_end(std::string & data)
     {
         size_t num = data.find("\r\n\r\n");//헤더와 바디 사이의 공백 찾기, 헤더의 마지막 부분.
 
@@ -127,7 +127,7 @@ public:
     }
 
 public:
-    void setBody(std::string body)
+    void setBody(const std::string & body)
     {
         this->body = body;
     }
@@ -138,7 +138,6 @@ public:
         size_t data_header_end_point = ft_find_header_end(data);//헤더 마지막 부분 찾기
         if (data_header_end_point == 0)
             return (status_code = "400", false);
-
         std::vector<std::string> temp_data = util::ft_split_s(data.substr(0, data_header_end_point), "\r\n");
         std::vector<std::string> temp_str;
         std::string temp = "";
@@ -152,7 +151,6 @@ public:
             setMethod(temp_str[0]);
         else if (!(temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT" || temp_str[0] == "HEAD"))
             return (status_code = "405", false);
-
         if (temp_str[2] == "HTTP/1.1")
             setVersion(temp_str[2]);
         else if (!(temp_str[2] == "HTTP/1.1"))//HTTP/1.1만 지원
@@ -160,7 +158,6 @@ public:
         else
             return (status_code = "400", false);
         setTarget(temp_str[1]);//414에러는 uri길이 기준이 현재 없음
-
         int i = 1;
         //헤더 부분
         while (i < temp_data.size())
