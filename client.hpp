@@ -21,7 +21,7 @@
 #define BUFFER_SIZE 70000
 
 class Client
-{ 
+{
 private:
     int socket_fd; //클라이언트 소켓 fd.
     std::string read_buf; //소켓에서 읽어온 비정제 데이터. (추후 파싱필요)
@@ -172,13 +172,19 @@ public:
             this->read_buf += std::string(buffer, size); //1.읽은 데이터 char[] -> string으로 변환해서 저장.
             std::cerr << this->read_buf.length() << " : buff" << std::endl;
             // // std::cerr << this->socket_fd << " : sock" << std::endl;
-
             // if (this->read_buf.length() > )
             //     return 1;
             if (size == BUFFER_SIZE)
                 return 0;
             if (this->response.getStatus() == "800")
             {
+                // if (read_buf.length() > 4)
+                // {
+                //     size_t pos;
+                //     if ((*read_buf.end()) == '\n' && (pos = *read_buf.end() - 1) == '\r')
+                //         if (read_buf.find("\r\n") != std::string::npos)
+                //             return 1;
+                // }
                 if (this->read_buf.substr(this->read_buf.length() - 5) != "0\r\n\r\n")
                     return 0;
             }
@@ -880,7 +886,7 @@ public:
 
     // request target에서 ?를 기준으로 url과 query를 분리해주는 메소드 (first : url, second : query)
     std::pair<std::string, std::string> get_target_info(std::string target)
-    {   
+    {
         size_t qmark_pos = target.find('?');
         if (qmark_pos == std::string::npos)
             return (std::make_pair(target, ""));
