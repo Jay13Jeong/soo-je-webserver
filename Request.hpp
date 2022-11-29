@@ -242,8 +242,15 @@ public:
         size_t data_header_end_point;
 
         if (status_code == "800")//상태코드 800인지 확인하기
-            return (ft_chunk_push_body(data, status_code));
-
+        {
+            //return (ft_chunk_push_body(data, status_code));
+            bool t = ft_chunk_push_body(data, status_code);
+            std::cerr << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa" << std::endl;
+            std::cerr << "data :"  << data << std::endl;
+            std::cerr << "status_code :"  << status_code << << std::endl;
+            std::cerr << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa" << std::endl;
+            return (t);
+        }
         if (!find_header_end(data, data_header_end_point))
             return (status_code = "400", false);
 
