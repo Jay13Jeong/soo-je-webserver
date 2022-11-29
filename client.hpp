@@ -35,6 +35,7 @@ private:
     int server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
     bool cgi_mode; // cgi모드여부.
     std::vector<struct kevent> * _ev_cmds; //kq 감지대상 벡터.
+    std::map<int,Client> * _file_map; //파일 맵.
     Server * my_server; //현재 클라이언트의 서버.(conf 데이터 불러오기 가능).
     std::map<std::string, std::string> * status_msg;
     std::string  cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")
@@ -43,9 +44,9 @@ private:
     std::string  cgi_body_file; //cgi실행전 사용할 바디 파일 이름.
 
 public:
-    Client(std::vector<struct kevent> * cmds) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) \
+    Client(std::vector<struct kevent> * cmds, std::map<int,Client> * files) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) \
     ,read_buf(""), write_buf(""), file_buf(""), write_size(0), my_loc(NULL), server_fd(-1) \
-    , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name(""), cgi_body_file("") {};
+    , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name(""), cgi_body_file(""), _file_map(files) {};
     ~Client()
     {
         // // perror("close Client!");
@@ -214,6 +215,7 @@ public:
             close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
             if (this->cgi_mode == true)
                 unlink(this->cgi_file_name.c_str());
+            this->_file_map->erase(this->_file_map->find(this->file_fd)); //파일 맵에서 제거.
             this->file_fd = -1;
             // perror("read file fail...");
             return -1;
@@ -877,10 +879,10 @@ public:
         {
             close(result_fd);
             close(stdin_fd);
-            int status;
-            waitpid(pid, &status, 0);
-            if (status != 0)
-                return (false);
+            // int status;
+            // waitpid(pid, &status, 0);
+            // if (status != 0)
+            //     return (false);
             // close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
             // this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0755); // 이후 읽기를 위해 새로 open
             // if (this->file_fd == -1)
@@ -893,7 +895,8 @@ public:
             // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
             // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
             #ifdef TEST
-            std::cerr << "?-?" << std::endl;
+            std::cerr << "?-? : " << this->file_fd << std::endl;
+
             #endif
             return true;
         }
