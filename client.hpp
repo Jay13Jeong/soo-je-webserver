@@ -18,7 +18,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define BUFFER_SIZE 70000
+#define BUFFER_SIZE 30000
 
 class Client
 {
@@ -157,6 +157,7 @@ public:
         // if ((this->read_buf.size() + BUFFER_SIZE) < this->read_buf.size()) //string 용량 초과시 예외처리.
         //     return -1;
         size = recv(this->socket_fd, buffer, BUFFER_SIZE, 0);
+        std::cerr << "size : " << size << std::endl;
         if (size == -1)
         {
             // perror("recv client err");
@@ -170,7 +171,7 @@ public:
         else
         {
             this->read_buf += std::string(buffer, size); //1.읽은 데이터 char[] -> string으로 변환해서 저장.
-            std::cerr << this->read_buf.length() << " : buff" << std::endl;
+            //std::cerr << this->read_buf.length() << " : buff" << std::endl;
             // // std::cerr << this->socket_fd << " : sock" << std::endl;
             // if (this->read_buf.length() > )
             //     return 1;
@@ -178,11 +179,17 @@ public:
             if (this->response.getStatus() == "800")
             {
                 size_t pos = read_buf.find("\r\n");
+                std::cerr << pos << " : pos  " << std::endl;
                 if (pos != std::string::npos)
                 {
-                    //if ((*read_buf.end()) == '\n' && (pos = *read_buf.end() - 1) == '\r')
-                    if (pos != read_buf.rfind("\r\n"))//이거
+                    std::cerr << pos << " : pos , " << read_buf.rfind("\r\n") << std::endl;
+                    if (pos != read_buf.rfind("\r\n"))//이거, pos 다음부터 찾도록 하기, 시작복잡도 때문에
+                    {
+                        std::cerr << this->read_buf.length() << " : buff" << std::endl;
+                        std::cerr << pos << " : pos , " << read_buf.rfind("\r\n") << std::endl;
+                        std::cerr << "55555555555555555555555555555" << std::endl;
                         return 1;
+                    }
                 }
             }
             if (size == BUFFER_SIZE)
@@ -676,24 +683,20 @@ public:
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
     bool parse_request()
     {
-        //  // std::cerr << "************this->read_buf***" << this->read_buf.size() << std::endl;
-        //     for (int j = 0; j < this->read_buf.size() ; j++)
-        //         // std::cerr << (int)this->read_buf[j] << ".";
-        //     // std::cerr <<  std::endl;
         if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
             return false;
-        // // std::cerr << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
-        // // std::cerr << "Method : " << this->request.getMethod() << std::endl;
-	    // // std::cerr << "Target : " << this->request.getTarget() << std::endl;
-	    // // std::cerr << "Version : " << this->request.getVersion() << std::endl;
-	    // // std::cerr << "Headers: " << std::endl;
+        // std::cerr << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
+        // std::cerr << "Method : " << this->request.getMethod() << std::endl;
+	    // std::cerr << "Target : " << this->request.getTarget() << std::endl;
+	    // std::cerr << "Version : " << this->request.getVersion() << std::endl;
+	    // std::cerr << "Headers: " << std::endl;
 	    // std::map<std::string, std::string> temp = this->request.getHeaders();
 	    // std::map<std::string,std::string>::iterator iter;
 	    // for(iter = temp.begin() ; iter != temp.end(); iter++){
-		//     // std::cerr << iter->first << ":"<< iter->second << std::endl;
+		//      std::cerr << iter->first << ":"<< iter->second << std::endl;
 	    // }
-	    // // std::cerr << "Body : " << this->request.getBody() << std::endl;
-        // // std::cerr << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+	    //  std::cerr << "Body : " << this->request.getBody() << std::endl;
+        //  std::cerr << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
         return true; //문제없이 파싱이 끝나면 true반환.
     }
 

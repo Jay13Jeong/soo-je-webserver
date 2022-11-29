@@ -62,7 +62,7 @@ private:
         setBody(getBody() + temp);
 
         //data_set(data, i);이거 쓰지 말자
-        data = data.substr(i);//다음 청크 위치
+        data = data.substr(i);//다음 청크 위치, 여기가 문제인가?
         return (status_code = "800", false);
     }
 private:
@@ -162,6 +162,7 @@ private:
         else
             return (status_code = "400", false);
         setTarget(temp_str[1]);//414에러는 uri길이 기준이 현재 없음
+        std::cerr << getMethod() << std::endl;
         return (true);
     }
 
@@ -243,12 +244,16 @@ public:
 
         if (status_code == "800")//상태코드 800인지 확인하기
         {
+            std::cerr << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa" << std::endl;
+            std::cerr << "before data :"  << data.size() << std::endl;
             //return (ft_chunk_push_body(data, status_code));
             bool t = ft_chunk_push_body(data, status_code);
-            std::cerr << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa" << std::endl;
+
+            std::cerr << "after data :"  << data.size() << std::endl;
+            std::cerr << "status_code :"  << status_code << std::endl;
+            std::cerr << "body size :"  << getBody().size() << std::endl;
             std::cerr << "data :"  << data << std::endl;
-            std::cerr << "status_code :"  << status_code << << std::endl;
-            std::cerr << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa" << std::endl;
+            std::cerr << "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" << std::endl;
             return (t);
         }
         if (!find_header_end(data, data_header_end_point))
