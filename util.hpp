@@ -157,6 +157,7 @@ namespace util
         return true; //성공적으로 생성되었으면 true반환.
     }
 
+	// string을 모두 소문자로 만들어주는 함수
 	std::string to_lower_string(std::string str)
 	{
 		std::string ret = std::string(str.length(), '\0');

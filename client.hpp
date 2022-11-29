@@ -904,6 +904,41 @@ public:
         getsockname(this->socket_fd, (struct sockaddr *)&client_sockaddr, &client_sockaddr_len);
         return (inet_ntoa(client_sockaddr.sin_addr));
     }
+    
+    void remove_lr_space(std::string &s)
+    {
+        // erase right space
+        s.erase(s.find_last_not_of(' ') + 1);
+        // erase left space
+        s.erase(0, s.find_first_not_of(' '));
+    }
+
+    static char to_custom_header_format(char c)
+    {
+        if (c == '-')
+            return ('_');
+        if (std::islower(c))
+            return (::toupper(c));
+        return (c);
+    }
+
+    // request의 X-header들을 CGI 환경변수에 추가하는 메소드
+    void set_cgi_custom_env(std::map<std::string, std::string> &cgi_env_map, std::map<std::string, std::string> &request_headers)
+    {
+        std::map<std::string, std::string>::iterator iter;
+        for(iter = request_headers.begin(); iter != request_headers.end(); iter++)
+        {
+            if ((*iter).first.compare(0, 2, "X-") == 0)
+            {
+                // custom header format으로 변경
+                std::string new_header = std::string((*iter).first.length(), '\0');
+                std::transform((*iter).first.begin(), (*iter).first.end(), new_header.begin(), to_custom_header_format);
+                remove_lr_space((*iter).second);
+                cgi_env_map.insert(std::make_pair("HTTP_" + new_header, (*iter).second));
+            }
+                // cgi_env_map.insert(std::make_pair(util::to_upper_string((*iter).first), (*iter).second));
+        }
+    }
 
     // CGI 환경변수 (PATH_INFO, PATH_TRANSLATED, SCRIPT_NAME) 설정을 위한 메소드
     bool set_cgi_env_path(std::map<std::string, std::string> &cgi_env_map, std::string target)
@@ -960,6 +995,7 @@ public:
             // set 500 error
             // return
         }
+        this->set_cgi_custom_env(cgi_env_map, this->request.getHeaders());
         char **cgi_env = new char *[sizeof(char *) * cgi_env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
         // 2. 맵의 내용들 2차원 배열로 저장하기
         int i = 0;
@@ -968,9 +1004,21 @@ public:
         {
             // // std::cerr << (*iter).first << "=" << (*iter).second << "\n";
             // cgi_env[i] = strdup(((*iter).first + "=", (*iter).second).c_str());
-            cgi_env[i] = strdup(((*iter).first + "=" + (*iter).second).c_str());
+            // iter->first.erase(iter->first.find('\0'));
+            // std::string new_str = iter->first + "=" + iter->second + '\0';
+            // std::cerr << "new_str:" << new_str << std::endl;
+            // std::cerr << "new_str.c_str():" << new_str.c_str() << std::endl;
+            cgi_env[i] = strdup((iter->first + "=" + iter->second).c_str());
+            // cgi_env[i] = strdup(new_str.c_str());
+            std::cerr << "cgi_env:" << cgi_env[i] << std::endl;
             i++;
         }
+        #ifdef TEST
+        std::cerr << "**** CGI ENV ****\n";
+        for(int i = 0; i < cgi_env_map.size(); i++)
+            std::cerr << cgi_env[i] << std::endl;
+        std::cerr << "*****************\n";
+        #endif
         cgi_env[cgi_env_map.size()] = NULL;
         return (cgi_env);
         //단톡DM방 책갈피의 cgi IBM문서 참조...., https://www.oreilly.com/openbook/cgi/ch02_02.html
