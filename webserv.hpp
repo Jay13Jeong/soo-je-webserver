@@ -518,9 +518,9 @@ public:
             std::cerr << "================ while start ===================== " << std::endl;
             #endif
             detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, NULL);
-            // // perror("detected_something");
-            // // std::cerr << "detect : " << detected_count << std::endl;
-            // return;
+            #ifdef TEST
+            std::cerr << "detect : " << detected_count << std::endl;
+            #endif
             _ev_cmds.clear(); //사용한 이벤트명령은 비운다.
             for (int i(0); i < detected_count; i++)
             {
@@ -736,10 +736,16 @@ public:
                     {   //감지된 fd가 클라쪽 일 때.
                         if (curr_det->ident == (*it).getSocket_fd())
                         {
+                            #ifdef TEST
+                            perror("send socket 1");
+                            #endif
                             used = true;
                             if ((*it).getFile_fd() != -1) //아직 처리중인 파일이 있다면 송신하지 않는다.
                                 break;
                             int result = (*it).send_data(); //클라이언트 객체가 완성된 response데이터를 전송.
+                            #ifdef TEST
+                            perror("send socket 2");
+                            #endif
                             if (result == FAIL)
                             {
                                 close((*it).getSocket_fd());
@@ -775,11 +781,20 @@ public:
                             }    
                             else if (result == SEND_ALL) //모두작성했을 때.
                             {
+                                #ifdef TEST
+                                perror("write all 1");
+                                #endif
                                 if ((*it).isCgi_mode() == true)
                                 {
+                                    #ifdef TEST
+                                    perror("write all 2");
+                                    #endif
                                     add_kq_event((*it).getSocket_fd(), EVFILT_WRITE,  EV_DELETE | EV_DISABLE);
                                     if ((*it).excute_cgi() == false) //fork로 보내고 파생된result파일을 읽도록 kq에 등록.
                                         (*it).ready_err_response_meta();
+                                    #ifdef TEST
+                                    perror("write all 3");
+                                    #endif
                                     break;
                                 }
                                 (*it).getResponse().setStatus("201");
