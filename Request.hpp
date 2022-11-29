@@ -39,20 +39,23 @@ private:
     {
         std::string temp = "";
         size_t count;
+        //size_t chunk_count = 0;
         for (int i = 0; i < temp_data.size();)//바디부터 시작
         {
-            count = strtol(temp_data.substr(i).c_str(), NULL, 16);//16진수로 읽을 수 있는 곳까지 숫자를 읽음
-
-            i = i + temp_data.substr(i).find("\r\n");//청크 길이 뒤에 처음오는 \r\n 시작위치
-            if (i == std::string::npos)
+            size_t cr = temp_data.find("\r\n", i);
+            if (cr == std::string::npos)
                 return (status_code = "400", false);
+
+            count = strtol(temp_data.substr(i, cr).c_str(), NULL, 16);//16진수로 읽을 수 있는 곳까지 숫자를 읽음
+
+            i += (cr - i);//temp_data.substr(i).find("\r\n");//청크 길이 뒤에 처음오는 \r\n 시작위치
             i += 2;//\r\n건너띄기
 
-            temp = temp + temp_data.substr(i, count);//바디 추가
+            if (count == 0)
+                break;
+            temp += temp_data.substr(i, count);//바디 추가
 
-            if (i + count != i + temp_data.substr(i).find("\r\n"))//청크 바디 뒤에 \r\n 확인
-                return (status_code = "400", false);
-            i = i + count + 2;//다음
+            i += count + 2;//다음
         }
         setBody(temp);
         return (status_code = "200", true);
@@ -132,9 +135,6 @@ public:
     //데이터를 받아서 파싱하는 메소드. 200,400,405,505......414에러는 길이 기준이 현재 없음
     bool parse(std::string & data, std::string & status_code)
     {
-        // // std::cerr << "request.parse() 함수에 들어온 데이터"<< std::endl;
-        // // std::cerr << data << std::endl;
-        // // std::cerr << "여기까지"<< std::endl;
         size_t data_header_end_point = ft_find_header_end(data);//헤더 마지막 부분 찾기
         if (data_header_end_point == 0)
             return (status_code = "400", false);
@@ -191,11 +191,9 @@ public:
             return (status_code = "400", false);
         // else if ((getMethod() == "POST") && (i == temp_data.size() || i == temp_data.size() - 1))// Post에서 바디가 없을 수도 있다
         //     return (status_code = "411", false);
-
         //바디부분
         if (status_code == "800")
             return (ft_chunk_push_body(data.substr(data_header_end_point + 4), status_code));//바디 처음부터 시작
-
         temp = "";
         //while (i < temp_data.size())
         //{
