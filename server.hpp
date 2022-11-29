@@ -89,7 +89,7 @@ public:
     {
         return this->client_max_body_size;
     }
-    std::map<std::string, std::string>  get_default_error_page()
+    std::map<std::string, std::string> & get_default_error_page()
     {
         return this->default_error_pages;
     }

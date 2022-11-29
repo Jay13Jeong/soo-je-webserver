@@ -307,7 +307,7 @@ public:
                 util::remove_last_semicolon(split_result[1]);
                 _server_list.back().client_max_body_size = util::string_to_num<size_t>(split_result[1]);
             }
-            else if (split_result[0] == "error_page")
+            else if (split_result[0] == "default_error_pages")
             {
                 util::remove_last_semicolon(split_result[1]);
                 util::remove_last_semicolon(split_result[2]);

@@ -428,8 +428,15 @@ public:
 
         Server & s = *this->my_server;
         //경로에서 확장자를 확인하고 해당하는 헤더를 반환하는
-        if (s.get_default_error_page().count(this->response.getStatus()) == 0)
+        #ifdef TEST
+        std::cerr << "errrrrr11" << std::endl;
+        #endif
+        if (this->response.getStatus() == "500" || s.get_default_error_page().find(this->response.getStatus()) == s.get_default_error_page().end())
         {
+            #ifdef TEST
+            std::cerr << "errrrrr22" << std::endl;
+            std::cerr << "rrrr22 : " + response.getStatus()  << std::endl;
+            #endif
             // perror("no default err page");
             this->response.setVersion("HTTP/1.1");
             this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
@@ -447,20 +454,28 @@ public:
         }
         else
         {
-            // perror("default err page");
+            #ifdef TEST
+            std::cerr << "errrrrr333" << std::endl;
+            #endif
+            std::string err_page = s.get_default_error_page().find(this->response.getStatus())->second;
+            #ifdef TEST
+            std::cerr << "rrr333 : " << err_page << std::endl;
+            // exit(-1);
+            #endif
             struct stat sb;
-            if (stat(s.get_default_error_page().find(this->response.getStatus())->second.c_str(), &sb) != 0)//루트경로 추가할 것
+            if (stat(err_page.c_str(), &sb) != 0)//루트경로 추가할 것
                 return (this->response.setStatus("500"), this->ready_err_response_meta());
             if ((S_IFMT & sb.st_mode) != S_IFREG)//일반파일이 아닐 경우
                 return (this->response.setStatus("500"), this->ready_err_response_meta());
-            if ((this->file_fd = open(s.get_default_error_page().find(this->response.getStatus())->second.c_str(), O_RDONLY)) < 0)
+            if ((this->file_fd = open(err_page.c_str(), O_RDONLY)) == -1)
                 return (this->response.setStatus("500"), this->ready_err_response_meta());//터지면 경로 문제
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
-
             //헤더 내용은 뒤에 다른 함수에서 추가
-
-            add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //파일을 쓰기감지에 예약.
+            add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //파일을 읽기감지에 예약.
         }
+        #ifdef TEST
+        std::cerr << "errrrrr444" << std::endl;
+        #endif
         return true; //정상수행 true반환.
     }
 
