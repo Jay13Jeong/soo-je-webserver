@@ -619,10 +619,10 @@ public:
                                 {
                                     if ((*it).getResponse().getStatus() == CHUNKED)
                                     {
-                                        std::string backup = (*it).get_read_buf();
-                                        (*it).clear_client();
-                                        (*it).getResponse().setStatus(CHUNKED);
-                                        (*it).revert_read_data(backup);
+                                        //std::string backup = (*it).get_read_buf();
+                                        //(*it).clear_client();
+                                        //(*it).getResponse().setStatus(CHUNKED);
+                                        //(*it).revert_read_data(backup);
                                         #ifdef TEST
                                         std::cerr << "!" << std::endl;
                                         #endif
@@ -778,7 +778,7 @@ public:
                                 #ifdef TEST
                                 perror("write file");
                                 #endif
-                            }    
+                            }
                             else if (result == SEND_ALL) //모두작성했을 때.
                             {
                                 #ifdef TEST

@@ -174,20 +174,19 @@ public:
             // // std::cerr << this->socket_fd << " : sock" << std::endl;
             // if (this->read_buf.length() > )
             //     return 1;
-            if (size == BUFFER_SIZE)
-                return 0;
+
             if (this->response.getStatus() == "800")
             {
-                // if (read_buf.length() > 4)
-                // {
-                //     size_t pos;
-                //     if ((*read_buf.end()) == '\n' && (pos = *read_buf.end() - 1) == '\r')
-                //         if (read_buf.find("\r\n") != std::string::npos)
-                //             return 1;
-                // }
-                if (this->read_buf.substr(this->read_buf.length() - 5) != "0\r\n\r\n")
-                    return 0;
+                size_t pos = read_buf.find("\r\n");
+                if (pos != std::string::npos)
+                {
+                    //if ((*read_buf.end()) == '\n' && (pos = *read_buf.end() - 1) == '\r')
+                    if (pos != read_buf.rfind("\r\n"))//이거
+                        return 1;
+                }
             }
+            if (size == BUFFER_SIZE)
+                return 0;
             if (this->read_buf.find("\r\n\r\n") != std::string::npos) //모두 읽었다면..
                 return 1;
             if (this->read_buf.find("\n\n") != std::string::npos) //모두 읽었다면..
