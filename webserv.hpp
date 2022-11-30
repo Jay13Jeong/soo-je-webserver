@@ -609,14 +609,17 @@ public:
                             {
                                 #ifdef TEST
                                 ///////////////////////////////////
-                                std::cerr << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-                                std::cerr << (*it).get_read_buf() << std::endl;
-                                std::cerr << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
+                                // std::cerr << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
+                                // std::cerr << (*it).get_read_buf() << std::endl;
+                                // std::cerr << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
                                 //////////////////////////////////
                                 std::cerr << "aaaa" << std::endl;
                                 #endif
                                 if ((*it).parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
                                 {
+                                    #ifdef TEST
+                                    std::cerr << "aaaaabbb" << std::endl;
+                                    #endif
                                     if ((*it).getResponse().getStatus() == CHUNKED)
                                     {
                                         //std::string backup = (*it).get_read_buf();

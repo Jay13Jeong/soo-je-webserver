@@ -23,7 +23,7 @@ public:
     int                                 fd; //linsten용 서버 fd.
     std::map<std::string,std::string>   cgi_map; // 키:확장자, 값:확장자 경로(python,java)
     std::map<std::string, Location>       loc_map; //로케이션 구조체 맵.
-    std::map<long, std::string> sid_map; //세션키=값으로 구성된 맵. 
+    std::map<long, std::string> sid_map; //세션키=값으로 구성된 맵.
 
 private:
     struct sockaddr_in          t_address; //포트개방용 변수. 소켓에 이식할 주소구조체.(초기화 안됨)
