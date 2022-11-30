@@ -31,13 +31,13 @@ int main()
     int result_fd;
     // std::cerr << "hello" << std::endl;
 
-    if ((result_fd = open(cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
+    if ((result_fd = open(cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
     {
         // std::cerr << "can not create" << std::endl;
         return -1; //바로 에러 페이지 제작 필요.
     }
     int post_body_fd;
-    if ((post_body_fd = open("./target.txt", O_RDONLY, 0755)) == -1)//읽기전용.
+    if ((post_body_fd = open("./target.txt", O_RDONLY, 0644)) == -1)//읽기전용.
     {
         // std::cerr << "can not open" << std::endl;
         return -1; //바로 에러 페이지 제작 필요.
