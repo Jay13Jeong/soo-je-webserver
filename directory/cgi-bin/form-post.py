@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 # Import modules for CGI handling 
-import cgi, cgitb
+import cgi, cgitb 
 
 # Create instance of FieldStorage 
 form = cgi.FieldStorage() 
@@ -15,7 +15,7 @@ coalition = form.getvalue('coalition')
 print ("Content-type:text/html\r\n\r\n")
 print ("<html>")
 print ("<head>")
-print ("<title>Test Form (GET) Result</title>")
+print ("<title>Test Form (POST) Result</title>")
 print ("<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">")
 print ("<link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>")
 print ("<link href=\"https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap\" rel=\"stylesheet\">")
@@ -24,7 +24,8 @@ print ("body {font-family: 'Fredoka One';}")
 print ("</style>")
 print ("</head>")
 print ("<body>")
-print ("<h2>Test Form (GET) ✨ Result ✨</h2>")
+print ("<h2>Test Form (POST) Result </h2>")
 print ("<h3>%s's coalition is %s</h3>" %(intra_id, coalition))
+print("<a href=\"/form-test.html\"> * go to from test</a>")
 print ("</body>")
 print ("</html>")

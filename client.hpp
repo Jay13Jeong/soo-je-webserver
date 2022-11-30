@@ -843,8 +843,8 @@ public:
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
-        // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-        // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+        fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
+        add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
         this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
         int pid = -1;
         if ((pid = fork()) < 0)
@@ -894,23 +894,23 @@ public:
         }
         else //부모프로세스는 논블럭설정하고 "읽기가능"감지에 등록한다.
         {
-            close(result_fd);
-            close(stdin_fd);
-            // int status;
-            // waitpid(pid, &status, 0);
-            // if (status != 0)
-            //     return (false);
-            // close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
-            // this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0644); // 이후 읽기를 위해 새로 open
-            // if (this->file_fd == -1)
-            //     return (false);
+            // close(result_fd);
+            // close(stdin_fd);
+            int status;
+            waitpid(pid, &status, 0);
+            if (status != 0)
+                return (false);
+            close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
+            this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0644); // 이후 읽기를 위해 새로 open
+            if (this->file_fd == -1)
+                return (false);
             ///////////////test/////////
             // char *buf;
             // int rs = read(this->file_fd, buf, 9999);
             // std::cerr << "!!!!!!!!! buf data : " << std::string(buf,rs) << std::endl;
             //////////////test//////////////
-            fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-            add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+            // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
+            // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
             // this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
             std::cerr << "?-? : " << this->file_fd << std::endl;
@@ -1012,7 +1012,10 @@ public:
         std::pair<std::string, std::string> target_info = get_target_info(this->request.getTarget());
         cgi_env_map["AUTH_TYPE"] = ""; // 인증과정 없으므로 NULL
         cgi_env_map["CONTENT_LENGTH"] = "-1"; // 길이 모른다면 -1
-        cgi_env_map["CONTENT_TYPE"] = "";  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
+        // if (this->request.getHeaders().find("Content-Type") != this->request.getHeaders().end())
+        cgi_env_map["CONTENT_TYPE"] = this->request.getHeaders()["Content-Type"];  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
+        // else
+        //     cgi_env_map["CONTENT_TYPE"] = "";
         cgi_env_map["GATEWAY_INTERFACE"] = "CGI/1.1";
         cgi_env_map["REQUEST_METHOD"] = this->getRequest().getMethod();
         size_t pos = this->getRequest().getTarget().find('?'); // 쿼리가 있다면 넣어주기 (쿼리 테스트 필요함.)
@@ -1046,7 +1049,7 @@ public:
             // std::cerr << "new_str.c_str():" << new_str.c_str() << std::endl;
             cgi_env[i] = strdup((iter->first + "=" + iter->second).c_str());
             // cgi_env[i] = strdup(new_str.c_str());
-            std::cerr << "cgi_env:" << cgi_env[i] << std::endl;
+            // std::cerr << "cgi_env:" << cgi_env[i] << std::endl;
             i++;
         }
         #ifdef TEST
