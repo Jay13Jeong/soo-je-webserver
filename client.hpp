@@ -374,28 +374,48 @@ public:
         this->response.setHeader_map("content-Type", "text/html");
         this->response.setHeader_map("Connection", "keep-alive");
         this->response.setHeader_map("Accept-Ranges", "bytes");
-
+        #ifdef TEST
+        std::cerr << "autoindex access... : " << my_loc->root + this->request.getTarget() << std::endl;
+        #endif
         DIR *dir;
         struct dirent *ent;
-        dir = opendir((my_loc->root + this->request.getTarget()).c_str());//해당 경로의 파일및 디렉터리 를 받기 위한 오픈
+        // std::string target_dir = my_loc->root + this->request.getTarget();
+        // size_t pos3 = target_dir.find("//");
+        // if (pos3 != std::string::npos)
+        // {
+        //     target_dir.erase(pos3);
+        // }
+        dir = opendir(path.c_str());//해당 경로의 파일및 디렉터리 를 받기 위한 오픈
         if (dir == NULL)
         {
             this->response.setStatus("500");//서버 에러
             this->ready_err_response_meta();//기본 세팅 보내기
             return ;
         }
+        #ifdef TEST
+        std::cerr << "autoindex access...ok" << std::endl;
+        #endif
         //오토인덱스 html 초기세팅
         temp_body = "<html><head>    <title>Index of ";
-        temp_body = temp_body + this->request.getTarget() + "</title></head><body bg color='white'>  <h1> Index of " + this->request.getTarget() + "</h1>  <hr>  <pre>";
+        temp_body += this->request.getTarget() + "</title></head><body bg color='white'>  <h1> Index of " + this->request.getTarget() + "</h1>  <hr>  <pre>";
 
         while ((ent = readdir(dir)) != NULL)//경로의 파일들 바디에 넣기
         {
             // .  .. 이건 빼자, 숨긴 파일은 출력을 해보자
             if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
                 continue ;
-            temp_body = temp_body + "    <a href= " + ent->d_name + ">" + ent->d_name + "</a><br>";
+            std::string curr_file(ent->d_name);
+            struct stat sb;
+            stat((path + curr_file).c_str(), &sb); //현재 대상이 디렉토리라면.
+            if (S_ISDIR(sb.st_mode))
+            {
+                curr_file +='/';
+                perror("dir : ok");
+            }
+            // std::cerr << curr_file << std::endl;
+            temp_body += "    <a href= " + this->request.getTarget() + curr_file + ">" + curr_file + "</a><br>";
         }
-        temp_body = temp_body + "</pre>  <hr></body></html>";
+        temp_body += "</pre>  <hr></body></html>";
         this->response.setBody(temp_body);//바디 입력
         this->response.setHeader_map("Content-Length", util::num_to_string(this->response.getBody().length()));//바디 크기
         closedir(dir);
@@ -547,6 +567,9 @@ public:
                     return false; //바로 에러 페이지 제작 필요.
                 }
             }
+            #ifdef TEST
+            std::cerr << "is autoindex ? " << std::endl;
+            #endif
             if (path[path.length() - 1] == '/') //서버경로가 정규파일이 아닌 폴더일 때.
             {
                 std::string abs_path = this->found_index_abs_path(path); //conf의 index 목록중에 실존하는 파일의 절대경로찾기.
@@ -563,6 +586,9 @@ public:
                 else //conf에서의 index목록중에 있다면 해당 경로로 대치.
                     path = abs_path;
             }
+            #ifdef TEST
+            std::cerr << "not autoindex" << std::endl;
+            #endif
             this->file_fd = open(path.c_str(),O_RDONLY, 0644);
             if (this->file_fd == -1) //열기 실패시.
             {
