@@ -843,8 +843,8 @@ public:
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
-        fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-        add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+        // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
+        // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
         this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
         int pid = -1;
         if ((pid = fork()) < 0)
@@ -896,10 +896,10 @@ public:
         {
             close(result_fd);
             close(stdin_fd);
-            int status;
-            waitpid(pid, &status, 0);
-            if (status != 0)
-                return (false);
+            // int status;
+            // waitpid(pid, &status, 0);
+            // if (status != 0)
+            //     return (false);
             // close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
             // this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0644); // 이후 읽기를 위해 새로 open
             // if (this->file_fd == -1)
@@ -909,8 +909,8 @@ public:
             // int rs = read(this->file_fd, buf, 9999);
             // std::cerr << "!!!!!!!!! buf data : " << std::string(buf,rs) << std::endl;
             //////////////test//////////////
-            // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-            // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+            fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
+            add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
             // this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
             std::cerr << "?-? : " << this->file_fd << std::endl;
