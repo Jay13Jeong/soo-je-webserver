@@ -7,12 +7,25 @@
 void	testFunc(std::string & data, std::string &status, std::string resultStatus)
 {
 	Request request;
-
+	status = "";
 	request.parse(data, status);
 	if (status == resultStatus)
 	{
 		std::cerr << "test OK!! " << std::endl;
 		return ;
+	}
+	else if (status == "800"){//청크일 경우
+		while (data.size() != 0){
+			request.parse(data, status);
+		}
+		if (status == resultStatus)
+		{
+			std::cerr << "test OK!! " << std::endl;
+			return ;
+		}
+		std::cerr << "Body : " << request.getBody() << std::endl;
+		std::cerr << "data : " << data << std::endl;
+		std::cerr << "errer!!  status : resultStatus = " << status << " : " << resultStatus << std::endl << std::endl;
 	}
 	else
 		std::cerr << "errer!!  status : resultStatus = " << status << " : " << resultStatus << std::endl << std::endl;
@@ -27,7 +40,6 @@ void	testFunc(std::string & data, std::string &status, std::string resultStatus)
 		 std::cerr << iter->first << ":"<< iter->second << std::endl;
 	}
 	std::cerr << "Body : " << request.getBody() << std::endl;
-
 }
 
 int main(void)
@@ -105,7 +117,7 @@ int main(void)
 	testFunc(data, status, "200");//POST 청크 확인. 바디 없이 바로 종료청크 올때
 	 std::cerr << "---------------------------------------------------" << std::endl;
 
-	data = "POST / HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\nAccept-Encoding: gzip, deflate, br\r\nTransfer-Encoding: chunked, gzip\r\n\r\n1\r\n1\r\n9\r\n1q2q3q\n4q\r\n0\r\n\r\n";
+	data = "POST / HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\nAccept-Encoding: gzip, deflate, br\r\nTransfer-Encoding: chunked, gzip\r\n\r\n2\r\n22\r\n9\r\n1q2q3q\n4q\r\n0\r\n\r\n";
 	std::cerr << "15---------------------------------------------------" << std::endl;
 	testFunc(data, status, "200");//POST 청크 확인. 바디 있음 여러줄,, 자음이 오면 하나당 길이 2
 	 std::cerr << "---------------------------------------------------" << std::endl;
