@@ -33,7 +33,7 @@ private:
         //if ((data.size() - 5) == data.rfind("0\r\n\r\n"))//종료 위지 같으면
         //    return (status_code = "800", true);
     }
-private:
+public:
     bool ft_chunk_push_body(std::string &data, std::string &status_code)
     {
         std::string temp = "";
@@ -42,7 +42,7 @@ private:
         size_t cr;
         size_t chunk_count = 0;
 
-        for (int i = 0; (chunk_count < 10) && (i < data.size());)//바디부터 시작
+        while ((chunk_count < 10) && (i < data.size()))//바디부터 시작
         {
             cr = data.find("\r\n", i) - i;//16진수 길이
             if (cr == std::string::npos)
@@ -70,7 +70,6 @@ private:
         //data_set(data, i);이거 쓰지 말자
         data = data.substr(i);//다음 청크 위치, 여기가 문제인가?
         return (status_code = "800", false);
-
     }
 private:
     size_t ft_find_header_end(std::string & data)
