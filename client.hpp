@@ -702,7 +702,7 @@ public:
 
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
     bool parse_request()
-    {
+        {
         if (this->response.getStatus() == "800")//상태코드 800인지 확인하기
             return (this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus()));
         else if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
