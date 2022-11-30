@@ -676,14 +676,13 @@ public:
     bool parse_request()
     {
         if (this->response.getStatus() == "800"){//상태코드 800인지 확인하기
-            std::cerr << "start" << std::endl;
-            //return (this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus()));
-            bool t = this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus());
-            if (t)
-            {
-                std::cerr << "body :" <<this->request.getBody().size() << std::endl;
-            }
-            return t;
+            return (this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus()));
+            // bool t = this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus());
+            // if (t)
+            // {
+            //     std::cerr << "body :" <<this->request.getBody().size() << std::endl;
+            // }
+            // return t;
         }
         else if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
             return false;
