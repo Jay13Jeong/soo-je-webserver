@@ -894,16 +894,16 @@ public:
         }
         else //부모프로세스는 논블럭설정하고 "읽기가능"감지에 등록한다.
         {
-            // close(result_fd);
-            // close(stdin_fd);
+            close(result_fd);
+            close(stdin_fd);
             int status;
             waitpid(pid, &status, 0);
             if (status != 0)
                 return (false);
-            close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
-            this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0644); // 이후 읽기를 위해 새로 open
-            if (this->file_fd == -1)
-                return (false);
+            // close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
+            // this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0644); // 이후 읽기를 위해 새로 open
+            // if (this->file_fd == -1)
+            //     return (false);
             ///////////////test/////////
             // char *buf;
             // int rs = read(this->file_fd, buf, 9999);
