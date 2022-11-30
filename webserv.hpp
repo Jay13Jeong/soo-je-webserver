@@ -18,7 +18,7 @@
 #include <map>
 #include "util.hpp"
 
-#define DETECT_SIZE 3000 //한 횟차에 처리할 최대 이벤트 갯수.
+#define DETECT_SIZE 44497 //한 횟차에 처리할 최대 이벤트 갯수.
 #define FAIL        -1 //실패를 의미하는 매크로.
 #define RECV_ALL    1 //모두 수신 받음을 의미.
 #define SEND_ALL    1 //모두 수신 받음을 의미.
@@ -528,6 +528,7 @@ public:
                 curr_det = &detecteds[i];
                 if (curr_det->flags & EV_ERROR)
                 {
+                    std::cerr << "close : " << curr_det->ident << std::endl;
                     if (this->_server_map.find(curr_det->ident) != this->_server_map.end())
                     {
                         perror("server_socket_flag_err");
@@ -561,6 +562,7 @@ public:
                             continue;
                         Client new_client(&(this->_ev_cmds), &(this->_file_map));
                         new_client.setSocket_fd(client_fd); //브라우저의 연결을 수락.
+                        std::cerr << "listen : " << new_client.getSocket_fd() << std::endl;
                         #ifdef TEST
                         // std::cerr << "listen : " << new_client.getSocket_fd() << std::endl;
                         #endif
@@ -576,7 +578,6 @@ public:
                         #ifdef TEST
                         // std::cerr << "333 " << std::endl;
                         #endif
-                        // this->set_client_list(new_client); //클라이언트리스트에도 추가.
                         this->_client_map.insert(std::make_pair(client_fd, new_client));
                         #ifdef TEST
                         // std::cerr << "444 " << std::endl;

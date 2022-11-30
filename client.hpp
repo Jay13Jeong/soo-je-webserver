@@ -42,6 +42,8 @@ private:
     std::string  cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")
     std::string  cgi_file_name; //cgi 결과물을 담은 파일 이름.
     std::string  cgi_body_file; //cgi실행전 사용할 바디 파일 이름.
+    int file_pipe[2];//
+    int result_pipe[2];
 
 public:
     Client(std::vector<struct kevent> * cmds, std::map<int,Client*> * files) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) \
@@ -69,7 +71,7 @@ public:
         //     std::cerr << this->cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")
         //     std::cerr << this->cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")
     // }
-    std::string get_read_buf()
+    std::string & get_read_buf()
     {
         return this->read_buf;
     }
@@ -93,11 +95,11 @@ public:
     {
         this->cgi_mode = cgi_mode;
     }
-    std::string getFile_buf()
+    std::string & getFile_buf()
     {
         return this->file_buf;
     }
-    void setFile_buf(std::string file_buf)
+    void setFile_buf(std::string & file_buf)
     {
         this->file_buf = file_buf;
     }
@@ -357,7 +359,7 @@ public:
     }
 
     //오토인데스 응답페이지를 만들고 송신준비를 하는 메소드.
-    void init_autoindex_response(std::string path)
+    void init_autoindex_response(std::string & path)
     {
         std::string temp_body;
         //1.바로 소켓송신이 가능하도록 헤더+바디를 제작한다. -> "this->write_buf에 바로 담는다."
@@ -402,7 +404,7 @@ public:
         add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
     }
 
-    void find_mime_type(std::string path)
+    void find_mime_type(std::string & path)
     {
         std::string temp = "";
         //값"text/html",text/css, images/png, jpeg, gif
@@ -525,7 +527,6 @@ public:
     //응답데이터를 만들기전에 필요한 read/write 또는 unlink하는 메소드.
     bool ready_response_meta()
     {
-        Server s = *this->my_server;
         std::string uri = this->getRequest().getTarget().substr(0, this->getRequest().getTarget().find('?')); //'?'부터 뒷부분 쿼리스트링 제거한 앞부분.
 
         if (this->request.getMethod() == "GET" || this->request.getMethod() == "POST" || this->request.getMethod() == "HEAD")
@@ -800,18 +801,22 @@ public:
         #ifdef TEST
         std::cerr << "make body file for cgi..." << std::endl;
         #endif
-        this->cgi_body_file = ".payload/cgi_ready_" + util::num_to_string(this->socket_fd);
+        static int random_num = 511;
+        random_num *= rand();
+        this->cgi_body_file = ".payload/cgi_ready_" + util::num_to_string(random_num);
         if (util::make_middle_pathes(this->cgi_body_file) == false) //경로의 중간 경로들이 없다면 만든다.
         {
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
-        if ((this->file_fd = open(this->cgi_body_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
+        // if ((this->file_fd = open(this->cgi_body_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
+        if (pipe(this->file_pipe) == -1)
         {
             // perror("open cgi_ready err");
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
+        this->file_fd = this->file_pipe[1];
         #ifdef TEST
         std::cerr << "make body file for cgi...ok" << std::endl;
         #endif
@@ -826,14 +831,17 @@ public:
     {
         int stdin_fd;
         int result_fd;
-        this->cgi_file_name = ".payload/cgi_result_" + util::num_to_string(this->socket_fd);
 
-        if ((stdin_fd = open(this->cgi_body_file.c_str(), O_RDONLY, 0644)) == -1)//읽기전용.
-        {
-            // perror("open stdin_fd err");
-            this->getResponse().setStatus("500"); //500처리.
-            return false; //바로 에러 페이지 제작 필요.
-        }
+        static int random_num = 255;
+        random_num *= rand();
+        this->cgi_file_name = ".payload/cgi_result_" + util::num_to_string(random_num);
+
+        // if ((stdin_fd = open(this->cgi_body_file.c_str(), O_RDONLY, 0644)) == -1)//읽기전용.
+        // {
+        //     // perror("open stdin_fd err");
+        //     this->getResponse().setStatus("500"); //500처리.
+        //     return false; //바로 에러 페이지 제작 필요.
+        // }
         if ((result_fd = open(this->cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
         {
             // perror("open cgi_result err");
@@ -846,6 +854,17 @@ public:
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
+        /////////////////pipe 1///////////////
+        // if (pipe(result_pipe) == -1)//읽기전용.
+        // {
+        //     // perror("open cgi_file_fd err");
+        //     this->getResponse().setStatus("500"); //500처리.
+        //     return false; //바로 에러 페이지 제작 필요.
+        // }
+        stdin_fd = this->file_pipe[0];
+        // result_fd = this->result_pipe[1];
+        // this->file_fd = this->result_pipe[0];
+        /////////////////pipe 2///////////////
         // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
         // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
         this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
@@ -867,9 +886,13 @@ public:
             char *buf = realpath(file_path.c_str(), NULL); //상대경로를 절대경로로 변경.
             if (buf != NULL) //변환성공 했을 때.
                 file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
-            // // std::cerr << "!!!!!!!!!! cgi program : " << this->cgi_program << std::endl;
-            // // std::cerr << "!!!!!!!!!! cgi file_path : " << file_path << std::endl;
+            #ifdef TEST
+            std::cerr << "!!!!!!!!!! cgi program : " << this->cgi_program << std::endl;
+            #endif
             char **env = this->init_cgi_env(); //환경변수 준비.
+            #ifdef TEST
+            std::cerr << "!!!!!!!!!! cgi file_path : " << file_path << std::endl;
+            #endif
             dup2(stdin_fd, 0); //입력 리다이렉트.
             dup2(result_fd, 1); //출력 리다이렉트.
             if (file_path.substr(file_path.rfind('.')) == ".bla") //인트라 cgi테스터용 특별처리.
@@ -899,22 +922,15 @@ public:
         {
             close(result_fd);
             close(stdin_fd);
+            #ifdef TEST
+            std::cerr << "wait pid ..." << this->file_fd << std::endl;
+            #endif
             int status;
             waitpid(pid, &status, 0);
             if (status != 0)
                 return (false);
-            // close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
-            // this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0644); // 이후 읽기를 위해 새로 open
-            // if (this->file_fd == -1)
-            //     return (false);
-            ///////////////test/////////
-            // char *buf;
-            // int rs = read(this->file_fd, buf, 9999);
-            // std::cerr << "!!!!!!!!! buf data : " << std::string(buf,rs) << std::endl;
-            //////////////test//////////////
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
             add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
-            // this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
             std::cerr << "?-? : " << this->file_fd << std::endl;
 
@@ -924,7 +940,7 @@ public:
     }
 
     // request target에서 ?를 기준으로 url과 query를 분리해주는 메소드 (first : url, second : query)
-    std::pair<std::string, std::string> get_target_info(std::string target)
+    std::pair<std::string, std::string> get_target_info(std::string & target)
     {
         size_t qmark_pos = target.find('?');
         if (qmark_pos == std::string::npos)
@@ -980,7 +996,7 @@ public:
     }
 
     // CGI 환경변수 (PATH_INFO, PATH_TRANSLATED, SCRIPT_NAME) 설정을 위한 메소드
-    bool set_cgi_env_path(std::map<std::string, std::string> &cgi_env_map, std::string target)
+    bool set_cgi_env_path(std::map<std::string, std::string> &cgi_env_map, std::string & target)
     {
         // PATH_INFO : 스크립트 확장자 이후의 문자열
         // PATH_TRANSLATED : 스크립트 확장자 이후의 절대경로 (PATH_INFO의 절대경로)
@@ -1049,7 +1065,7 @@ public:
             // std::cerr << "new_str.c_str():" << new_str.c_str() << std::endl;
             cgi_env[i] = strdup((iter->first + "=" + iter->second).c_str());
             // cgi_env[i] = strdup(new_str.c_str());
-            std::cerr << "cgi_env:" << cgi_env[i] << std::endl;
+            // std::cerr << "cgi_env:" << cgi_env[i] << std::endl;
             i++;
         }
         #ifdef TEST

@@ -16,7 +16,7 @@ private:
     std::string body; //바디부분 데이터.
 
 private:
-    void ft_chunk_check(std::string data, std::string temp_str, std::string &status_code)
+    void ft_chunk_check(std::string & data, std::string & temp_str, std::string &status_code)
     {
         std::vector<std::string> temp = util::ft_split(temp_str, ", ");
 
@@ -84,7 +84,7 @@ private:
         return num;
     }
 public:
-    std::string getMethod()
+    std::string & getMethod()
     {
         return this->method;
     }
@@ -108,7 +108,7 @@ public:
     }
 
 public:
-    std::string getVersion()
+    std::string & getVersion()
     {
         return this->version;
     }
@@ -126,7 +126,7 @@ public:
     }
 
 public:
-    void setHeaders(std::string key, std::string value)
+    void setHeaders(const std::string & key,const std::string & value)
     {
         this->headers.insert(std::make_pair(key, value));
     }
@@ -143,7 +143,7 @@ public:
         this->body = body;
     }
 private:
-    bool find_header_end(std::string data, size_t &data_header_end_point)
+    bool find_header_end(std::string & data, size_t &data_header_end_point)
     {
         data_header_end_point = ft_find_header_end(data);//헤더 마지막 부분 찾기
         if (data_header_end_point == 0)
@@ -151,7 +151,7 @@ private:
         return (true);
     }
 
-    bool push_start_line(std::string temp_data, std::string &status_code)
+    bool push_start_line(std::string & temp_data, std::string &status_code)
     {
         std::vector<std::string> temp_str = util::ft_split_s(temp_data, " ");
         if (temp_str.size() != 3)//스타트라인 규격 체크
@@ -170,7 +170,7 @@ private:
         return (true);
     }
 
-    bool push_headers(std::string data, std::vector<std::string> temp_data, std::string &status_code, size_t header_end_point)
+    bool push_headers(std::string & data, std::vector<std::string> & temp_data, std::string &status_code, size_t & header_end_point)
     {
         std::vector<std::string> temp_str;
         std::string temp = "";
@@ -204,7 +204,7 @@ private:
         return (true);
     }
 
-    bool push_body(std::string &data, std::string &status_code, size_t data_header_end_point)
+    bool push_body(std::string &data, std::string &status_code, size_t & data_header_end_point)
     {
         std::string temp = "";
         if (data.size() >= data_header_end_point + 4)
@@ -226,7 +226,7 @@ private:
         return (true);
     }
 
-    void data_set(std::string &data, size_t end_point)
+    void data_set(std::string &data, size_t & end_point)
     {//end_point에서 CRLF없을 수 있음, 최대 2번 올 수 있음
         data = data.substr(end_point);
 
