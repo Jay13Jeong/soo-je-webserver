@@ -176,18 +176,20 @@ public:
             // // std::cerr << this->socket_fd << " : sock" << std::endl;
             // if (this->read_buf.length() > )
             //     return 1;
-
-            if (this->response.getStatus() == "800")
-            {
-                size_t pos = read_buf.find("\r\n");
-                if (pos != std::string::npos)
-                {
-                    if (pos != read_buf.rfind("\r\n"))//이거, pos 다음부터 찾도록 하기, 시작복잡도 때문에
-                        return 1;
-                }
-            }
             if (size == BUFFER_SIZE)
                 return 0;
+            if (this->response.getStatus() == "800")
+            {
+                // if (read_buf.length() > 4)
+                // {
+                //     size_t pos;
+                //     if ((*read_buf.end()) == '\n' && (pos = *read_buf.end() - 1) == '\r')
+                //         if (read_buf.find("\r\n") != std::string::npos)
+                //             return 1;
+                // }
+                if (this->read_buf.substr(this->read_buf.length() - 5) != "0\r\n\r\n")
+                    return 0;
+            }
             if (this->read_buf.find("\r\n\r\n") != std::string::npos) //모두 읽었다면..
                 return 1;
             if (this->read_buf.find("\n\n") != std::string::npos) //모두 읽었다면..
@@ -714,18 +716,18 @@ public:
         }
         else if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
             return false;
-        // std::cerr << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
-        // std::cerr << "Method : " << this->request.getMethod() << std::endl;
-	    // std::cerr << "Target : " << this->request.getTarget() << std::endl;
-	    // std::cerr << "Version : " << this->request.getVersion() << std::endl;
-	    // std::cerr << "Headers: " << std::endl;
+        // // std::cerr << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
+        // // std::cerr << "Method : " << this->request.getMethod() << std::endl;
+	    // // std::cerr << "Target : " << this->request.getTarget() << std::endl;
+	    // // std::cerr << "Version : " << this->request.getVersion() << std::endl;
+	    // // std::cerr << "Headers: " << std::endl;
 	    // std::map<std::string, std::string> temp = this->request.getHeaders();
 	    // std::map<std::string,std::string>::iterator iter;
 	    // for(iter = temp.begin() ; iter != temp.end(); iter++){
-		//      std::cerr << iter->first << ":"<< iter->second << std::endl;
+		//     // std::cerr << iter->first << ":"<< iter->second << std::endl;
 	    // }
-	    //  std::cerr << "Body : " << this->request.getBody() << std::endl;
-        //  std::cerr << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+	    // // std::cerr << "Body : " << this->request.getBody() << std::endl;
+        // // std::cerr << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
         return true; //문제없이 파싱이 끝나면 true반환.
     }
 
@@ -846,8 +848,8 @@ public:
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
-        // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-        // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+        fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
+        add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
         this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
         int pid = -1;
         if ((pid = fork()) < 0)
@@ -899,10 +901,10 @@ public:
         {
             close(result_fd);
             close(stdin_fd);
-            // int status;
-            // waitpid(pid, &status, 0);
-            // if (status != 0)
-            //     return (false);
+            int status;
+            waitpid(pid, &status, 0);
+            if (status != 0)
+                return (false);
             // close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
             // this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0644); // 이후 읽기를 위해 새로 open
             // if (this->file_fd == -1)
@@ -912,8 +914,8 @@ public:
             // int rs = read(this->file_fd, buf, 9999);
             // std::cerr << "!!!!!!!!! buf data : " << std::string(buf,rs) << std::endl;
             //////////////test//////////////
-            fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-            add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+            // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
+            // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
             // this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
             std::cerr << "?-? : " << this->file_fd << std::endl;
@@ -1015,7 +1017,10 @@ public:
         std::pair<std::string, std::string> target_info = get_target_info(this->request.getTarget());
         cgi_env_map["AUTH_TYPE"] = ""; // 인증과정 없으므로 NULL
         cgi_env_map["CONTENT_LENGTH"] = "-1"; // 길이 모른다면 -1
-        cgi_env_map["CONTENT_TYPE"] = "";  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
+        // if (this->request.getHeaders().find("Content-Type") != this->request.getHeaders().end())
+        cgi_env_map["CONTENT_TYPE"] = this->request.getHeaders()["Content-Type"];  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
+        // else
+        //     cgi_env_map["CONTENT_TYPE"] = "";
         cgi_env_map["GATEWAY_INTERFACE"] = "CGI/1.1";
         cgi_env_map["REQUEST_METHOD"] = this->getRequest().getMethod();
         size_t pos = this->getRequest().getTarget().find('?'); // 쿼리가 있다면 넣어주기 (쿼리 테스트 필요함.)
@@ -1026,9 +1031,13 @@ public:
         cgi_env_map["SERVER_PORT"] = util::num_to_string(this->get_myserver()->get_port());
         cgi_env_map["SERVER_PROTOCOL"] = this->getRequest().getVersion();
         cgi_env_map["SERVER_SOFTWARE"] = "soo-je-webserv/1.0";
+        /*
+            * UPLOAD_PATH : 파일 업로드 지점을 설정하기 위한 커스텀 환경변수
+            * 현재는 기본적으로 root 경로로 지정되어 있지만 "root 뒤에 이어서 폴더를 지정"하면 폴더를 생성하여 그 안에 저장함.
+        */
+        cgi_env_map["UPLOAD_PATH"] = this->my_loc->root + "new_folder/";
         if (this->response.get_sid() != 0)
             cgi_env_map["HTTP_COOKIE"] = this->request.getHeaders().find("Cookie")->second;
-        // 1-1 request에 있던 헤더들을 추가해줘야 함. (Connection, Content-type, Content-length 제외)
         if (this->set_cgi_env_path(cgi_env_map, target_info.first) == false)
         {
             // set 500 error
@@ -1049,7 +1058,7 @@ public:
             // std::cerr << "new_str.c_str():" << new_str.c_str() << std::endl;
             cgi_env[i] = strdup((iter->first + "=" + iter->second).c_str());
             // cgi_env[i] = strdup(new_str.c_str());
-            std::cerr << "cgi_env:" << cgi_env[i] << std::endl;
+            // std::cerr << "cgi_env:" << cgi_env[i] << std::endl;
             i++;
         }
         #ifdef TEST
