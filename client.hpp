@@ -35,6 +35,7 @@ private:
     int server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
     bool cgi_mode; // cgi모드여부.
     std::vector<struct kevent> * _ev_cmds; //kq 감지대상 벡터.
+    std::map<int, Client*> * _file_map; //파일 맵.
     Server * my_server; //현재 클라이언트의 서버.(conf 데이터 불러오기 가능).
     std::map<std::string, std::string> * status_msg;
     std::string  cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")
@@ -43,9 +44,10 @@ private:
     std::string  cgi_body_file; //cgi실행전 사용할 바디 파일 이름.
 
 public:
-    Client(std::vector<struct kevent> * cmds) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) \
+    Client(std::vector<struct kevent> * cmds, std::map<int,Client*> * files) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) \
     ,read_buf(""), write_buf(""), file_buf(""), write_size(0), my_loc(NULL), server_fd(-1) \
-    , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name(""), cgi_body_file("") {};
+    , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name(""), cgi_body_file(""), _file_map(files) {};
+
     ~Client()
     {
         // // perror("close Client!");
@@ -119,7 +121,7 @@ public:
     {
         return this->request;
     }
-    void setRequest(Request request)
+    void setRequest(Request & request)
     {
         this->request = request;
     }
@@ -127,7 +129,7 @@ public:
     {
         return this->response;
     }
-    void setResponse(Response response)
+    void setResponse(Response & response)
     {
         this->response = response;
     }
@@ -135,7 +137,7 @@ public:
     {
         return this->cgi_program;
     }
-    void revert_read_data(std::string backup)
+    void revert_read_data(std::string & backup)
     {
         this->read_buf = backup;
     }
@@ -170,7 +172,7 @@ public:
         else
         {
             this->read_buf += std::string(buffer, size); //1.읽은 데이터 char[] -> string으로 변환해서 저장.
-            //std::cerr << this->read_buf.length() << " : buff" << std::endl;
+            // std::cerr << this->read_buf.length() << " : buff" << std::endl;
             // // std::cerr << this->socket_fd << " : sock" << std::endl;
             // if (this->read_buf.length() > )
             //     return 1;
@@ -212,6 +214,7 @@ public:
             close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
             if (this->cgi_mode == true)
                 unlink(this->cgi_file_name.c_str());
+            this->_file_map->erase(this->_file_map->find(this->file_fd)); //파일 맵에서 제거.
             this->file_fd = -1;
             // perror("read file fail...");
             return -1;
@@ -224,6 +227,7 @@ public:
             close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
             if (this->cgi_mode == true)
                 unlink(this->cgi_file_name.c_str());
+            this->_file_map->erase(this->_file_map->find(this->file_fd)); //파일 맵에서 제거.
             this->file_fd = -1;
             return 1;
         }
@@ -239,6 +243,7 @@ public:
         if (size == -1)
         {
             close(this->file_fd);
+            this->_file_map->erase(this->_file_map->find(this->file_fd)); //파일 맵에서 제거.
             this->file_fd = -1;
             this->write_size = 0;
             return -1;
@@ -247,6 +252,7 @@ public:
         if (this->write_size >= request.getBody().length())
         {
             close(this->file_fd);
+            this->_file_map->erase(this->_file_map->find(this->file_fd)); //파일 맵에서 제거.
             this->file_fd = -1;
             this->write_size = 0;
             return 1;
@@ -326,8 +332,11 @@ public:
         return true; //문제없이 응답클래스를 초기화했으면 true반환
     }
 
-    void push_write_buf(std::string response_body)
+    void push_write_buf(const std::string & response_body)
     {
+        // #ifdef TEST
+        // std::cerr << "status code : " << this->response.getStatus() << std::endl;
+        // #endif
         //스타트라인
         this->write_buf = this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() + "\r\n";
         //헤더 부분
@@ -340,7 +349,7 @@ public:
             this->write_buf = this->write_buf + "\r\n";
         //바디 부분
         if (response_body.size() != 0 && request.getMethod() != "HEAD")
-            this->write_buf = this->write_buf + response_body;
+            this->write_buf += response_body;
 
         // // std::cerr << "----push_write_bud()에서 실행, write_buf 출력--------------------" << std::endl;
         // // std::cerr << write_buf << std::endl;
@@ -426,8 +435,15 @@ public:
 
         Server & s = *this->my_server;
         //경로에서 확장자를 확인하고 해당하는 헤더를 반환하는
-        if (s.get_default_error_page().count(this->response.getStatus()) == 0)
+        #ifdef TEST
+        std::cerr << "errrrrr11" << std::endl;
+        #endif
+        if (this->response.getStatus() == "500" || s.get_default_error_page().find(this->response.getStatus()) == s.get_default_error_page().end())
         {
+            #ifdef TEST
+            std::cerr << "errrrrr22" << std::endl;
+            std::cerr << "rrrr22 : " + response.getStatus()  << std::endl;
+            #endif
             // perror("no default err page");
             this->response.setVersion("HTTP/1.1");
             this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
@@ -445,20 +461,29 @@ public:
         }
         else
         {
-            // perror("default err page");
+            #ifdef TEST
+            std::cerr << "errrrrr333" << std::endl;
+            #endif
+            std::string err_page = s.get_default_error_page().find(this->response.getStatus())->second;
+            #ifdef TEST
+            std::cerr << "rrr333 : " << err_page << std::endl;
+            // exit(-1);
+            #endif
             struct stat sb;
-            if (stat(s.get_default_error_page().find(this->response.getStatus())->second.c_str(), &sb) != 0)//루트경로 추가할 것
+            if (stat(err_page.c_str(), &sb) != 0)//루트경로 추가할 것
                 return (this->response.setStatus("500"), this->ready_err_response_meta());
             if ((S_IFMT & sb.st_mode) != S_IFREG)//일반파일이 아닐 경우
                 return (this->response.setStatus("500"), this->ready_err_response_meta());
-            if ((this->file_fd = open(s.get_default_error_page().find(this->response.getStatus())->second.c_str(), O_RDONLY)) < 0)
+            if ((this->file_fd = open(err_page.c_str(), O_RDONLY)) == -1)
                 return (this->response.setStatus("500"), this->ready_err_response_meta());//터지면 경로 문제
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
-
             //헤더 내용은 뒤에 다른 함수에서 추가
-
-            add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //파일을 쓰기감지에 예약.
+            add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //파일을 읽기감지에 예약.
+            this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
         }
+        #ifdef TEST
+        std::cerr << "errrrrr444" << std::endl;
+        #endif
         return true; //정상수행 true반환.
     }
 
@@ -481,6 +506,7 @@ public:
     void init_delete_response()
     {
         this->response.setVersion(this->request.getVersion());
+        this->response.setStatus("204");
         this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
 
         if (this->response.getHeader_map().find("server") == this->response.getHeader_map().end())
@@ -535,7 +561,7 @@ public:
                 else //conf에서의 index목록중에 있다면 해당 경로로 대치.
                     path = abs_path;
             }
-            this->file_fd = open(path.c_str(),O_RDONLY, 0755);
+            this->file_fd = open(path.c_str(),O_RDONLY, 0644);
             if (this->file_fd == -1) //열기 실패시.
             {
                 this->getResponse().setStatus("500"); //500처리.
@@ -543,6 +569,7 @@ public:
             }
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
             add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //파일을 읽기감지에 예약.
+            this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             // this->find_mime_type()
             // // std::cerr << "get(post) done : " << this->file_fd << std::endl;
         }
@@ -588,7 +615,7 @@ public:
                 this->getResponse().setStatus("500"); //500처리.
                     return false; //바로 에러 페이지 제작 필요.
             }
-            this->file_fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755); //읽기전용, 없으면만듬, 덮어쓰기.
+            this->file_fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644); //읽기전용, 없으면만듬, 덮어쓰기.
             if (this->file_fd == -1)
             {
                 this->getResponse().setStatus("500"); //500처리.
@@ -596,6 +623,7 @@ public:
             }
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
             add_kq_event(this->file_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //"쓰기감지"등록.
+            this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
         }
         else
             return (this->getResponse().setStatus("501"), false); //501처리. 지원하지않는 메소드.
@@ -769,20 +797,27 @@ public:
     //cgi가 stdin으로 읽을 파일 만드는 메소드.
     bool ready_body_file()
     {
+        #ifdef TEST
+        std::cerr << "make body file for cgi..." << std::endl;
+        #endif
         this->cgi_body_file = ".payload/cgi_ready_" + util::num_to_string(this->socket_fd);
         if (util::make_middle_pathes(this->cgi_body_file) == false) //경로의 중간 경로들이 없다면 만든다.
         {
             this->getResponse().setStatus("500"); //500처리.
-                return false; //바로 에러 페이지 제작 필요.
+            return false; //바로 에러 페이지 제작 필요.
         }
-        if ((this->file_fd = open(this->cgi_body_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
+        if ((this->file_fd = open(this->cgi_body_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
         {
             // perror("open cgi_ready err");
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
+        #ifdef TEST
+        std::cerr << "make body file for cgi...ok" << std::endl;
+        #endif
         fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
         add_kq_event(this->file_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //"쓰기감지"등록.
+        this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
         return true;
     }
 
@@ -793,26 +828,27 @@ public:
         int result_fd;
         this->cgi_file_name = ".payload/cgi_result_" + util::num_to_string(this->socket_fd);
 
-        if ((stdin_fd = open(this->cgi_body_file.c_str(), O_RDONLY, 0755)) == -1)//읽기전용.
+        if ((stdin_fd = open(this->cgi_body_file.c_str(), O_RDONLY, 0644)) == -1)//읽기전용.
         {
             // perror("open stdin_fd err");
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
-        if ((result_fd = open(this->cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
+        if ((result_fd = open(this->cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
         {
             // perror("open cgi_result err");
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
-        if ((this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0755)) == -1)//읽기전용.
+        if ((this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0644)) == -1)//읽기전용.
         {
             // perror("open cgi_file_fd err");
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
-        fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-        add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+        // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
+        // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+        this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
         int pid = -1;
         if ((pid = fork()) < 0)
         {
@@ -831,8 +867,6 @@ public:
             char *buf = realpath(file_path.c_str(), NULL); //상대경로를 절대경로로 변경.
             if (buf != NULL) //변환성공 했을 때.
                 file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
-            else
-                exit(0);
             // // std::cerr << "!!!!!!!!!! cgi program : " << this->cgi_program << std::endl;
             // // std::cerr << "!!!!!!!!!! cgi file_path : " << file_path << std::endl;
             char **env = this->init_cgi_env(); //환경변수 준비.
@@ -865,23 +899,25 @@ public:
         {
             close(result_fd);
             close(stdin_fd);
-            int status;
-            waitpid(pid, &status, 0);
-            if (status != 0)
-                return (false);
+            // int status;
+            // waitpid(pid, &status, 0);
+            // if (status != 0)
+            //     return (false);
             // close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
-            // this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0755); // 이후 읽기를 위해 새로 open
+            // this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0644); // 이후 읽기를 위해 새로 open
             // if (this->file_fd == -1)
-                // return (false);
+            //     return (false);
             ///////////////test/////////
             // char *buf;
             // int rs = read(this->file_fd, buf, 9999);
-            // // std::cerr << "!!!!!!!!! buf data : " << std::string(buf,rs) << std::endl;
+            // std::cerr << "!!!!!!!!! buf data : " << std::string(buf,rs) << std::endl;
             //////////////test//////////////
-            // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-            // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+            fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
+            add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+            // this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
-            std::cerr << "?-?" << std::endl;
+            std::cerr << "?-? : " << this->file_fd << std::endl;
+
             #endif
             return true;
         }
@@ -906,6 +942,41 @@ public:
         socklen_t client_sockaddr_len = sizeof(client_sockaddr);
         getsockname(this->socket_fd, (struct sockaddr *)&client_sockaddr, &client_sockaddr_len);
         return (inet_ntoa(client_sockaddr.sin_addr));
+    }
+    
+    void remove_lr_space(std::string &s)
+    {
+        // erase right space
+        s.erase(s.find_last_not_of(' ') + 1);
+        // erase left space
+        s.erase(0, s.find_first_not_of(' '));
+    }
+
+    static char to_custom_header_format(char c)
+    {
+        if (c == '-')
+            return ('_');
+        if (std::islower(c))
+            return (::toupper(c));
+        return (c);
+    }
+
+    // request의 X-header들을 CGI 환경변수에 추가하는 메소드
+    void set_cgi_custom_env(std::map<std::string, std::string> &cgi_env_map, std::map<std::string, std::string> &request_headers)
+    {
+        std::map<std::string, std::string>::iterator iter;
+        for(iter = request_headers.begin(); iter != request_headers.end(); iter++)
+        {
+            if ((*iter).first.compare(0, 2, "X-") == 0)
+            {
+                // custom header format으로 변경
+                std::string new_header = std::string((*iter).first.length(), '\0');
+                std::transform((*iter).first.begin(), (*iter).first.end(), new_header.begin(), to_custom_header_format);
+                remove_lr_space((*iter).second);
+                cgi_env_map.insert(std::make_pair("HTTP_" + new_header, (*iter).second));
+            }
+                // cgi_env_map.insert(std::make_pair(util::to_upper_string((*iter).first), (*iter).second));
+        }
     }
 
     // CGI 환경변수 (PATH_INFO, PATH_TRANSLATED, SCRIPT_NAME) 설정을 위한 메소드
@@ -963,6 +1034,7 @@ public:
             // set 500 error
             // return
         }
+        this->set_cgi_custom_env(cgi_env_map, this->request.getHeaders());
         char **cgi_env = new char *[sizeof(char *) * cgi_env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
         // 2. 맵의 내용들 2차원 배열로 저장하기
         int i = 0;
@@ -971,9 +1043,21 @@ public:
         {
             // // std::cerr << (*iter).first << "=" << (*iter).second << "\n";
             // cgi_env[i] = strdup(((*iter).first + "=", (*iter).second).c_str());
-            cgi_env[i] = strdup(((*iter).first + "=" + (*iter).second).c_str());
+            // iter->first.erase(iter->first.find('\0'));
+            // std::string new_str = iter->first + "=" + iter->second + '\0';
+            // std::cerr << "new_str:" << new_str << std::endl;
+            // std::cerr << "new_str.c_str():" << new_str.c_str() << std::endl;
+            cgi_env[i] = strdup((iter->first + "=" + iter->second).c_str());
+            // cgi_env[i] = strdup(new_str.c_str());
+            std::cerr << "cgi_env:" << cgi_env[i] << std::endl;
             i++;
         }
+        #ifdef TEST
+        std::cerr << "**** CGI ENV ****\n";
+        for(int i = 0; i < cgi_env_map.size(); i++)
+            std::cerr << cgi_env[i] << std::endl;
+        std::cerr << "*****************\n";
+        #endif
         cgi_env[cgi_env_map.size()] = NULL;
         return (cgi_env);
         //단톡DM방 책갈피의 cgi IBM문서 참조...., https://www.oreilly.com/openbook/cgi/ch02_02.html

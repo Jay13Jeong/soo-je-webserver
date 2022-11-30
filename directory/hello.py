@@ -14,6 +14,5 @@ print("<br>")
 print ("i am python^.^")
 print("<br>")
 print('<a href="/"><h3>BACK TO THE HOME</h3></a>')
-
 for key, value in os.environ.items():
     print('{}: {}<br>'.format(key, value))
