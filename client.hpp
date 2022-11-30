@@ -18,7 +18,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define BUFFER_SIZE 30000
+#define BUFFER_SIZE 70000
 
 class Client
 {
@@ -176,18 +176,20 @@ public:
             // // std::cerr << this->socket_fd << " : sock" << std::endl;
             // if (this->read_buf.length() > )
             //     return 1;
-
-            if (this->response.getStatus() == "800")
-            {
-                size_t pos = read_buf.find("\r\n");
-                if (pos != std::string::npos)
-                {
-                    if (pos != read_buf.rfind("\r\n"))//이거, pos 다음부터 찾도록 하기, 시작복잡도 때문에
-                        return 1;
-                }
-            }
             if (size == BUFFER_SIZE)
                 return 0;
+            if (this->response.getStatus() == "800")
+            {
+                // if (read_buf.length() > 4)
+                // {
+                //     size_t pos;
+                //     if ((*read_buf.end()) == '\n' && (pos = *read_buf.end() - 1) == '\r')
+                //         if (read_buf.find("\r\n") != std::string::npos)
+                //             return 1;
+                // }
+                if (this->read_buf.substr(this->read_buf.length() - 5) != "0\r\n\r\n")
+                    return 0;
+            }
             if (this->read_buf.find("\r\n\r\n") != std::string::npos) //모두 읽었다면..
                 return 1;
             if (this->read_buf.find("\n\n") != std::string::npos) //모두 읽었다면..
@@ -703,20 +705,24 @@ public:
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
     bool parse_request()
     {
+        //  // std::cerr << "************this->read_buf***" << this->read_buf.size() << std::endl;
+        //     for (int j = 0; j < this->read_buf.size() ; j++)
+        //         // std::cerr << (int)this->read_buf[j] << ".";
+        //     // std::cerr <<  std::endl;
         if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
             return false;
-        // std::cerr << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
-        // std::cerr << "Method : " << this->request.getMethod() << std::endl;
-	    // std::cerr << "Target : " << this->request.getTarget() << std::endl;
-	    // std::cerr << "Version : " << this->request.getVersion() << std::endl;
-	    // std::cerr << "Headers: " << std::endl;
+        // // std::cerr << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
+        // // std::cerr << "Method : " << this->request.getMethod() << std::endl;
+	    // // std::cerr << "Target : " << this->request.getTarget() << std::endl;
+	    // // std::cerr << "Version : " << this->request.getVersion() << std::endl;
+	    // // std::cerr << "Headers: " << std::endl;
 	    // std::map<std::string, std::string> temp = this->request.getHeaders();
 	    // std::map<std::string,std::string>::iterator iter;
 	    // for(iter = temp.begin() ; iter != temp.end(); iter++){
-		//      std::cerr << iter->first << ":"<< iter->second << std::endl;
+		//     // std::cerr << iter->first << ":"<< iter->second << std::endl;
 	    // }
-	    //  std::cerr << "Body : " << this->request.getBody() << std::endl;
-        //  std::cerr << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+	    // // std::cerr << "Body : " << this->request.getBody() << std::endl;
+        // // std::cerr << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
         return true; //문제없이 파싱이 끝나면 true반환.
     }
 
