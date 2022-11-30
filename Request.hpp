@@ -62,7 +62,6 @@ public:
                 return (data = "", status_code = "400", false);
             i += count + 2;//다음 청크데이터 시작 위치
             chunk_count++;
-            std::cerr << i << "i,, chunk_size" << chunk_count << std::endl;
         }
         setBody(getBody() + temp);
         if (count == 0)//뒤에 \r\n\r\n오는 건 확인을 해야하긴 하는데....

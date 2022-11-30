@@ -613,10 +613,10 @@ public:
                             {
                                 if (c.getResponse().getStatus() == CHUNKED)
                                 {
-                                    std::string backup = c.get_read_buf();
-                                    c.clear_client();
-                                    c.getResponse().setStatus(CHUNKED);
-                                    c.revert_read_data(backup);
+                                    // std::string backup = c.get_read_buf();
+                                    // c.clear_client();
+                                    // c.getResponse().setStatus(CHUNKED);
+                                    // c.revert_read_data(backup);
                                     #ifdef TEST
                                     std::cerr << "!" << std::endl;
                                     #endif

@@ -703,16 +703,8 @@ public:
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
     bool parse_request()
     {
-        if (this->response.getStatus() == "800"){//상태코드 800인지 확인하기
-            std::cerr << "start" << std::endl;
-            //return (this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus()));
-            bool t = this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus());
-            if (t)
-            {
-                std::cerr << "body :" <<this->request.getBody().size() << std::endl;
-            }
-            return t;
-        }
+        if (this->response.getStatus() == "800")//상태코드 800인지 확인하기
+            return (this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus()));
         else if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
             return false;
         // std::cerr << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
@@ -944,7 +936,7 @@ public:
         getsockname(this->socket_fd, (struct sockaddr *)&client_sockaddr, &client_sockaddr_len);
         return (inet_ntoa(client_sockaddr.sin_addr));
     }
-    
+
     void remove_lr_space(std::string &s)
     {
         // erase right space
