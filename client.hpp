@@ -899,10 +899,10 @@ public:
         {
             close(result_fd);
             close(stdin_fd);
-            // int status;
-            // waitpid(pid, &status, 0);
-            // if (status != 0)
-            //     return (false);
+            int status;
+            waitpid(pid, &status, 0);
+            if (status != 0)
+                return (false);
             // close(this->file_fd); // 자식 프로세스에서 쓴 파일 close
             // this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0644); // 이후 읽기를 위해 새로 open
             // if (this->file_fd == -1)
