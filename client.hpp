@@ -157,7 +157,6 @@ public:
         // if ((this->read_buf.size() + BUFFER_SIZE) < this->read_buf.size()) //string 용량 초과시 예외처리.
         //     return -1;
         size = recv(this->socket_fd, buffer, BUFFER_SIZE, 0);
-        std::cerr << "size : " << size << std::endl;
         if (size == -1)
         {
             // perror("recv client err");
@@ -179,17 +178,10 @@ public:
             if (this->response.getStatus() == "800")
             {
                 size_t pos = read_buf.find("\r\n");
-                std::cerr << pos << " : pos  " << std::endl;
                 if (pos != std::string::npos)
                 {
-                    std::cerr << pos << " : pos , " << read_buf.rfind("\r\n") << std::endl;
                     if (pos != read_buf.rfind("\r\n"))//이거, pos 다음부터 찾도록 하기, 시작복잡도 때문에
-                    {
-                        std::cerr << this->read_buf.length() << " : buff" << std::endl;
-                        std::cerr << pos << " : pos , " << read_buf.rfind("\r\n") << std::endl;
-                        std::cerr << "55555555555555555555555555555" << std::endl;
                         return 1;
-                    }
                 }
             }
             if (size == BUFFER_SIZE)

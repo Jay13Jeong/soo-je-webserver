@@ -38,32 +38,39 @@ private:
     {
         std::string temp = "";
         int i = 0;
-        //size_t count;
-        //size_t chunk_count = 0;
-        //for (int i = 0; i < data.size();)//바디부터 시작
-        //{
-        size_t cr = data.find("\r\n", i);
-        if (cr == std::string::npos)
-            return (status_code = "400", false);
+        size_t count;
+        size_t cr;
+        size_t chunk_count = 0;
 
-        size_t count = strtol(data.substr(i, cr).c_str(), NULL, 16);//16진수로 읽을 수 있는 곳까지 숫자를 읽음
+        for (int i = 0; (chunk_count < 10) && (i < data.size());)//바디부터 시작
+        {
+            cr = data.find("\r\n", i) - i;//16진수 길이
+            if (cr == std::string::npos)
+                return (status_code = "400", false);
 
-        i += (cr - i);//temp_data.substr(i).find("\r\n");//청크 길이 뒤에 처음오는 \r\n 시작위치
-        i += 2;//\r\n건너띄기
+            count = strtol(data.substr(i, cr).c_str(), NULL, 16);//16진수로 읽을 수 있는 곳까지 숫자를 읽음
 
-        temp += data.substr(i, count);//바디 추가
+            i += cr;//(cr - i);//temp_data.substr(i).find("\r\n");//청크 길이 뒤에 처음오는 \r\n 시작위치
+            i += 2;//\r\n건너띄기
 
-        if (i + count != data.find("\r\n", i))//문자길이 맞는지 확인
-           return (data = "", status_code = "400", false);
-        i += count + 2;//다음ㄴㄴ
-        //}
+            if (chunk_count != 0 && (i + count != data.find("\r\n", i)))//추가로 받는 청크데이터가 아직 덜 받은 상태이라면..
+                return (setBody(getBody() + temp), data = data.substr((i - cr - 2)), status_code = "800", false);
+
+            temp += data.substr(i, count);//바디 추가
+
+            if (i + count != data.find("\r\n", i))//문자길이 맞는지 확인
+                return (data = "", status_code = "400", false);
+            i += count + 2;//다음 청크데이터 시작 위치
+            chunk_count++;
+        }
+        setBody(getBody() + temp);
         if (count == 0)//뒤에 \r\n\r\n오는 건 확인을 해야하긴 하는데....
             return (data = "", status_code = "200", true);
-        setBody(getBody() + temp);
 
         //data_set(data, i);이거 쓰지 말자
         data = data.substr(i);//다음 청크 위치, 여기가 문제인가?
         return (status_code = "800", false);
+
     }
 private:
     size_t ft_find_header_end(std::string data)
@@ -126,7 +133,7 @@ public:
     }
 
 public:
-    std::string getBody()
+    std::string &getBody()
     {
         return this->body;
     }
@@ -162,7 +169,6 @@ private:
         else
             return (status_code = "400", false);
         setTarget(temp_str[1]);//414에러는 uri길이 기준이 현재 없음
-        std::cerr << getMethod() << std::endl;
         return (true);
     }
 
@@ -244,17 +250,17 @@ public:
 
         if (status_code == "800")//상태코드 800인지 확인하기
         {
-            std::cerr << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa" << std::endl;
-            std::cerr << "before data :"  << data.size() << std::endl;
-            //return (ft_chunk_push_body(data, status_code));
-            bool t = ft_chunk_push_body(data, status_code);
+            // std::cerr << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa" << std::endl;
+            // std::cerr << "before data :"  << data.size() << std::endl;
+            // std::cerr << "data :"  << data << std::endl;
+            // //return (ft_chunk_push_body(data, status_code));
+            return (ft_chunk_push_body(data, status_code));
 
-            std::cerr << "after data :"  << data.size() << std::endl;
-            std::cerr << "status_code :"  << status_code << std::endl;
-            std::cerr << "body size :"  << getBody().size() << std::endl;
-            std::cerr << "data :"  << data << std::endl;
-            std::cerr << "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" << std::endl;
-            return (t);
+            // std::cerr << "after data :"  << data.size() << std::endl;
+            // std::cerr << "status_code :"  << status_code << std::endl;
+            // std::cerr << "body size :"  << getBody().size() << std::endl;
+            // std::cerr << "data :"  << data << std::endl;
+            // std::cerr << "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" << std::endl;
         }
         if (!find_header_end(data, data_header_end_point))
             return (status_code = "400", false);
