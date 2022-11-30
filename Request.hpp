@@ -246,20 +246,11 @@ public:
     {
         size_t data_header_end_point;
 
-        if (status_code == "800")//상태코드 800인지 확인하기
-        {
-            // std::cerr << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa" << std::endl;
-            // std::cerr << "before data :"  << data.size() << std::endl;
-            // std::cerr << "data :"  << data << std::endl;
-            // //return (ft_chunk_push_body(data, status_code));
-            return (ft_chunk_push_body(data, status_code));
+        // if (status_code == "800")//상태코드 800인지 확인하기
+        // {
 
-            // std::cerr << "after data :"  << data.size() << std::endl;
-            // std::cerr << "status_code :"  << status_code << std::endl;
-            // std::cerr << "body size :"  << getBody().size() << std::endl;
-            // std::cerr << "data :"  << data << std::endl;
-            // std::cerr << "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" << std::endl;
-        }
+        //     return (ft_chunk_push_body(data, status_code));
+        // }
         if (!find_header_end(data, data_header_end_point))
             return (status_code = "400", false);
 
@@ -274,94 +265,16 @@ public:
             return (false);
 
         if (status_code == "800")
-            return (data_set(data, data_header_end_point),false);
+            data_set(data, data_header_end_point);
+
+        if (status_code == "800")
+            return (ft_chunk_push_body(data, status_code));
 
         if (!push_body(data, status_code, data_header_end_point))
             return (false);
 
         return (status_code = "200", true);
     }
-//     bool parse(std::string & data, std::string & status_code)
-//     {
-//         size_t data_header_end_point = ft_find_header_end(data);//헤더 마지막 부분 찾기
-//         if (data_header_end_point == 0)
-//             return (status_code = "400", false);
-
-//         std::vector<std::string> temp_data = util::ft_split_s(data.substr(0, data_header_end_point), "\r\n");
-//         std::vector<std::string> temp_str;
-//         std::string temp = "";
-
-
-//         //스타트라인
-//         temp_str = util::ft_split_s(temp_data[0], " ");
-//         if (temp_str.size() != 3)//스타트라인 규격 체크
-//             return (status_code = "400", false);
-//         else if (temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT" || temp_str[0] == "HEAD")
-//             setMethod(temp_str[0]);
-//         else if (!(temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT" || temp_str[0] == "HEAD"))
-//             return (status_code = "405", false);
-
-//         if (temp_str[2] == "HTTP/1.1")
-//             setVersion(temp_str[2]);
-//         else if (!(temp_str[2] == "HTTP/1.1"))//HTTP/1.1만 지원
-//             return (status_code = "505", false);
-//         else
-//             return (status_code = "400", false);
-//         setTarget(temp_str[1]);//414에러는 uri길이 기준이 현재 없음
-
-//         int i = 1;
-//         //헤더 부분
-//         while (i < temp_data.size())
-//         {
-//             if (temp_data[i].size() == 0)
-//                 break ;
-//             temp_str = util::ft_split_s(temp_data[i], ":");
-// //라인폴딩은 아직 처리안함 , 실제 사례를 본 적이 없음
-//             if (temp_str.size() == 1)
-//                 return (status_code = "400", false);
-//             else if (util::count_sp(temp_str[0]) != 0)
-//                 return (status_code = "400", false);
-
-//             if (temp_str[0] == "Transfer-Encoding")//청크부분 처리
-//             {
-//                 if (!ft_chunk_fin_check(data, temp_str[1], status_code))
-//                     return (false);
-//             }
-//             temp = temp_str[1];
-//             for (int j = 2; j < temp_str.size(); j++)
-//                 temp = temp + ":" + temp_str[j];
-//             setHeaders(temp_str[0], temp);
-//             i++;
-//         }
-//         if (i == 1)//헤더가 없는 경우,temp_data.size()==i아니면 헤더 파싱 다 된 것 아님.
-//             return (status_code = "400", false);
-//         else if ((getMethod() == "GET" || getMethod() == "DELETE" || getMethod() == "HEAD") && !(data_header_end_point >= (data.size() - 4)))//-4는 올수 있는CRLF의 최대값
-//             return (status_code = "400", false);
-//         // else if ((getMethod() == "POST") && (i == temp_data.size() || i == temp_data.size() - 1))// Post에서 바디가 없을 수도 있다
-//         //     return (status_code = "411", false);
-//         //바디부분
-//         if (status_code == "800")
-//             return (ft_chunk_push_body(data.substr(data_header_end_point + 4), status_code));//바디 처음부터 시작
-//         temp = "";
-//         //while (i < temp_data.size())
-//         //{
-//         //    temp = temp + temp_data[i];
-//         //    //temp = temp + "\r\n";
-//         //    i++;
-//         //}
-
-//         if (data.size() > data_header_end_point + 4)//바디 시작부분이 요청값 전체 사이즈 보다 작아야 한다.
-//             temp = temp + data.substr(data_header_end_point + 4);//바디 부분 시작지점.+4 "\r\n\r\n"이후 바디 첫번쨰 값.
-
-//         if (this->getHeaders().find("Content-Length") == this->getHeaders().end())//"Content-Length"없음
-//             setBody(temp);
-//         else if (strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10) >= temp.size())//"Content-Length"길이가 더 큼
-//             setBody(temp);
-//         else if (strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10) < temp.size())//바디 크기가 더크면 잘라서 넣기
-//             setBody(temp.substr(0, strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10)));
-
-//         return (status_code = "200", true); //문제없으면 true반환;
-//     }
 
     void clear_request()
     {
