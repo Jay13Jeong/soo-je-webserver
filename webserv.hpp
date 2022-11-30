@@ -526,7 +526,7 @@ public:
             for (int i(0); i < detected_count; i++)
             {
                 curr_det = &detecteds[i];
-                if (curr_det->flags & EV_ERROR)
+                if (curr_det->flags == EV_ERROR)
                 {
                     std::cerr << "close : " << curr_det->ident << std::endl;
                     if (this->_server_map.find(curr_det->ident) != this->_server_map.end())

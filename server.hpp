@@ -128,7 +128,7 @@ public:
     void open_port( void )
     {
         //깡통 소켓 생성.
-        if ((this->fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        if ((this->fd = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
             // perror("socket failed");
             //**throw
         }
@@ -152,7 +152,7 @@ public:
             //**throw
         }
         //포트열기. 한 서버당 접속대기열을 1024개까지 받는다.
-        if (listen(this->fd, 1024) == -1) {
+        if (listen(this->fd, 5) == -1) {
             // perror("listen");
             //**throw
         }

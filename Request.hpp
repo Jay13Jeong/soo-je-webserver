@@ -186,7 +186,6 @@ private:
                 return (status_code = "400", false);
             else if (util::count_sp(temp_str[0]) != 0)
                 return (status_code = "400", false);
-
             if (temp_str[0] == "Transfer-Encoding")//청크부분 처리
                 ft_chunk_check(data, temp_str[1], status_code);
             temp = temp_str[1];

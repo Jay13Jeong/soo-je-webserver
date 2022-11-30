@@ -747,6 +747,10 @@ public:
         this->request.clear_request();
         this->cgi_file_name.clear();
         this->cgi_body_file.clear();
+        this->file_pipe[0] = -1;
+        this->file_pipe[1] = -1;
+        this->result_pipe[0] = -1;
+        this->result_pipe[1] = -1;
         return true; //문제없으면 true리턴.
     }
 
@@ -801,22 +805,20 @@ public:
         #ifdef TEST
         std::cerr << "make body file for cgi..." << std::endl;
         #endif
-        static int random_num = 511;
-        random_num *= rand();
-        this->cgi_body_file = ".payload/cgi_ready_" + util::num_to_string(random_num);
+        this->cgi_body_file = ".payload/cgi_ready_" + util::num_to_string(this);
         if (util::make_middle_pathes(this->cgi_body_file) == false) //경로의 중간 경로들이 없다면 만든다.
         {
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
-        // if ((this->file_fd = open(this->cgi_body_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
-        if (pipe(this->file_pipe) == -1)
+        if ((this->file_fd = open(this->cgi_body_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
+        // if (pipe(this->file_pipe) == -1)
         {
             // perror("open cgi_ready err");
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
-        this->file_fd = this->file_pipe[1];
+        // this->file_fd = this->file_pipe[1];
         #ifdef TEST
         std::cerr << "make body file for cgi...ok" << std::endl;
         #endif
@@ -832,16 +834,14 @@ public:
         int stdin_fd;
         int result_fd;
 
-        static int random_num = 255;
-        random_num *= rand();
-        this->cgi_file_name = ".payload/cgi_result_" + util::num_to_string(random_num);
+        this->cgi_file_name = ".payload/cgi_result_" + util::num_to_string(this);
 
-        // if ((stdin_fd = open(this->cgi_body_file.c_str(), O_RDONLY, 0644)) == -1)//읽기전용.
-        // {
-        //     // perror("open stdin_fd err");
-        //     this->getResponse().setStatus("500"); //500처리.
-        //     return false; //바로 에러 페이지 제작 필요.
-        // }
+        if ((stdin_fd = open(this->cgi_body_file.c_str(), O_RDONLY, 0644)) == -1)//읽기전용.
+        {
+            // perror("open stdin_fd err");
+            this->getResponse().setStatus("500"); //500처리.
+            return false; //바로 에러 페이지 제작 필요.
+        }
         if ((result_fd = open(this->cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
         {
             // perror("open cgi_result err");
@@ -855,19 +855,19 @@ public:
             return false; //바로 에러 페이지 제작 필요.
         }
         /////////////////pipe 1///////////////
-        // if (pipe(result_pipe) == -1)//읽기전용.
+        // if (pipe(this->result_pipe) == -1)//읽기전용.
         // {
         //     // perror("open cgi_file_fd err");
         //     this->getResponse().setStatus("500"); //500처리.
         //     return false; //바로 에러 페이지 제작 필요.
         // }
-        stdin_fd = this->file_pipe[0];
+        // stdin_fd = this->file_pipe[0];
         // result_fd = this->result_pipe[1];
         // this->file_fd = this->result_pipe[0];
         /////////////////pipe 2///////////////
         // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
         // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
-        this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
+        // this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
         int pid = -1;
         if ((pid = fork()) < 0)
         {
@@ -920,8 +920,6 @@ public:
         }
         else //부모프로세스는 논블럭설정하고 "읽기가능"감지에 등록한다.
         {
-            close(result_fd);
-            close(stdin_fd);
             #ifdef TEST
             std::cerr << "wait pid ..." << this->file_fd << std::endl;
             #endif
@@ -929,8 +927,11 @@ public:
             waitpid(pid, &status, 0);
             if (status != 0)
                 return (false);
+            close(result_fd);
+            close(stdin_fd);
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
             add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+            this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
             std::cerr << "?-? : " << this->file_fd << std::endl;
 
