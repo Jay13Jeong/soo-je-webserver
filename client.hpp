@@ -1026,9 +1026,13 @@ public:
         cgi_env_map["SERVER_PORT"] = util::num_to_string(this->get_myserver()->get_port());
         cgi_env_map["SERVER_PROTOCOL"] = this->getRequest().getVersion();
         cgi_env_map["SERVER_SOFTWARE"] = "soo-je-webserv/1.0";
+        /*
+            * UPLOAD_PATH : 파일 업로드 지점을 설정하기 위한 커스텀 환경변수
+            * 현재는 기본적으로 root 경로로 지정되어 있지만 "root 뒤에 이어서 폴더를 지정"하면 폴더를 생성하여 그 안에 저장함.
+        */
+        cgi_env_map["UPLOAD_PATH"] = this->my_loc->root + "new_folder/";
         if (this->response.get_sid() != 0)
             cgi_env_map["HTTP_COOKIE"] = this->request.getHeaders().find("Cookie")->second;
-        // 1-1 request에 있던 헤더들을 추가해줘야 함. (Connection, Content-type, Content-length 제외)
         if (this->set_cgi_env_path(cgi_env_map, target_info.first) == false)
         {
             // set 500 error
