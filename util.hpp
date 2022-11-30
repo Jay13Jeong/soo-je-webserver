@@ -150,13 +150,14 @@ namespace util
         while (pos != std::string::npos) //디렉토리가 더이상 없다면 종료.
         {
             std::string temp = path.substr(0, pos); //찾은 단계까지의 총 경로.
-            mkdir(temp.c_str(), 0755); //디렉토리 생성
+            mkdir(temp.c_str(), 0744); //디렉토리 생성
             n = pos + 1; //문자하나씩 읽기.
             pos = path.find("/", n); //다음 폴더가 있는지 찾는다.
         }
         return true; //성공적으로 생성되었으면 true반환.
     }
 
+	// string을 모두 소문자로 만들어주는 함수
 	std::string to_lower_string(std::string str)
 	{
 		std::string ret = std::string(str.length(), '\0');

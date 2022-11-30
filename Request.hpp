@@ -73,7 +73,7 @@ private:
 
     }
 private:
-    size_t ft_find_header_end(std::string data)
+    size_t ft_find_header_end(std::string & data)
     {
         size_t num = data.find("\r\n\r\n");//헤더와 바디 사이의 공백 찾기, 헤더의 마지막 부분.
 
@@ -139,7 +139,7 @@ public:
     }
 
 public:
-    void setBody(std::string body)
+    void setBody(const std::string & body)
     {
         this->body = body;
     }
@@ -161,7 +161,6 @@ private:
             setMethod(temp_str[0]);
         else if (!(temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT" || temp_str[0] == "HEAD"))
             return (status_code = "405", false);
-
         if (temp_str[2] == "HTTP/1.1")
             setVersion(temp_str[2]);
         else if (!(temp_str[2] == "HTTP/1.1"))//HTTP/1.1만 지원
