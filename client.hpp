@@ -704,12 +704,17 @@ public:
 
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
     bool parse_request()
-    {
-        //  // std::cerr << "************this->read_buf***" << this->read_buf.size() << std::endl;
-        //     for (int j = 0; j < this->read_buf.size() ; j++)
-        //         // std::cerr << (int)this->read_buf[j] << ".";
-        //     // std::cerr <<  std::endl;
-        if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
+        {
+        if (this->response.getStatus() == "800"){//상태코드 800인지 확인하기
+            //std::cerr << "before data : " << this->read_buf.size() << std::endl;
+            return (this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus()));
+            // size_t t = this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus());
+            // std::cerr << "after data : " << this->read_buf.size() << std::endl;
+            // std::cerr << "body size : " << this->request.getBody().size() << std::endl;
+            // std::cerr << "status code : " << this->response.getStatus() << std::endl;
+            // return t;
+        }
+        else if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
             return false;
         // // std::cerr << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
         // // std::cerr << "Method : " << this->request.getMethod() << std::endl;
@@ -940,7 +945,7 @@ public:
         getsockname(this->socket_fd, (struct sockaddr *)&client_sockaddr, &client_sockaddr_len);
         return (inet_ntoa(client_sockaddr.sin_addr));
     }
-    
+
     void remove_lr_space(std::string &s)
     {
         // erase right space

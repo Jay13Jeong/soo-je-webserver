@@ -34,13 +34,17 @@ private:
             return (status_code = "800", true);
         return (status_code = "800", false);
     }
-private:
-    bool ft_chunk_push_body(const std::string & temp_data, std::string &status_code)
+
+public:
+    bool ft_chunk_push_body(std::string &data, std::string &status_code)
     {
         std::string temp = "";
         size_t count;
-        //size_t chunk_count = 0;
-        for (int i = 0; i < temp_data.size();)//바디부터 시작
+
+        size_t cr;
+        size_t chunk_count = 0;
+
+        while ((chunk_count < 10) && (i < data.size()))//바디부터 시작
         {
             size_t cr = temp_data.find("\r\n", i);
             if (cr == std::string::npos)
@@ -57,8 +61,13 @@ private:
 
             i += count + 2;//다음
         }
-        setBody(temp);
-        return (status_code = "200", true);
+        setBody(getBody() + temp);
+        if (count == 0)//뒤에 \r\n\r\n오는 건 확인을 해야하긴 하는데....
+            return (data = "", status_code = "200", true);
+
+        //data_set(data, i);이거 쓰지 말자
+        data = data.substr(i);//다음 청크 위치, 여기가 문제인가?
+        return (status_code = "800", false);
     }
 private:
     size_t ft_find_header_end(std::string & data)
@@ -212,6 +221,56 @@ public:
         return (status_code = "200", true); //문제없으면 true반환;
     }
 
+    void data_set(std::string &data, size_t end_point)
+    {//end_point에서 CRLF없을 수 있음, 최대 2번 올 수 있음
+        data = data.substr(end_point);
+
+        if (data[0] == '\r'){
+            if (data.find("\r\n") == 0)
+                data = data.substr(2);
+        }
+        if (data[0] == '\r'){
+            if (data.find("\r\n") == 0)
+                data = data.substr(2);
+        }
+    }
+
+public:
+    //데이터를 받아서 파싱하는 메소드. 200,400,405,505......414에러는 길이 기준이 현재 없음
+    bool parse(std::string &data, std::string &status_code)
+    {
+        size_t data_header_end_point;
+
+        // if (status_code == "800")//상태코드 800인지 확인하기
+        // {
+
+        //     return (ft_chunk_push_body(data, status_code));
+        // }
+        if (!find_header_end(data, data_header_end_point))
+            return (status_code = "400", false);
+
+        std::vector<std::string> temp_data = util::ft_split_s(data.substr(0, data_header_end_point), "\r\n");
+        std::vector<std::string> temp_str;
+        std::string temp = "";
+
+        if (!push_start_line(temp_data[0], status_code))//스타트라인
+            return (false);
+
+        if (!push_headers(data, temp_data, status_code, data_header_end_point))//헤더 부분
+            return (false);
+
+        if (status_code == "800")
+            data_set(data, data_header_end_point);
+
+        if (status_code == "800")
+            return (ft_chunk_push_body(data, status_code));
+
+        if (!push_body(data, status_code, data_header_end_point))
+            return (false);
+
+        return (status_code = "200", true);
+    }
+ 
     void clear_request()
     {
         this->body.clear();

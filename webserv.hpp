@@ -551,7 +551,7 @@ public:
                 {
                     //감지된 fd가 서버일 때.
                     if (this->_server_map.find(curr_det->ident) != this->_server_map.end())
-                    { 
+                    {
                         Server & s = this->_server_map.find(curr_det->ident)->second;
                         #ifdef TEST
                         perror("read server");
@@ -613,10 +613,10 @@ public:
                             {
                                 if (c.getResponse().getStatus() == CHUNKED)
                                 {
-                                    std::string backup = c.get_read_buf();
-                                    c.clear_client();
-                                    c.getResponse().setStatus(CHUNKED);
-                                    c.revert_read_data(backup);
+                                    // std::string backup = c.get_read_buf();
+                                    // c.clear_client();
+                                    // c.getResponse().setStatus(CHUNKED);
+                                    // c.revert_read_data(backup);
                                     #ifdef TEST
                                     std::cerr << "!" << std::endl;
                                     #endif
@@ -760,7 +760,7 @@ public:
                             #ifdef TEST
                             perror("write file");
                             #endif
-                        }    
+                        }
                         else if (result == SEND_ALL) //모두작성했을 때.
                         {
                             #ifdef TEST
