@@ -25,7 +25,7 @@ namespace util
 		return (false);
 	}
 
-	std::vector<std::string> ft_split(std::string s, std::string divid) {
+	std::vector<std::string> ft_split(const std::string & s, const std::string & divid) {
 		std::vector<std::string> v;
 		if (s.length() == 0)
 			return v;
@@ -37,7 +37,7 @@ namespace util
 		return v;
 	}
 
-	std::vector<std::string> ft_split_s(std::string s, std::string divid)
+	std::vector<std::string> ft_split_s(std::string s, const std::string & divid)
 	{
 		std::vector<std::string> v;
 		size_t pos;
@@ -62,7 +62,7 @@ namespace util
 		return *p == 0;
 	}
 
-	int count_semicolon(std::string str)
+	int count_semicolon(const std::string & str)
 	{
 		int ret = 0;
 		for (int i = 0; i < str.length(); i++)
@@ -73,7 +73,7 @@ namespace util
 		return (ret);
 	}
 
-	int count_sp(std::string str)
+	int count_sp(const std::string & str)
 	{
 		int ret = 0;
 		for (int i = 0; i < str.length(); i++)
@@ -143,7 +143,7 @@ namespace util
 	}
 
 	//중간 디렉토리 경로를 만들어주는 메소드.
-	bool make_middle_pathes(std::string path)
+	bool make_middle_pathes(const std::string & path)
     {
         size_t n = 0;
         size_t pos = path.find("/", n); //경로의 첫번째 디렉토리를 지정.
@@ -158,7 +158,7 @@ namespace util
     }
 
 	// string을 모두 소문자로 만들어주는 함수
-	std::string to_lower_string(std::string str)
+	std::string to_lower_string(const std::string & str)
 	{
 		std::string ret = std::string(str.length(), '\0');
 		std::transform(str.begin(), str.end(), ret.begin(), ::tolower);
