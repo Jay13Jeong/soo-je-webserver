@@ -18,11 +18,12 @@
 #include <map>
 #include "util.hpp"
 
-#define DETECT_SIZE 3000 //한 횟차에 처리할 최대 이벤트 갯수.
+#define DETECT_SIZE 44497 //한 횟차에 처리할 최대 이벤트 갯수.
 #define FAIL        -1 //실패를 의미하는 매크로.
 #define RECV_ALL    1 //모두 수신 받음을 의미.
 #define SEND_ALL    1 //모두 수신 받음을 의미.
 #define CHUNKED     "800" //te헤더의 상태.
+#define LENGTHLESS  "700" //사이즈 부족.
 
 class Webserv
 {
@@ -526,8 +527,9 @@ public:
             for (int i(0); i < detected_count; i++)
             {
                 curr_det = &detecteds[i];
-                if (curr_det->flags & EV_ERROR)
+                if (curr_det->flags == EV_ERROR)
                 {
+                    std::cerr << "close : " << curr_det->ident << std::endl;
                     if (this->_server_map.find(curr_det->ident) != this->_server_map.end())
                     {
                         perror("server_socket_flag_err");
@@ -551,7 +553,7 @@ public:
                 {
                     //감지된 fd가 서버일 때.
                     if (this->_server_map.find(curr_det->ident) != this->_server_map.end())
-                    { 
+                    {
                         Server & s = this->_server_map.find(curr_det->ident)->second;
                         #ifdef TEST
                         perror("read server");
@@ -561,6 +563,7 @@ public:
                             continue;
                         Client new_client(&(this->_ev_cmds), &(this->_file_map));
                         new_client.setSocket_fd(client_fd); //브라우저의 연결을 수락.
+                        std::cerr << "listen : " << new_client.getSocket_fd() << std::endl;
                         #ifdef TEST
                         // std::cerr << "listen : " << new_client.getSocket_fd() << std::endl;
                         #endif
@@ -576,7 +579,6 @@ public:
                         #ifdef TEST
                         // std::cerr << "333 " << std::endl;
                         #endif
-                        // this->set_client_list(new_client); //클라이언트리스트에도 추가.
                         this->_client_map.insert(std::make_pair(client_fd, new_client));
                         #ifdef TEST
                         // std::cerr << "444 " << std::endl;
@@ -609,14 +611,14 @@ public:
                             //////////////////////////////////
                             std::cerr << "aaaa" << std::endl;
                             #endif
-                            if (c.parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
+                            if (c.getResponse().getStatus() != LENGTHLESS && c.parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
                             {
                                 if (c.getResponse().getStatus() == CHUNKED)
                                 {
-                                    std::string backup = c.get_read_buf();
-                                    c.clear_client();
-                                    c.getResponse().setStatus(CHUNKED);
-                                    c.revert_read_data(backup);
+                                    // std::string backup = c.get_read_buf();
+                                    // c.clear_client();
+                                    // c.getResponse().setStatus(CHUNKED);
+                                    // c.revert_read_data(backup);
                                     #ifdef TEST
                                     std::cerr << "!" << std::endl;
                                     #endif
@@ -629,6 +631,14 @@ public:
                                 c.ready_err_response_meta(); //에러응답 준비.
                                 #ifdef TEST
                                 std::cerr << "ccccccc" << std::endl;
+                                #endif
+                                continue;
+                            }
+                            if (c.check_bodysize() == LENGTHLESS)
+                            {
+                                // perror("aaa11");
+                                #ifdef TEST
+                                std::cerr << "@" << std::endl;
                                 #endif
                                 continue;
                             }
@@ -760,7 +770,7 @@ public:
                             #ifdef TEST
                             perror("write file");
                             #endif
-                        }    
+                        }
                         else if (result == SEND_ALL) //모두작성했을 때.
                         {
                             #ifdef TEST

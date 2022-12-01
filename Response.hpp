@@ -3,6 +3,10 @@
 #include <string>
 #include <vector>
 #include <map>
+#include "util.hpp"
+
+#define LENGTHLESS "700"
+#define CHUNKED "800"
 
 class Response
 {
@@ -48,7 +52,7 @@ public:
     {
         return this->status_msg;
     }
-    void setStatus_msg(std::string status_msg)
+    void setStatus_msg(const std::string & status_msg)
     {
         this->status_msg = status_msg;
     }
@@ -56,7 +60,7 @@ public:
     {
         return this->header_map;
     }
-    void setHeader_map(std::string key, std::string value)
+    void setHeader_map(const std::string & key, const std::string & value)
     {
         this->header_map.insert(std::make_pair(key, value));
     }
@@ -64,7 +68,7 @@ public:
     {
         return this->body;
     }
-    void setBody(std::string body)
+    void setBody(const std::string & body)
     {
         this->body = body;
     }
