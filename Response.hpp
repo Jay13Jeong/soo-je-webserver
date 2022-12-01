@@ -3,6 +3,10 @@
 #include <string>
 #include <vector>
 #include <map>
+#include "util.hpp"
+
+#define LENGTHLESS "700"
+#define CHUNKED "800"
 
 class Response
 {
