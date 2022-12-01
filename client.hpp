@@ -173,14 +173,17 @@ public:
         }
         else
         {
+            if (this->response.getStatus() == LENGTHLESS)
+            {
+                this->request.getBody() += std::string(buffer, size);
+                return 1;
+            }
+
             this->read_buf += std::string(buffer, size); //1.읽은 데이터 char[] -> string으로 변환해서 저장.
             // std::cerr << this->read_buf.length() << " : buff" << std::endl;
             // // std::cerr << this->socket_fd << " : sock" << std::endl;
             // if (this->read_buf.length() > )
-            //     return 1;
-
-            if (this->response.getStatus() == LENGTHLESS)
-                return 0;
+            //     return 1;                
 
             if (this->response.getStatus() == CHUNKED)
             {
@@ -1118,6 +1121,58 @@ public:
         */
     }
 
+    std::string check_bodysize()
+    {
+        // int i = 0;
+        // std::__1::map<std::__1::string, std::__1::string>::iterator it2 = header_map.begin();
+        // while (1)
+        // {
+            
+        //     if (it2 == header_map.end())
+        //         break;
+        //     std::cerr << it2->first << "%" << (it2++)->second << std::endl;
+        // }
+        
+        // perror("aaa22");
+        if (this->response.getStatus() == LENGTHLESS)
+        {
+            std::string temp = util::ft_split(this->request.getHeaders().find("Content-Length")->second, " ")[0];
+            // while (temp.find(' ') != std::string::npos)
+            // {
+            //     perror("wwww");
+            //     temp.erase(temp.find(' '));
+            // }
+            int expect_size = atoi(temp.c_str());
+            int real_size = this->request.getBody().length();
+            // std::cerr << expect_size << "$" << real_size << std::endl;
+            if (real_size >= expect_size)
+            {
+                this->response.setStatus("200");
+                return "200";
+            }
+        }
+        // perror("aaa33");
+        if (this->request.getHeaders().find("Content-Length") != this->request.getHeaders().end())
+        {
+            std::string temp = util::ft_split(this->request.getHeaders().find("Content-Length")->second, " ")[0];
+            // while (temp.find(' ') != std::string::npos)
+            // {
+            //     perror("wwww");
+            //     temp.erase(temp.find(' '));
+            // }
+            int expect_size = atoi(temp.c_str());
+            int real_size = this->request.getBody().length();
+            // std::cerr << expect_size << "$" << real_size << std::endl;
+            if (real_size < expect_size)
+            {
+                this->response.setStatus(LENGTHLESS);
+                return LENGTHLESS;
+            }
+        }
+        // perror("aaa44");
+        return ("200");
+    }
+
     void manage_session()
     {
         if (this->response.get_sid() != 0)
@@ -1158,6 +1213,7 @@ public:
         std::string val = "session_id=" + sstream.str() + "\r\nSet-Cookie: status=" + this->my_server->get_sid_map()[sid];
         this->response.setHeader_map("Set-Cookie", val);
     }
+
 };
 
 #endif

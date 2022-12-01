@@ -611,7 +611,7 @@ public:
                             //////////////////////////////////
                             std::cerr << "aaaa" << std::endl;
                             #endif
-                            if (c.parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
+                            if (c.getResponse().getStatus() != LENGTHLESS && c.parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
                             {
                                 if (c.getResponse().getStatus() == CHUNKED)
                                 {
@@ -634,8 +634,9 @@ public:
                                 #endif
                                 continue;
                             }
-                            if (c.getResponse().check_bodysize() == LENGTHLESS)
+                            if (c.check_bodysize() == LENGTHLESS)
                             {
+                                // perror("aaa11");
                                 #ifdef TEST
                                 std::cerr << "@" << std::endl;
                                 #endif
