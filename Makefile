@@ -1,5 +1,5 @@
 NAME = webserv
-# W3FLAG = -Wall -Wextra -Werror -std=c++98
+W3FLAG = -Wall -Wextra -Werror -std=c++98
 
 .main.o : main.cpp *.hpp
 	c++ $(W3FLAG)  -c -o $@ $< -O2

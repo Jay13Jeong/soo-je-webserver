@@ -16,11 +16,11 @@ private:
     std::string body; //바디부분 데이터.
 
 private:
-    void ft_chunk_check(std::string & data, std::string & temp_str, std::string &status_code)
+    void ft_chunk_check(std::string & temp_str, std::string &status_code)
     {
         std::vector<std::string> temp = util::ft_split(temp_str, ", ");
 
-        for (int i = 0; i < temp.size(); i++)
+        for (size_t i = 0; i < temp.size(); i++)
         {
             if (temp[i] == "chunked")
             {
@@ -37,7 +37,7 @@ public:
     bool ft_chunk_push_body(std::string &data, std::string &status_code)
     {
         std::string temp = "";
-        int i = 0;
+        size_t i = 0;
         size_t count;
         size_t cr;
         size_t chunk_count = 0;
@@ -174,7 +174,7 @@ private:
     {
         std::vector<std::string> temp_str;
         std::string temp = "";
-        int i = 1;
+        size_t i = 1;
         //헤더 부분
         while (i < temp_data.size())
         {
@@ -187,9 +187,9 @@ private:
             else if (util::count_sp(temp_str[0]) != 0)
                 return (status_code = "400", false);
             if (temp_str[0] == "Transfer-Encoding")//청크부분 처리
-                ft_chunk_check(data, temp_str[1], status_code);
+                ft_chunk_check(temp_str[1], status_code);
             temp = temp_str[1];
-            for (int j = 2; j < temp_str.size(); j++)
+            for (size_t j = 2; j < temp_str.size(); j++)
                 temp = temp + ":" + temp_str[j];
             setHeaders(temp_str[0], temp);
             i++;
@@ -217,9 +217,9 @@ private:
 
         if (this->getHeaders().find("Content-Length") == this->getHeaders().end())//"Content-Length"없음
             setBody(temp);
-        else if (strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10) >= temp.size())//"Content-Length"길이가 더 큼
+        else if (strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10) >= (long)temp.size())//"Content-Length"길이가 더 큼
             setBody(temp);
-        else if (strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10) < temp.size())//바디 크기가 더크면 잘라서 넣기
+        else if (strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10) < (long)temp.size())//바디 크기가 더크면 잘라서 넣기
             setBody(temp.substr(0, strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10)));
 
         return (true);

@@ -32,7 +32,7 @@ private:
     std::string file_buf; //파일의 정보가 저장되는 변수.
     size_t write_size; //보낸 데이터 크기.
     Location * my_loc; //요청이 처리될 영역을 지정한 로케이션 구조체.
-    int server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
+    // int server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).`
     bool cgi_mode; // cgi모드여부.
     std::vector<struct kevent> * _ev_cmds; //kq 감지대상 벡터.
     std::map<int, Client*> * _file_map; //파일 맵.
@@ -46,9 +46,11 @@ private:
     int result_pipe[2];
 
 public:
-    Client(std::vector<struct kevent> * cmds, std::map<int,Client*> * files) : socket_fd(-1), file_fd(-1), cgi_mode(false), _ev_cmds(cmds) \
-    ,read_buf(""), write_buf(""), file_buf(""), write_size(0), my_loc(NULL), server_fd(-1) \
-    , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name(""), cgi_body_file(""), _file_map(files) {};
+    Client(std::vector<struct kevent> * cmds, std::map<int,Client*> * files) : socket_fd(-1),read_buf(""), write_buf(""),file_fd(-1)\
+    , file_buf(""),write_size(0), my_loc(NULL), \
+    // server_fd(-1),
+    cgi_mode(false), _ev_cmds(cmds) \
+    ,_file_map(files), my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name(""), cgi_body_file("") {};
 
     ~Client()
     {
@@ -248,7 +250,7 @@ public:
         size_t size;
 
         size = write(this->getFile_fd(), request.getBody().c_str() + (this->write_size), request.getBody().length() - (this->write_size));
-        if (size == -1)
+        if (size == (size_t)-1)
         {
             close(this->file_fd);
             this->_file_map->erase(this->_file_map->find(this->file_fd)); //파일 맵에서 제거.
@@ -274,7 +276,7 @@ public:
         size_t size;
 
         size = send(this->socket_fd, this->write_buf.c_str() + (this->write_size), this->write_buf.length() - (this->write_size), 0);
-        if (size == -1) //데이터전송 실패 했을 때.
+        if (size == (size_t)-1) //데이터전송 실패 했을 때.
             return -1; //호출한 부분에서 이 클라이언트 제거.
 
         this->write_size += size;
@@ -294,7 +296,6 @@ public:
     //응답클래스를 제작하는 메소드.
     bool init_response()
     {
-        Server & s = *this->my_server;
         this->response.setVersion(this->request.getVersion());
         this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
 
@@ -367,6 +368,7 @@ public:
     //오토인데스 응답페이지를 만들고 송신준비를 하는 메소드.
     void init_autoindex_response(std::string & path)
     {
+        (void)path;
         std::string temp_body;
         //1.바로 소켓송신이 가능하도록 헤더+바디를 제작한다. -> "this->write_buf에 바로 담는다."
         //2.kq에 "쓰기가능"감지 등록한다.
@@ -1047,7 +1049,7 @@ public:
         cgi_env_map["UPLOAD_PATH"] = this->my_loc->root;
         cgi_env_map["GATEWAY_INTERFACE"] = "CGI/1.1";
         cgi_env_map["REQUEST_METHOD"] = this->getRequest().getMethod();
-        size_t pos = this->getRequest().getTarget().find('?'); // 쿼리가 있다면 넣어주기 (쿼리 테스트 필요함.)
+        // size_t pos = this->getRequest().getTarget().find('?'); // 쿼리가 있다면 넣어주기 (쿼리 테스트 필요함.)
         cgi_env_map["QUERY_STRING"] = target_info.second;
         cgi_env_map["REMOTE_ADDR"] = std::string(get_client_ip());
         cgi_env_map["REMOTE_USER"] = ""; // 인증과정 없으므로 NULL
