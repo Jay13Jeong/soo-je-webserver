@@ -526,7 +526,8 @@ public:
         if (this->response.getHeader_map().find("Accept-Ranges") == this->response.getHeader_map().end())
             this->response.setHeader_map("Accept-Ranges", "bytes");
         // // std::cerr << "----init_delete_response()->push_write_bud()" << std::endl;
-        push_write_buf("\0");
+        this->response.setBody("");
+        push_write_buf(this->response.getBody());
         //DELETE용 응답데이터 (시작줄 + 헤더 + 바디)만들기....
     }
 
@@ -1122,55 +1123,56 @@ public:
     }
 
     std::string check_bodysize()
-    {
-        // int i = 0;
-        // std::__1::map<std::__1::string, std::__1::string>::iterator it2 = header_map.begin();
-        // while (1)
-        // {
-            
-        //     if (it2 == header_map.end())
-        //         break;
-        //     std::cerr << it2->first << "%" << (it2++)->second << std::endl;
-        // }
-        
-        // perror("aaa22");
+    {   
         if (this->response.getStatus() == LENGTHLESS)
         {
             std::string temp = util::ft_split(this->request.getHeaders().find("Content-Length")->second, " ")[0];
-            // while (temp.find(' ') != std::string::npos)
-            // {
-            //     perror("wwww");
-            //     temp.erase(temp.find(' '));
-            // }
             int expect_size = atoi(temp.c_str());
             int real_size = this->request.getBody().length();
-            // std::cerr << expect_size << "$" << real_size << std::endl;
             if (real_size >= expect_size)
             {
                 this->response.setStatus("200");
                 return "200";
             }
         }
-        // perror("aaa33");
         if (this->request.getHeaders().find("Content-Length") != this->request.getHeaders().end())
         {
             std::string temp = util::ft_split(this->request.getHeaders().find("Content-Length")->second, " ")[0];
-            // while (temp.find(' ') != std::string::npos)
-            // {
-            //     perror("wwww");
-            //     temp.erase(temp.find(' '));
-            // }
             int expect_size = atoi(temp.c_str());
             int real_size = this->request.getBody().length();
-            // std::cerr << expect_size << "$" << real_size << std::endl;
             if (real_size < expect_size)
             {
                 this->response.setStatus(LENGTHLESS);
                 return LENGTHLESS;
             }
         }
-        // perror("aaa44");
         return ("200");
+    }
+
+    //리다이렉트 응답을 만드는 메소드.
+    void init_redirect_response()
+    {
+        this->response.setVersion("HTTP/1.1");
+        this->response.setStatus("301");
+        this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
+        // // std::cerr << "----init_delete_response()->push_write_bud()" << std::endl;
+        this->response.setBody("");
+        push_write_buf(this->response.getBody());
+        //...딜리트 메소드 참조..
+        
+    }
+
+    bool check_redirect()
+    {
+        std::map<std::string,std::string> redirect = this->my_loc->redirection;
+        if (redirect.find("301") != redirect.end())
+        {
+            this->response.setHeader_map("Location", util::ft_split(redirect.find("301")->second," ")[0]);
+            this->init_redirect_response();
+            add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
+            return true;
+        }
+        return false;
     }
 
     void manage_session()
