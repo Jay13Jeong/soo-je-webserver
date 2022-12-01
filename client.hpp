@@ -1032,7 +1032,12 @@ public:
         std::pair<std::string, std::string> target_info = get_target_info(this->request.getTarget());
         cgi_env_map["AUTH_TYPE"] = ""; // 인증과정 없으므로 NULL
         cgi_env_map["CONTENT_LENGTH"] = "-1"; // 길이 모른다면 -1
-        cgi_env_map["CONTENT_TYPE"] = "";  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
+        if (this->request.getHeaders().find("Content-Type") != this->request.getHeaders().end())
+            cgi_env_map["CONTENT_TYPE"] = this->request.getHeaders()["Content-Type"];  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
+        else
+            cgi_env_map["CONTENT_TYPE"] = "";
+        // cgi_env_map["UPLOAD_PATH"] = this->my_loc->root + "new_folder/";
+        cgi_env_map["UPLOAD_PATH"] = this->my_loc->root;
         cgi_env_map["GATEWAY_INTERFACE"] = "CGI/1.1";
         cgi_env_map["REQUEST_METHOD"] = this->getRequest().getMethod();
         size_t pos = this->getRequest().getTarget().find('?'); // 쿼리가 있다면 넣어주기 (쿼리 테스트 필요함.)
