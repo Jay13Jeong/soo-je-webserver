@@ -515,12 +515,15 @@ public:
         this->init_status_map();
         util::rm_sub_files(".payload/"); //cgi전송용 payload 폴더 비우기.
         kq_fd = kqueue();
+        // struct timespec timeout;
+        // timeout.tv_sec = 10;
+        // timeout.tv_nsec = 2;
         while ("soo-je-webserv")
         {
             #ifdef TEST
             std::cerr << "================ while start ===================== " << std::endl;
             #endif
-            detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, NULL);
+            detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, 0);
             #ifdef TEST
             std::cerr << "detect : " << detected_count << std::endl;
             #endif
@@ -528,7 +531,7 @@ public:
             for (int i(0); i < detected_count; i++)
             {
                 curr_det = &detecteds[i];
-                if (curr_det->flags == EV_ERROR)
+                if (curr_det->flags & EV_ERROR)
                 {
                     std::cerr << "close : " << curr_det->ident << std::endl;
                     if (this->_server_map.find(curr_det->ident) != this->_server_map.end())
@@ -546,6 +549,7 @@ public:
                         continue;
                     }
                     perror("file_socket_flag_err");
+                    this->_file_map.erase(this->_file_map.find(curr_det->ident));
                     shutdown(curr_det->ident,SHUT_RDWR);
                     continue;
                     // return ;
@@ -598,6 +602,7 @@ public:
                         int result = c.recv_data();
                         if (result == FAIL)
                         {
+                            std::cerr << "close : " << c.getSocket_fd() << std::endl;
                             close(c.getSocket_fd());
                             this->_client_map.erase(this->_client_map.find(curr_det->ident)); //kq에서 읽기가능이라고 했는데도 데이터를 읽을 수 없다면 삭제한다.
                         }
@@ -647,7 +652,9 @@ public:
                             #ifdef TEST
                             std::cerr << "abababab" << std::endl;
                             #endif
+                            #ifdef COOKIE
                             c.manage_session();
+                            #endif
                             #ifdef TEST
                             std::cerr << "ddddddd" << std::endl;
                             #endif
@@ -717,9 +724,7 @@ public:
                         perror("z222222");
                         #endif
                         if (result == FAIL) //파일 읽기 오류났을 때.
-                        {
-                            //....
-                        }
+                            std::cerr << "close r file : " << c.getFile_fd() << ", own client : " << c.getSocket_fd() << std::endl;
                         else if (result == RECV_ALL) //모두수신받았을 때.
                             c.init_response(); //클라이언트는 응답 데이터를 제작한다.
                         #ifdef TEST
@@ -747,6 +752,7 @@ public:
                         #endif
                         if (result == FAIL)
                         {
+                            std::cerr << "close : " << c.getSocket_fd() << std::endl;
                             close(c.getSocket_fd());
                             _client_map.erase(this->_client_map.find(curr_det->ident)); //이 클라이언트 소켓 제거.
                             #ifdef TEST
@@ -770,6 +776,7 @@ public:
                             add_kq_event(c.getSocket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비. (리스폰스제작과 연계)
                         if (result == FAIL) //파일 쓰기 오류났을 때.
                         {
+                            std::cerr << "close w file : " << c.getFile_fd() << ", own client : " << c.getSocket_fd() << std::endl;
                             #ifdef TEST
                             perror("write file");
                             #endif

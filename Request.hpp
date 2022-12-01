@@ -45,9 +45,10 @@ public:
         while ((chunk_count < 10) && (i < data.size()))//바디부터 시작
         {
             cr = data.find("\r\n", i) - i;//16진수 길이
+            // perror("[11111");
             if (cr == std::string::npos)
                 return (status_code = "400", false);
-
+            // perror("[11111]");
             count = strtol(data.substr(i, cr).c_str(), NULL, 16);//16진수로 읽을 수 있는 곳까지 숫자를 읽음
 
             i += cr;//(cr - i);//temp_data.substr(i).find("\r\n");//청크 길이 뒤에 처음오는 \r\n 시작위치
@@ -57,9 +58,10 @@ public:
                 return (setBody(getBody() + temp), data = data.substr((i - cr - 2)), status_code = "800", false);
 
             temp += data.substr(i, count);//바디 추가
-
-            if (i + count != data.find("\r\n", i))//문자길이 맞는지 확인
-                return (data = "", status_code = "400", false);
+            // perror("[222222");
+            // if (i + count != data.find("\r\n", i))//문자길이 맞는지 확인
+            //     return (data = "", status_code = "400", false);
+            // perror("[222222]");
             i += count + 2;//다음 청크데이터 시작 위치
             chunk_count++;
         }
@@ -154,18 +156,22 @@ private:
     bool push_start_line(std::string & temp_data, std::string &status_code)
     {
         std::vector<std::string> temp_str = util::ft_split_s(temp_data, " ");
+        // perror("[33333");
         if (temp_str.size() != 3)//스타트라인 규격 체크
             return (status_code = "400", false);
         else if (temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT" || temp_str[0] == "HEAD")
             setMethod(temp_str[0]);
         else if (!(temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT" || temp_str[0] == "HEAD"))
             return (status_code = "405", false);
+        // perror("[33333]");
+        // perror("[44444");
         if (temp_str[2] == "HTTP/1.1")
             setVersion(temp_str[2]);
         else if (!(temp_str[2] == "HTTP/1.1"))//HTTP/1.1만 지원
             return (status_code = "505", false);
         else
             return (status_code = "400", false);
+        // perror("[44444]");
         setTarget(temp_str[1]);//414에러는 uri길이 기준이 현재 없음
         return (true);
     }
@@ -182,10 +188,12 @@ private:
                 break ;
             temp_str = util::ft_split_s(temp_data[i], ":");
 //라인폴딩은 아직 처리안함 , 실제 사례를 본 적이 없음
+            // perror("[55555");
             if (temp_str.size() == 1)
                 return (status_code = "400", false);
             else if (util::count_sp(temp_str[0]) != 0)
                 return (status_code = "400", false);
+            // perror("[55555]");
             if (temp_str[0] == "Transfer-Encoding")//청크부분 처리
                 ft_chunk_check(temp_str[1], status_code);
             temp = temp_str[1];
@@ -194,10 +202,12 @@ private:
             setHeaders(temp_str[0], temp);
             i++;
         }
+        // perror("[66666");
         if (i == 1)//헤더가 없는 경우,temp_data.size()==i아니면 헤더 파싱 다 된 것 아님.
             return (status_code = "400", false);
         else if ((getMethod() == "GET" || getMethod() == "DELETE" || getMethod() == "HEAD") && !(header_end_point >= (data.size() - 4)))//-4는 올수 있는CRLF의 최대값
             return (status_code = "400", false);
+        // perror("[66666]");
         // else if ((getMethod() == "POST") && (i == temp_data.size() || i == temp_data.size() - 1))// Post에서 바디가 없을 수도 있다
         //     return (status_code = "411", false);
         return (true);
@@ -250,8 +260,10 @@ public:
 
         //     return (ft_chunk_push_body(data, status_code));
         // }
+        // perror("[7777");
         if (!find_header_end(data, data_header_end_point))
             return (status_code = "400", false);
+        // perror("[7777]");
 
         std::vector<std::string> temp_data = util::ft_split_s(data.substr(0, data_header_end_point), "\r\n");
         std::vector<std::string> temp_str;

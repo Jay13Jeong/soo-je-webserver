@@ -117,7 +117,7 @@ public:
         int size = sizeof(t_address);
         if ((new_socket = accept(this->fd, (struct sockaddr*)&t_address, (socklen_t*)&size)) < 0)
         {
-            // perror("accept_");
+            perror("accept_fail...");
             //**throw
         }
         fcntl(new_socket, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정
@@ -129,14 +129,16 @@ public:
     {
         //깡통 소켓 생성.
         if ((this->fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-            // perror("socket failed");
+            perror("socket create failed...");
+            exit(1);
             //**throw
         }
 
         int opt = 1;
         // 예약) 포트가 선점되어 있을 시 강제로 열도록 예약한다.
         if (setsockopt(this->fd, SOL_SOCKET, SO_REUSEADDR , &opt, sizeof(opt)) == -1) {
-            // perror("set_sockopt");
+            perror("set_sockopt fail...");
+            exit(1);
             //**throw
         }
 
@@ -148,12 +150,14 @@ public:
         // // std::cerr << this->port << std::endl;
         //초기화된 주소구조체로 소켓을 바인드.
         if (bind(this->fd, (struct sockaddr*)&t_address, sizeof(t_address)) == -1) {
-            // perror("bind failed");
+            perror("bind failed...");
+            exit(1);
             //**throw
         }
         //포트열기. 한 서버당 접속대기열을 1024개까지 받는다.
         if (listen(this->fd, 100000) == -1) {
-            // perror("listen");
+            perror("listen fail...");
+            exit(1);
             //**throw
         }
         fcntl(this->fd, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정

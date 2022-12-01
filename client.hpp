@@ -345,6 +345,8 @@ public:
     {
         // #ifdef TEST
         // std::cerr << "status code : " << this->response.getStatus() << std::endl;
+        if (this->response.getStatus() == "400")
+            exit(9);
         // #endif
         //스타트라인
         this->write_buf = this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() + "\r\n";
@@ -394,7 +396,7 @@ public:
         }
         //오토인덱스 html 초기세팅
         temp_body = "<html><head>    <title>Index of ";
-        temp_body = temp_body + this->request.getTarget() + "</title></head><body bg color='white'>  <h1> Index of " + this->request.getTarget() + "</h1>  <hr>  <pre>";
+        temp_body +=  this->request.getTarget() + "</title></head><body bg color='white'>  <h1> Index of " + this->request.getTarget() + "</h1>  <hr>  <pre>";
 
         while ((ent = readdir(dir)) != NULL)//경로의 파일들 바디에 넣기
         {
@@ -403,7 +405,7 @@ public:
                 continue ;
             temp_body = temp_body + "    <a href= " + ent->d_name + ">" + ent->d_name + "</a><br>";
         }
-        temp_body = temp_body + "</pre>  <hr></body></html>";
+        temp_body += "</pre>  <hr></body></html>";
         this->response.setBody(temp_body);//바디 입력
         this->response.setHeader_map("Content-Length", util::num_to_string(this->response.getBody().length()));//바디 크기
         closedir(dir);
@@ -1085,7 +1087,7 @@ public:
         }
         #ifdef TEST
         std::cerr << "**** CGI ENV ****\n";
-        for(int i = 0; i < cgi_env_map.size(); i++)
+        for(size_t i = 0; i < cgi_env_map.size(); i++)
             std::cerr << cgi_env[i] << std::endl;
         std::cerr << "*****************\n";
         #endif
@@ -1186,27 +1188,29 @@ public:
         if (this->request.getHeaders().find("Cookie") != this->request.getHeaders().end())
         {
             //1 세션(sid)있는지 체크.. ('; '를 기준으로 값을 스플릿(맵 지역변수 사용))
-            std::vector<std::string> c_vec = util::ft_split(this->request.getHeaders().find("Cookie")->second, "; ");
+            std::vector<std::string> c_vec = util::ft_split(this->request.getHeaders().find("Cookie")->second, ";");
             for (std::vector<std::string>::iterator iter(c_vec.begin()); iter != c_vec.end(); iter++)
             {
-                std::vector<std::string> key_val = util::ft_split(this->request.getHeaders().find("Cookie")->second, "=");
+                std::vector<std::string> key_val = util::ft_split(*iter, "=");
                 if (key_val.size() < 2)
                     continue;
-                std::string::iterator it2 = key_val[0].begin();
-                while (it2 != key_val[0].end() && ((*it2) == ' ' || isspace((*it2))))
-                    key_val[0].erase(it2++);
-                if (key_val[0] != "session_id")
+                std::string key = util::ft_split(key_val[0], " ")[0];
+                std::string val = util::ft_split(key_val[1], " ")[0];
+                if (key != "session_id")
                     continue;
-                sid = atol(key_val[1].c_str());
+                sid = atol(val.c_str());
                 break;
             }
             //3 세션(sid) 있다면 서버 sid map에 접근
             if (sid != 0 && (this->my_server->get_sid_map().find(sid) != this->my_server->get_sid_map().end()))
             {
                 this->response.set_sid(sid);
+                if (this->my_server->get_sid_map().find(sid)->second == "old")
+                    return;
                 this->my_server->get_sid_map()[sid] = "old"; //4 재확인 후 정말 있다면 값을 old로 재설정.
                 sstream << sid;
-                std::string val = "session_id=" + sstream.str() + "\r\nSet-Cookie: status=" + this->my_server->get_sid_map()[sid];
+                // std::string val = "session_id=" + sstream.str() + "\r\nSet-Cookie: status=" + this->my_server->get_sid_map()[sid];
+                std::string val = "status=" + this->my_server->get_sid_map().find(sid)->second + "; Path=/";
                 this->response.setHeader_map("Set-Cookie", val);
                 return ;
             }
@@ -1214,7 +1218,8 @@ public:
         sid = this->my_server->create_sid(); //서버클래스의 세션map에 "sid=new"형식으로 추가 (반환값을 가진 서버함수로).
         this->response.set_sid(sid);
         sstream << sid;
-        std::string val = "session_id=" + sstream.str() + "\r\nSet-Cookie: status=" + this->my_server->get_sid_map()[sid];
+        std::string val = "session_id=" + sstream.str() + "; Path=/\r\nSet-Cookie: status=" \
+        + this->my_server->get_sid_map().find(sid)->second + "; Path=/";
         this->response.setHeader_map("Set-Cookie", val);
     }
 
