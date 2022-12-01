@@ -269,7 +269,7 @@ public:
             {
                 util::remove_last_semicolon(split_result[1]);
                 int port = util::string_to_num<int>(split_result[1]);
-                for(int i = 0; i < _server_list.size() - 1; i++)
+                for(size_t i = 0; i < _server_list.size() - 1; i++)
                 {
                     if (_server_list[i].port == port)
                     {
@@ -291,7 +291,7 @@ public:
             else if (split_result[0] == "index")
             {
                 _server_list.back().get_index().clear();
-                for (int i = 1; i < split_result.size(); i++)
+                for (size_t i = 1; i < split_result.size(); i++)
                 {
                     if (split_result[i] == ";")
                         break;
@@ -355,7 +355,7 @@ public:
                     }
                     else if (split_result[0] == "accept_method")
                     {
-                        int i = 1;
+                        size_t i = 1;
                         loc_temp.accept_method.clear();
                         while (i < split_result.size())
                         {
@@ -369,7 +369,7 @@ public:
                     else if (split_result[0] == "index")
                     {
                         loc_temp.index.clear();
-                        int i = 1;
+                        size_t i = 1;
                         while (i < split_result.size())
                         {
                             loc_temp.index.push_back(split_result[i]);
@@ -429,7 +429,7 @@ public:
     //서버포트들을 개방하는 메소드.
     void open_ports()
     {
-        for (int i(0);i < this->get_server_list().size();i++)
+        for (size_t i(0);i < this->get_server_list().size();i++)
         {
             this->get_server_list()[i].open_port();
         }
@@ -449,13 +449,13 @@ public:
     {
         // std::cerr << "server_list : " << this->get_server_list().size() << ",," << this->get_server_list().back().get_fd() << std::endl;
 
-        for (int i(0);i < this->get_server_list().size();i++)
+        for (size_t i(0);i < this->get_server_list().size();i++)
             add_kq_event(this->get_server_list()[i].get_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
     }
 
     void init_servers_map()
     {
-        for (int i(0);i < this->get_server_list().size();i++)
+        for (size_t i(0);i < this->get_server_list().size();i++)
         {
             this->_server_map[this->_server_list[i].fd] = this->_server_list[i];
             this->_server_map[this->_server_list[i].fd].init_location_map(); //로케이션 맵도 같이 초기화.
@@ -492,7 +492,8 @@ public:
 
     //서버를 실행하는 메소드.
     void start()
-    {
+    {   
+        std::cerr << ":::: SOO-JE-WEBSERVER start ::::" << std::endl;
         int kq_fd; //커널큐 fd.
         int detected_count = 0; //감지된 이벤트 갯수.
         struct kevent detecteds[DETECT_SIZE]; //감지 된 이벤트벡터.
@@ -668,6 +669,8 @@ public:
                             #ifdef TEST
                             std::cerr << "hhhhh" << std::endl;
                             #endif
+                            if (c.check_redirect() == true) //리다이렉트 대상이라면
+                                continue;
                             if (c.check_need_cgi() == false) //파싱된 데이터에 cgi요청이 없을 때.
                             {
                                 #ifdef TEST

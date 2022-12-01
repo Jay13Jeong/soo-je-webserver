@@ -19,7 +19,7 @@ private:
     long sid; //세션 id
 
 public:
-    Response(/* args */) : sid(0), status("") {};
+    Response(/* args */) : status(""), sid(0) {};
     ~Response(){};
 
     void set_sid(long id)
