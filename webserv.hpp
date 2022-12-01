@@ -23,6 +23,7 @@
 #define RECV_ALL    1 //모두 수신 받음을 의미.
 #define SEND_ALL    1 //모두 수신 받음을 의미.
 #define CHUNKED     "800" //te헤더의 상태.
+#define LENGTHLESS  "700" //사이즈 부족.
 
 class Webserv
 {
@@ -630,6 +631,13 @@ public:
                                 c.ready_err_response_meta(); //에러응답 준비.
                                 #ifdef TEST
                                 std::cerr << "ccccccc" << std::endl;
+                                #endif
+                                continue;
+                            }
+                            if (c.getResponse().check_bodysize() == LENGTHLESS)
+                            {
+                                #ifdef TEST
+                                std::cerr << "@" << std::endl;
                                 #endif
                                 continue;
                             }

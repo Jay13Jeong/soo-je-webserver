@@ -179,7 +179,10 @@ public:
             // if (this->read_buf.length() > )
             //     return 1;
 
-            if (this->response.getStatus() == "800")
+            if (this->response.getStatus() == LENGTHLESS)
+                return 0;
+
+            if (this->response.getStatus() == CHUNKED)
             {
                 size_t pos = read_buf.find("\r\n");
                 if (pos != std::string::npos)

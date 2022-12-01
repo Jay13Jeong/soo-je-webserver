@@ -4,6 +4,9 @@
 #include <vector>
 #include <map>
 
+#define LENGTHLESS "700"
+#define CHUNKED "800"
+
 class Response
 {
 private:
@@ -86,6 +89,35 @@ public:
         this->status_msg.clear();
         this->status.clear();
         this->sid = 0;
+    }
+
+    std::string check_bodysize()
+    {
+        if (this->status == LENGTHLESS)
+        {
+            std::string & temp = this->header_map.find("Content-Length")->second;
+            int expect_size = atoi(temp.c_str());
+            int real_size = this->body.length();
+            if (real_size >= expect_size)
+            {
+                this->status = "200";
+                return "200";
+            }
+        }
+        if (this->header_map.find("Content-Length") != this->header_map.end())
+        {
+            std::string & temp = this->header_map.find("Content-Length")->second;
+            while (temp.find(' ') != std::string::npos)
+                temp.erase(temp.find(' '));
+            int expect_size = atoi(temp.c_str());
+            int real_size = this->body.length();
+            if (real_size < expect_size)
+            {
+                this->status = LENGTHLESS;
+                return LENGTHLESS;
+            }
+        }
+        return ("200");
     }
 };
 
