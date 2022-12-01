@@ -492,7 +492,8 @@ public:
 
     //서버를 실행하는 메소드.
     void start()
-    {
+    {   
+        std::cerr << ":::: SOO-JE-WEBSERVER start ::::" << std::endl;
         int kq_fd; //커널큐 fd.
         int detected_count = 0; //감지된 이벤트 갯수.
         struct kevent detecteds[DETECT_SIZE]; //감지 된 이벤트벡터.
@@ -668,6 +669,8 @@ public:
                             #ifdef TEST
                             std::cerr << "hhhhh" << std::endl;
                             #endif
+                            if (c.check_redirect() == true) //리다이렉트 대상이라면
+                                continue;
                             if (c.check_need_cgi() == false) //파싱된 데이터에 cgi요청이 없을 때.
                             {
                                 #ifdef TEST
