@@ -515,15 +515,15 @@ public:
         this->init_status_map();
         util::rm_sub_files(".payload/"); //cgi전송용 payload 폴더 비우기.
         kq_fd = kqueue();
-        // struct timespec timeout;
-        // timeout.tv_sec = 10;
-        // timeout.tv_nsec = 2;
+        struct timespec timeout;
+        timeout.tv_sec = 7;
+        // timeout.tv_nsec = 0;
         while ("soo-je-webserv")
         {
             #ifdef TEST
             std::cerr << "================ while start ===================== " << std::endl;
             #endif
-            detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, 0);
+            detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, &timeout);
             #ifdef TEST
             std::cerr << "detect : " << detected_count << std::endl;
             #endif
