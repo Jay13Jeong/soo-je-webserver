@@ -74,8 +74,7 @@ public:
                 return ("Error : Invalid config file.");
             }
     };
-    
-    //bool    check_config_validation(std::ifstream &config_fs)
+
     bool    check_config_validation(std::string filename)
     {
         std::ifstream config_fs;
@@ -97,7 +96,7 @@ public:
                 if (split_result.size() == 0)
                     continue;
                 split_result = util::ft_split(split_result[0], "\t \n");
-                if (split_result.size() == 0)
+                if (split_result.size() == 0 || split_result[0][0] == '#')
                     continue;
                 if (split_result[0] == "server")
                 {
@@ -183,6 +182,8 @@ public:
                         if (split_result.empty())
                             continue;
                         split_result = util::ft_split(split_result[0], "\t \n");
+                        if (split_result.size() == 0 || split_result[0][0] == '#')
+                            continue;
                         if (split_result[0] == "}")
                         {
                             if (semicolon_cnt != 0)
@@ -194,7 +195,7 @@ public:
                         }
                         if (split_result[0] == "root" || split_result[0] == "autoindex" || split_result[0] == "client_max_body_size")
                         {
-                            if (split_result.size() != 2)
+                            if (semicolon_cnt != 1 || split_result.size() != 2)
                                 throw (Webserv::InvalidConfigFile());
                             if (split_result[0] == "autoindex" && split_result[1] != "on" && split_result[1] != "off")
                                 throw (Webserv::InvalidConfigFile());
@@ -203,14 +204,14 @@ public:
                         }
                         else if (split_result[0] == "return")
                         {
-                            if (split_result.size() != 3)
+                            if (semicolon_cnt != 1 || split_result.size() != 3)
                                 throw (Webserv::InvalidConfigFile());
                             if (util::is_numeric(split_result[1]) == false)
                                 throw (Webserv::InvalidConfigFile());
                         }
                         else if (split_result[0] == "index" || split_result[0] == "accept_method")
                         {
-                            if (split_result.size() == 1)
+                            if (semicolon_cnt != 1 || split_result.size() == 1)
                                 throw (Webserv::InvalidConfigFile());
                         }
                         else if (split_result[0] == "cgi")
@@ -233,10 +234,7 @@ public:
                     bracket_stack.pop();
                 }
                 else
-                {
-                    // error
                     throw (Webserv::InvalidConfigFile());
-                }
             }
             if (!bracket_stack.empty())
                 throw (Webserv::InvalidConfigFile());
@@ -269,7 +267,7 @@ public:
                 std::vector<std::string> split_result;
                 getline(config_fs, line);
                 split_result = util::ft_split(line, "\t \n");
-                if (split_result.size() == 0)
+                if (split_result.size() == 0 || split_result[0][0] == '#')
                     continue;
                 if (split_result[0] == "server")
                 {
@@ -346,8 +344,8 @@ public:
                         bool cgi_set = false;
                         getline(config_fs, line);
                         util::remove_last_semicolon(line);
-                        split_result = util::ft_split(line, "\t ");
-                        if (split_result.empty())
+                        split_result = util::ft_split(line, "\t \n");
+                        if (split_result.size() == 0 || split_result[0][0] == '#')
                             continue;
                         if (split_result[0] == "}"){
                             _server_list.back().loc.push_back(loc_temp);
