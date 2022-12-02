@@ -136,7 +136,7 @@ public:
 
         // struct linger _linger;
         // _linger.l_onoff = 1;
-        // _linger.l_linger = 0;
+        // _linger.l_linger = 5;
         // if (setsockopt(this->fd, SOL_SOCKET, SO_LINGER , &_linger, sizeof(_linger)) == -1) {
         //     perror("set_sockopt fail...");
         //     exit(1);
@@ -144,7 +144,6 @@ public:
         // }
 
         int opt = 1;
-        // 예약) 포트가 선점되어 있을 시 강제로 열도록 예약한다.
         if (setsockopt(this->fd, SOL_SOCKET, SO_REUSEADDR , &opt, sizeof(opt)) == -1) {
             perror("set_sockopt fail...");
             exit(1);
@@ -162,8 +161,8 @@ public:
             exit(1);
             //**throw
         }
-        //포트열기. 한 서버당 접속대기열을 1024개까지 받는다.
-        if (listen(this->fd, 100000) == -1) {
+        //포트열기. 한 서버당 접속대기열을 설정가능.
+        if (listen(this->fd, 2000) == -1) {
             perror("listen fail...");
             exit(1);
             //**throw
