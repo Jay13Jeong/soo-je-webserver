@@ -8,6 +8,14 @@
 #include <fcntl.h> //fcntl
 #include "location.hpp"
 
+// Colors
+#define RED "\x1b[0;31m"
+#define BLUE "\x1b[0;34m"
+#define GREEN "\x1b[0;32m"
+#define YELLOW "\x1b[0;33m"
+#define MAGENTA "\x1b[0;35m"
+#define RESET "\x1b[0m"
+
 class Server
 {
 public:
@@ -159,6 +167,7 @@ public:
             exit(1);
             //**throw
         }
+        std::cerr << GREEN << "Listen " << this->port << " port" << RESET << std::endl;
         fcntl(this->fd, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정
         // g_io_infos[this->fd] = IO_manager(this->fd, "server", 0);
         // std::cerr << "fd_num : " << this->fd << std::endl;

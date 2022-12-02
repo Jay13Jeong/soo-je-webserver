@@ -20,6 +20,14 @@
 
 #define BUFFER_SIZE 70000
 
+// Colors
+#define RED "\x1b[0;31m"
+#define BLUE "\x1b[0;34m"
+#define GREEN "\x1b[0;32m"
+#define YELLOW "\x1b[0;33m"
+#define MAGENTA "\x1b[0;35m"
+#define RESET "\x1b[0m"
+
 class Client
 {
 private:
@@ -349,6 +357,7 @@ public:
             exit(9);
         // #endif
         //스타트라인
+        std::cerr << YELLOW << this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() << RESET << std::endl;
         this->write_buf = this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() + "\r\n";
         //헤더 부분
         std::map<std::string, std::string> temp = this->response.getHeader_map();
