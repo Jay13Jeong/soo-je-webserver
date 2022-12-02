@@ -17,6 +17,7 @@
 #include <sstream>
 #include <map>
 #include "util.hpp"
+#include <exception>
 
 #define DETECT_SIZE 44497 //한 횟차에 처리할 최대 이벤트 갯수.
 #define FAIL        -1 //실패를 의미하는 매크로.
@@ -24,6 +25,14 @@
 #define SEND_ALL    1 //모두 수신 받음을 의미.
 #define CHUNKED     "800" //te헤더의 상태.
 #define LENGTHLESS  "700" //사이즈 부족.
+
+// Colors
+#define RED "\x1b[0;31m"
+#define BLUE "\x1b[0;34m"
+#define GREEN "\x1b[0;32m"
+#define YELLOW "\x1b[0;33m"
+#define MAGENTA "\x1b[0;35m"
+#define RESET "\x1b[0m"
 
 class Webserv
 {
@@ -56,373 +65,368 @@ public:
         this->_client_list.push_back(new_client);
     };
 
-    /*
-        - check bracket
-        - 일단 정상적인 값이 들어온다는 전제
-        - stack
-        - 나올수 있는 예시들 listup하고서 find한다. (listen, root, index, location)
-        - variable nameing rule check
-            - start with _, alphabet
-            - no start with digit
-        - key값 중복 여부 확인 필요
-
-    */
-    bool    check_config_validation(std::ifstream &config_fd)
+    // exception
+    class InvalidConfigFile : public std::exception
     {
-        /*  체크사항
-            노션 - 결정 사항 (11/16) 페이지에 정리해둠.
-        */
+        public:
+            const char *what() const throw()
+            {
+                return ("Error : Invalid config file.");
+            }
+    };
+
+    bool    check_config_validation(std::string filename)
+    {
+        std::ifstream config_fs;
         std::string line;
         std::stack<std::string> bracket_stack;
         bool set = false;
-
-        while (!config_fd.eof())
-        {
-            std::vector<std::string> split_result;
-            getline(config_fd, line);
-            int semicolon_cnt = util::count_semicolon(line);
-            if (semicolon_cnt >= 2)
-                return (false);
-            // split_result.clear();
-            split_result = util::ft_split(line, ";");
-            if (split_result.size() == 0)
-                continue;
-            split_result = util::ft_split(split_result[0], "\t \n");
-            if (split_result.size() == 0)
-                continue;
-            if (split_result[0] == "server")
+        try {
+            config_fs.open(filename);
+            if (!config_fs.is_open())
+                throw (Webserv::InvalidConfigFile());
+            while (!config_fs.eof())
             {
-                set = true;
-                // 가능한 유일한 입력 : server {
-                if (semicolon_cnt != 0)
-                    return (false);
-
-                if (split_result.size() != 2 || split_result[1] != "{")
-                    return (false);
-                bracket_stack.push("{"); // 여는 괄호를 넣어준다.
-            }
-            else if (split_result[0] == "listen")
-            {
-                // 가능한 입력 : listen 80; listen 70 ;
-                if (set == false || semicolon_cnt != 1 || split_result.size() != 2) //
-                    return (false);
-                if (util::is_numeric(split_result[1]) == false)
-                    return (false);
-            }
-            else if (split_result[0] == "host")
-            {
-                // 가능한 입력 : host 127.0.0.1; host 127.0.0.1 ;
-                if (set == false || semicolon_cnt != 1 || split_result.size() != 2) //
-                    return (false);
-                if ((split_result[1] != "127.0.0.1"))
-                    return (false);
-            }
-            else if (split_result[0] == "server_name")
-            {
-                // 가능한 입력 : server_name lalala; server_name lalala ;
-                if (set == false || semicolon_cnt != 1 || split_result.size() != 2)
-                    return (false);
-            }
-            else if (split_result[0] == "root")
-            {
-                // 가능한 입력 : root path; root path ;
-                if (set == false || semicolon_cnt != 1 || split_result.size() != 2)
-                    return (false);
-            }
-            else if (split_result[0] == "index")
-            {
-                if (set == false || semicolon_cnt != 1 || split_result.size() < 2)
-                    return (false);
-            }
-            else if (split_result[0] == "default_error_pages")
-            {
-                if (set == false || semicolon_cnt != 1 || split_result.size() != 3)
-                    return (false);
-                if (util::is_numeric(split_result[1]) == false)
-                    return (false);
-            }
-            else if (split_result[0] == "autoindex")
-            {
-                if (set == false || semicolon_cnt != 1 || split_result.size() != 2)
-                    return (false);
-                if (split_result[1] != "on" && split_result[1] != "off")
-                    return (false);
-            }
-            else if (split_result[0] == "client_max_body_size")
-            {
-                if (set == false || semicolon_cnt != 1 || split_result.size() != 2)
-                    return (false);
-                if (util::is_numeric(split_result[1]) == false)
-                    return (false);
-            }
-            else if (split_result[0] == "cgi")
-            {
-                if (set == false || semicolon_cnt != 1 || split_result.size() != 3)
-                    return (false);
-                if (split_result[1][0] != '.' || split_result[1] != util::to_lower_string(split_result[1]))
-                    return (false);
-            }
-            else if (split_result[0] == "location")
-            {
-                if (set == false || semicolon_cnt != 0 || split_result.size() != 3)
-                    return (false);
-                if (split_result[2] != "{")
-                    return (false);
-                bracket_stack.push("{");
-                // 계속 읽어준다.
-                while (!config_fd.eof())
+                std::vector<std::string> split_result;
+                getline(config_fs, line);
+                int semicolon_cnt = util::count_semicolon(line);
+                if (semicolon_cnt >= 2)
+                    throw (Webserv::InvalidConfigFile());
+                split_result = util::ft_split(line, ";");
+                if (split_result.size() == 0)
+                    continue;
+                split_result = util::ft_split(split_result[0], "\t \n");
+                if (split_result.size() == 0 || split_result[0][0] == '#')
+                    continue;
+                if (split_result[0] == "server")
                 {
-                    getline(config_fd, line);
-                    semicolon_cnt = util::count_semicolon(line);
-                    if (semicolon_cnt > 1)
-                        return (false);
-                    split_result = util::ft_split(line, ";");
-                    if (split_result.empty())
-                        continue;
-                    split_result = util::ft_split(split_result[0], "\t \n");
-                    if (split_result[0] == "}")
-                    {
-                        if (semicolon_cnt != 0)
-                            return (false);
-                        if (bracket_stack.empty())
-                            return (false);
-                        bracket_stack.pop();
-                        break;
-                    }
+                    set = true;
+                    if (semicolon_cnt != 0)
+                        throw (Webserv::InvalidConfigFile());
 
-                    // root, autoindex - key, value;
-                    if (split_result[0] == "root" || split_result[0] == "autoindex")
+                    if (split_result.size() != 2 || split_result[1] != "{")
+                        throw (Webserv::InvalidConfigFile());
+                    bracket_stack.push("{");
+                }
+                else if (split_result[0] == "listen")
+                {
+                    if (set == false || semicolon_cnt != 1 || split_result.size() != 2) //
+                        throw (Webserv::InvalidConfigFile());
+                    if (util::is_numeric(split_result[1]) == false)
+                        throw (Webserv::InvalidConfigFile());
+                }
+                else if (split_result[0] == "host")
+                {
+                    if (set == false || semicolon_cnt != 1 || split_result.size() != 2) //
+                        throw (Webserv::InvalidConfigFile());
+                    if ((split_result[1] != "127.0.0.1"))
+                        throw (Webserv::InvalidConfigFile());
+                }
+                else if (split_result[0] == "server_name")
+                {
+                    if (set == false || semicolon_cnt != 1 || split_result.size() != 2)
+                        throw (Webserv::InvalidConfigFile());
+                }
+                else if (split_result[0] == "root")
+                {
+                    if (set == false || semicolon_cnt != 1 || split_result.size() != 2)
+                        throw (Webserv::InvalidConfigFile());
+                }
+                else if (split_result[0] == "index")
+                {
+                    if (set == false || semicolon_cnt != 1 || split_result.size() < 2)
+                        throw (Webserv::InvalidConfigFile());
+                }
+                else if (split_result[0] == "default_error_pages")
+                {
+                    if (set == false || semicolon_cnt != 1 || split_result.size() != 3)
+                        throw (Webserv::InvalidConfigFile());
+                    if (util::is_numeric(split_result[1]) == false)
+                        throw (Webserv::InvalidConfigFile());
+                }
+                else if (split_result[0] == "autoindex")
+                {
+                    if (set == false || semicolon_cnt != 1 || split_result.size() != 2)
+                        throw (Webserv::InvalidConfigFile());
+                    if (split_result[1] != "on" && split_result[1] != "off")
+                        throw (Webserv::InvalidConfigFile());
+                }
+                else if (split_result[0] == "client_max_body_size")
+                {
+                    if (set == false || semicolon_cnt != 1 || split_result.size() != 2)
+                        throw (Webserv::InvalidConfigFile());
+                    if (util::is_numeric(split_result[1]) == false)
+                        throw (Webserv::InvalidConfigFile());
+                }
+                else if (split_result[0] == "cgi")
+                {
+                    if (set == false || semicolon_cnt != 1 || split_result.size() != 3)
+                        throw (Webserv::InvalidConfigFile());
+                    if (split_result[1][0] != '.' || split_result[1] != util::to_lower_string(split_result[1]))
+                        throw (Webserv::InvalidConfigFile());
+                }
+                else if (split_result[0] == "location")
+                {
+                    if (set == false || semicolon_cnt != 0 || split_result.size() != 3)
+                        throw (Webserv::InvalidConfigFile());
+                    if (split_result[2] != "{")
+                        throw (Webserv::InvalidConfigFile());
+                    bracket_stack.push("{");
+                    while (!config_fs.eof())
                     {
-                        if (split_result.size() != 2)
-                            return (false);
-                        if (split_result[0] == "autoindex" && split_result[1] != "on" && split_result[1] != "off")
-                            return (false);
-                    }
-                    // return - key statuscode url
-                    else if (split_result[0] == "return")
-                    {
-                        if (split_result.size() != 3)
-                            return (false);
-                        if (util::is_numeric(split_result[1]) == false)
-                            return (false);
-                    }
-                    // index, accept_method - key value ...
-                    else if (split_result[0] == "index" || split_result[0] == "accept_method")
-                    {
-                        if (split_result.size() == 1)
-                            return (false);
+                        getline(config_fs, line);
+                        semicolon_cnt = util::count_semicolon(line);
+                        if (semicolon_cnt > 1)
+                            throw (Webserv::InvalidConfigFile());
+                        split_result = util::ft_split(line, ";");
+                        if (split_result.empty())
+                            continue;
+                        split_result = util::ft_split(split_result[0], "\t \n");
+                        if (split_result.size() == 0 || split_result[0][0] == '#')
+                            continue;
+                        if (split_result[0] == "}")
+                        {
+                            if (semicolon_cnt != 0)
+                                throw (Webserv::InvalidConfigFile());
+                            if (bracket_stack.empty())
+                                throw (Webserv::InvalidConfigFile());
+                            bracket_stack.pop();
+                            break;
+                        }
+                        if (split_result[0] == "root" || split_result[0] == "autoindex" || split_result[0] == "client_max_body_size")
+                        {
+                            if (semicolon_cnt != 1 || split_result.size() != 2)
+                                throw (Webserv::InvalidConfigFile());
+                            if (split_result[0] == "autoindex" && split_result[1] != "on" && split_result[1] != "off")
+                                throw (Webserv::InvalidConfigFile());
+                            if (split_result[0] == "client_max_body_size" && util::is_numeric(split_result[1]) == false)
+                                throw (Webserv::InvalidConfigFile());
+                        }
+                        else if (split_result[0] == "return")
+                        {
+                            if (semicolon_cnt != 1 || split_result.size() != 3)
+                                throw (Webserv::InvalidConfigFile());
+                            if (util::is_numeric(split_result[1]) == false)
+                                throw (Webserv::InvalidConfigFile());
+                        }
+                        else if (split_result[0] == "index" || split_result[0] == "accept_method")
+                        {
+                            if (semicolon_cnt != 1 || split_result.size() == 1)
+                                throw (Webserv::InvalidConfigFile());
+                        }
+                        else if (split_result[0] == "cgi")
+                        {
+                            if (semicolon_cnt != 1 || split_result.size() != 3)
+                                throw (Webserv::InvalidConfigFile());
+                            if (split_result[1][0] != '.' || split_result[1] != util::to_lower_string(split_result[1]))
+                                throw (Webserv::InvalidConfigFile());
+                        }
+                        else
+                            throw (Webserv::InvalidConfigFile());
                     }
                 }
+                else if (split_result[0] == "}")
+                {
+                    if (set == false || semicolon_cnt != 0)
+                        throw (Webserv::InvalidConfigFile());
+                    if (bracket_stack.empty() == true)
+                        throw (Webserv::InvalidConfigFile());
+                    bracket_stack.pop();
+                }
+                else
+                    throw (Webserv::InvalidConfigFile());
             }
-            else if (split_result[0] == "}")
-            {
-                if (set == false || semicolon_cnt != 0)
-                    return (false);
-                if (bracket_stack.empty() == true)
-                    return (false);
-                bracket_stack.pop();
-            }
-            else
-            {
-                // error
-                return (false);
-            }
+            if (!bracket_stack.empty())
+                throw (Webserv::InvalidConfigFile());
         }
-        if (!bracket_stack.empty())
+        catch(std::exception & e)
+        {
+            config_fs.close();
+            std::cerr << RED << "[!] " << e.what() << RESET << std::endl;
             return (false);
+        }
+        config_fs.close();
         return (true);
     }
 
     //conf파일을 인자를 받아 파싱 메소드.
     bool    parsing(std::string conf_file)
     {
-        std::ifstream config_fd;
+        std::ifstream config_fs;
     	std::string line;
 
-    	config_fd.open(conf_file);
-        // ifstream 실패했을 경우 -> good() false
-        if (config_fd.good() == false)
+        if (check_config_validation(conf_file) == false)
              return (false);
-        if (check_config_validation(config_fd) == false)
+        try
         {
-            config_fd.close();
-             return (false);
-        }
-        config_fd.close();
-        // 유효성 확인된 경우 파싱 시작
-        config_fd.open(conf_file);
-	    while (!config_fd.eof())
-	    {
-		    std::vector<std::string> split_result;
-            getline(config_fd, line);
-            split_result = util::ft_split(line, "\t \n");
-            if (split_result.size() == 0)
-                continue;
-		    //함수 호출, 정규표현식은 없다.
-		    //첫줄이 server 로 시작하면 server 리스트에 1개 추가
-            if (split_result[0] == "server")
+            config_fs.open(conf_file);
+            if (config_fs.is_open() == false)
+                throw (Webserv::InvalidConfigFile());
+            while (!config_fs.eof())
             {
-                Server new_server;
-                set_server_list(new_server);
-            }
-            else if (split_result[0] == "listen")
-            {
-                util::remove_last_semicolon(split_result[1]);
-                int port = util::string_to_num<int>(split_result[1]);
-                for(size_t i = 0; i < _server_list.size() - 1; i++)
+                std::vector<std::string> split_result;
+                getline(config_fs, line);
+                split_result = util::ft_split(line, "\t \n");
+                if (split_result.size() == 0 || split_result[0][0] == '#')
+                    continue;
+                if (split_result[0] == "server")
                 {
-                    if (_server_list[i].port == port)
+                    Server new_server;
+                    set_server_list(new_server);
+                }
+                else if (split_result[0] == "listen")
+                {
+                    util::remove_last_semicolon(split_result[1]);
+                    int port = util::string_to_num<int>(split_result[1]);
+                    for(size_t i = 0; i < _server_list.size() - 1; i++)
                     {
-                        return (false);
+                        if (_server_list[i].port == port)
+                            throw (Webserv::InvalidConfigFile());
+                    }
+                    _server_list.back().port = port;
+                }
+                else if (split_result[0] == "server_name")
+                {
+                    util::remove_last_semicolon(split_result[1]);
+                    _server_list.back().server_name = split_result[1];
+                }
+                else if (split_result[0] == "root")
+                {
+                    util::remove_last_semicolon(split_result[1]);
+                    _server_list.back().root = split_result[1];
+                }
+                else if (split_result[0] == "index")
+                {
+                    _server_list.back().get_index().clear();
+                    for (size_t i = 1; i < split_result.size(); i++)
+                    {
+                        if (split_result[i] == ";")
+                            break;
+                        util::remove_last_semicolon(split_result[i]);
+                        _server_list.back().index.push_back(split_result[i]);
                     }
                 }
-                 _server_list.back().port = port;
-            }
-            else if (split_result[0] == "server_name")
-            {
-                util::remove_last_semicolon(split_result[1]);
-                _server_list.back().server_name = split_result[1];
-            }
-            else if (split_result[0] == "root")
-            {
-                util::remove_last_semicolon(split_result[1]);
-                _server_list.back().root = split_result[1];
-            }
-            else if (split_result[0] == "index")
-            {
-                _server_list.back().get_index().clear();
-                for (size_t i = 1; i < split_result.size(); i++)
+                else if (split_result[0] == "autoindex")
                 {
-                    if (split_result[i] == ";")
-                        break;
-                    util::remove_last_semicolon(split_result[i]);
-                    _server_list.back().index.push_back(split_result[i]);
+                    util::remove_last_semicolon(split_result[1]);
+                    _server_list.back().autoindex = (split_result[1] == "on");
                 }
-            }
-            else if (split_result[0] == "autoindex")
-            {
-                util::remove_last_semicolon(split_result[1]);
-                _server_list.back().autoindex = (split_result[1] == "on");
-            }
-            else if (split_result[0] == "client_max_body_size")
-            {
-                util::remove_last_semicolon(split_result[1]);
-                _server_list.back().client_max_body_size = util::string_to_num<size_t>(split_result[1]);
-            }
-            else if (split_result[0] == "default_error_pages")
-            {
-                util::remove_last_semicolon(split_result[1]);
-                util::remove_last_semicolon(split_result[2]);
-                _server_list.back().default_error_pages.insert(std::make_pair(split_result[1], split_result[2]));
-            }
-            else if (split_result[0] == "cgi")
-            {
-                if (split_result.size() >= 3)
+                else if (split_result[0] == "client_max_body_size")
+                {
+                    util::remove_last_semicolon(split_result[1]);
+                    _server_list.back().client_max_body_size = util::string_to_num<size_t>(split_result[1]);
+                }
+                else if (split_result[0] == "default_error_pages")
                 {
                     util::remove_last_semicolon(split_result[1]);
                     util::remove_last_semicolon(split_result[2]);
-                    _server_list.back().cgi_map.insert(std::make_pair(split_result[1],split_result[2]));
+                    _server_list.back().default_error_pages.insert(std::make_pair(split_result[1], split_result[2]));
                 }
-            }
-            else if (split_result[0] == "location")
-            {
-                // l의 기본값 넣는 부분
-                Location loc_temp(get_server_list().back().get_root(), \
-                    get_server_list().back().get_index(), \
-                    get_server_list().back().get_autoindex(), \
-                    get_server_list().back().get_max_body_size(), \
-                    get_server_list().back().get_cgi_map());
-                loc_temp.path = split_result[1];
-                //loc_temp.root = split_result[1];
-                while (1)
+                else if (split_result[0] == "cgi")
                 {
-                    bool cgi_set = false;
-                    getline(config_fd, line);
-                    util::remove_last_semicolon(line);
-                    split_result = util::ft_split(line, "\t ");
-                    if (split_result.empty())
-                        continue;
-                    if (split_result[0] == "}"){
-                        _server_list.back().loc.push_back(loc_temp);
-                        break ;
-                    }
-                    else if (split_result[0] == "return")
+                    if (split_result.size() >= 3)
                     {
-                        if (split_result.size() == 3)
+                        util::remove_last_semicolon(split_result[1]);
+                        util::remove_last_semicolon(split_result[2]);
+                        _server_list.back().cgi_map.insert(std::make_pair(split_result[1],split_result[2]));
+                    }
+                }
+                else if (split_result[0] == "location")
+                {
+                    Location loc_temp(get_server_list().back().get_root(), \
+                        get_server_list().back().get_index(), \
+                        get_server_list().back().get_autoindex(), \
+                        get_server_list().back().get_max_body_size(), \
+                        get_server_list().back().get_cgi_map());
+                    loc_temp.path = split_result[1];
+                    while (1)
+                    {
+                        bool cgi_set = false;
+                        getline(config_fs, line);
+                        util::remove_last_semicolon(line);
+                        split_result = util::ft_split(line, "\t \n");
+                        if (split_result.size() == 0 || split_result[0][0] == '#')
+                            continue;
+                        if (split_result[0] == "}"){
+                            _server_list.back().loc.push_back(loc_temp);
+                            break ;
+                        }
+                        else if (split_result[0] == "return")
                             loc_temp.redirection.insert(std::make_pair(split_result[1], split_result[2]));
-                        else
-                            ;//예외처리하기
-                    }
-                    else if (split_result[0] == "accept_method")
-                    {
-                        size_t i = 1;
-                        loc_temp.accept_method.clear();
-                        while (i < split_result.size())
+                        else if (split_result[0] == "accept_method")
                         {
-                            if (split_result[i] == "GET" || split_result[i] == "POST" || split_result[i] == "DELETE" || split_result[i] == "PUT" || split_result[i] == "HEAD")
-                                loc_temp.accept_method.push_back(split_result[i]);
-                            else
-                                ;// 예외처리
-                            i++;
+                            size_t i = 1;
+                            loc_temp.accept_method.clear();
+                            while (i < split_result.size())
+                            {
+                                if (split_result[i] == "GET" || split_result[i] == "POST" || split_result[i] == "DELETE" || split_result[i] == "PUT" || split_result[i] == "HEAD")
+                                    loc_temp.accept_method.push_back(split_result[i]);
+                                else
+                                    throw (Webserv::InvalidConfigFile());
+                                i++;
+                            }
                         }
-                    }
-                    else if (split_result[0] == "index")
-                    {
-                        loc_temp.index.clear();
-                        size_t i = 1;
-                        while (i < split_result.size())
+                        else if (split_result[0] == "index")
                         {
-                            loc_temp.index.push_back(split_result[i]);
-                            i++;
+                            loc_temp.index.clear();
+                            size_t i = 1;
+                            while (i < split_result.size())
+                            {
+                                loc_temp.index.push_back(split_result[i]);
+                                i++;
+                            }
                         }
-                    }
-                    else if (split_result[0] == "autoindex")
-                    {
-                        util::remove_last_semicolon(split_result[1]);
-                        loc_temp.autoindex = (split_result[1] == "on");
-                    }
-                    else if (split_result[0] == "root")
-                    {
-                        util::remove_last_semicolon(split_result[1]);
-                        loc_temp.root = split_result[1];
-                    }
-                    else if (split_result[0] == "client_max_body_size")
-                    {
-                        util::remove_last_semicolon(split_result[1]);
-                        loc_temp.client_max_body_size = util::string_to_num<size_t>(split_result[1]);
-                    }
-                    else if (split_result[0] == "cgi")
-                    {
-                        if (cgi_set == false)
-                        {
-                            loc_temp.cgi_map.clear();
-                            cgi_set = true;
-                        }
-                        if (split_result.size() >= 3)
+                        else if (split_result[0] == "autoindex")
                         {
                             util::remove_last_semicolon(split_result[1]);
-                            util::remove_last_semicolon(split_result[2]);
-                            loc_temp.cgi_map.insert(std::make_pair(split_result[1],split_result[2]));
+                            loc_temp.autoindex = (split_result[1] == "on");
                         }
+                        else if (split_result[0] == "root")
+                        {
+                            util::remove_last_semicolon(split_result[1]);
+                            loc_temp.root = split_result[1];
+                        }
+                        else if (split_result[0] == "client_max_body_size")
+                        {
+                            util::remove_last_semicolon(split_result[1]);
+                            loc_temp.client_max_body_size = util::string_to_num<size_t>(split_result[1]);
+                        }
+                        else if (split_result[0] == "cgi")
+                        {
+                            if (cgi_set == false)
+                            {
+                                loc_temp.cgi_map.clear();
+                                cgi_set = true;
+                            }
+                            if (split_result.size() >= 3)
+                            {
+                                util::remove_last_semicolon(split_result[1]);
+                                util::remove_last_semicolon(split_result[2]);
+                                loc_temp.cgi_map.insert(std::make_pair(split_result[1],split_result[2]));
+                            }
+                        }
+                        else
+                            throw (Webserv::InvalidConfigFile());
                     }
                 }
+                else if (split_result[0] == "host")
+                {
+                    util::remove_last_semicolon(split_result[1]);
+                    _server_list.back().set_host(split_result[1]);
+                }
+                else if (split_result[0] == "}")
+                    continue;
+                else
+                    throw (Webserv::InvalidConfigFile());
             }
-            else if (split_result[0] == "host")
-            {
-                util::remove_last_semicolon(split_result[1]);
-                _server_list.back().set_host(split_result[1]);
-            }
-            else if (split_result[0] == "}")
-                continue;
-            else
-            {
-                // error
-            }
-
-		//내용물 채우고 마지막 } 만나면 나오기
-		//함수호출 끝
-    	}
-        config_fd.close();
+        }
+        catch(std::exception & e)
+        {
+            config_fs.close();
+            std::cerr << RED << "[!] " << e.what() << RESET << std::endl;
+            return (false);
+        }
+        config_fs.close();
         return (true);
     }
 

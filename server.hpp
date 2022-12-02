@@ -33,8 +33,7 @@ public:
         port = 80;
         host = "127.0.0.1";
         server_name = "soo-je";
-        // root = "";
-        //index = {"index.html"};
+        root = "/";
         index.push_back("index.html");
         autoindex = false;
         client_max_body_size = 100000000;
