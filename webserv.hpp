@@ -8,6 +8,7 @@
 #include <stack>
 #include <unistd.h>
 #include <algorithm>
+#include "util.hpp"
 #include "server.hpp"
 #include "client.hpp"
 #include <sys/socket.h> //socket
@@ -16,8 +17,8 @@
 #include <stdexcept>
 #include <sstream>
 #include <map>
-#include "util.hpp"
 #include <exception>
+#include <cctype>
 
 #define DETECT_SIZE 44497 //한 횟차에 처리할 최대 이벤트 갯수.
 #define FAIL        -1 //실패를 의미하는 매크로.
@@ -89,7 +90,7 @@ public:
             {
                 std::vector<std::string> split_result;
                 getline(config_fs, line);
-                int semicolon_cnt = util::count_semicolon(line);
+                int semicolon_cnt = util::count_char(line, ';');
                 if (semicolon_cnt >= 2)
                     throw (Webserv::InvalidConfigFile());
                 split_result = util::ft_split(line, ";");
@@ -119,8 +120,17 @@ public:
                 {
                     if (set == false || semicolon_cnt != 1 || split_result.size() != 2) //
                         throw (Webserv::InvalidConfigFile());
-                    if ((split_result[1] != "127.0.0.1"))
+                    std::string host = split_result[1];
+                    if (util::count_char(host, '.') != 3)
                         throw (Webserv::InvalidConfigFile());
+                    split_result = util::ft_split(host, ".");
+                    if (split_result.size() != 4)
+                        throw (Webserv::InvalidConfigFile());
+                    for(int i = 0; i < 4; i++)
+                    {
+                        if (util::is_numeric(split_result[i]) == false)
+                            throw (Webserv::InvalidConfigFile());
+                    }
                 }
                 else if (split_result[0] == "server_name")
                 {
@@ -175,7 +185,7 @@ public:
                     while (!config_fs.eof())
                     {
                         getline(config_fs, line);
-                        semicolon_cnt = util::count_semicolon(line);
+                        semicolon_cnt = util::count_char(line, ';');
                         if (semicolon_cnt > 1)
                             throw (Webserv::InvalidConfigFile());
                         split_result = util::ft_split(line, ";");

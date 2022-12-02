@@ -6,6 +6,14 @@
 #include "util.hpp"
 #include <cstdlib>
 
+// Colors
+#define RED "\x1b[0;31m"
+#define BLUE "\x1b[0;34m"
+#define GREEN "\x1b[0;32m"
+#define YELLOW "\x1b[0;33m"
+#define MAGENTA "\x1b[0;35m"
+#define RESET "\x1b[0m"
+
 class Request
 {
 private:
@@ -155,6 +163,7 @@ private:
 
     bool push_start_line(std::string & temp_data, std::string &status_code)
     {
+        std::cerr << BLUE << temp_data << RESET << std::endl;
         std::vector<std::string> temp_str = util::ft_split_s(temp_data, " ");
         // perror("[33333");
         if (temp_str.size() != 3)//스타트라인 규격 체크

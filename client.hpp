@@ -20,6 +20,14 @@
 
 #define BUFFER_SIZE 70000
 
+// Colors
+#define RED "\x1b[0;31m"
+#define BLUE "\x1b[0;34m"
+#define GREEN "\x1b[0;32m"
+#define YELLOW "\x1b[0;33m"
+#define MAGENTA "\x1b[0;35m"
+#define RESET "\x1b[0m"
+
 class Client
 {
 private:
@@ -349,6 +357,7 @@ public:
             exit(9);
         // #endif
         //스타트라인
+        std::cerr << YELLOW << this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() << RESET << std::endl;
         this->write_buf = this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() + "\r\n";
         //헤더 부분
         std::map<std::string, std::string> temp = this->response.getHeader_map();
@@ -765,48 +774,16 @@ public:
         return true; //문제없으면 true리턴.
     }
 
-    //400번대 에러가 발생했는지 검사하는 메소드.
+    //400번대 에러 중 파일을 사용하지 않는 에러가 발생했는지 검사하는 메소드.
     bool check_client_err()
     {
-        // // path 정의해줘야 함. (동작 확인 필요)
-        std::string uri = this->getRequest().getTarget().substr(0, this->getRequest().getTarget().find('?'));
-        std::string root = this->my_loc->root+ "/";
-        std::string path;
-        path = uri.replace(0, this->my_loc->path.length(), root);
-        size_t pos = path.find("//");
-        while (1)
-        {
-            if (pos == std::string::npos)
-                break;
-            path.replace(pos, 2, "/");
-            pos = path.find("//");
-        }
-        //권한오류, 메소드사용가능한지 유무, 최대 바디크기 유무 등등 검사....
-        //400번대에 해당하는 오류있으면 response의 상태코드를 설정.
-        // - 400 : request parse 에서 처리
-        // - 401 : ? 인증 여부 확인
-        // - 404 : access(path, F_OK), ready_response_meta 에서 처리
-        // if (this->getRequest().getMethod() != "PUT" && access(path.c_str(), F_OK) == -1)
-        //     return (this->getResponse().setStatus("404"), true);
-        // // - 403 : access(path, R_OK) (읽기권한)
-        // if (this->getRequest().getMethod() != "PUT" && access(path.c_str(), R_OK) == -1)
-        //     return (this->getResponse().setStatus("403"), true);
-        // - 405 : accept_method 확인, request에서 확인 완.
+        // 405 : 현재 경로에서 실행할 수 있는 method인지 확인
         if (find(this->my_loc->accept_method.begin(), this->my_loc->accept_method.end(), \
         this->getRequest().getMethod()) == this->my_loc->accept_method.end())
-        return (this->getResponse().setStatus("405"), true);
-        // - 408 : Timeout ?
-        // - 410 : -> 404 ?
-        // - 411 : Content-Length 필요한 경우 확인
-        // if (this->getRequest().getMethod() == "POST")
-        // {
-        //     if (this->getRequest().getHeaders().find("Content-Length") == this->getRequest().getHeaders().end())
-        //         return (this->getResponse().setStatus("411"), true);
-        // }
-        // - 413 : client_max_body_size 확인
+            return (this->getResponse().setStatus("405"), true);
+        // 413 : client_max_body_size 확인
         if (this->getRequest().getBody().length() > this->my_loc->client_max_body_size)
             return (this->getResponse().setStatus("413"), true);
-        // - 414 : URI 길이 ?
         return false; //이상 없으면 false반환.
     }
 
@@ -1003,7 +980,6 @@ public:
                 remove_lr_space((*iter).second);
                 cgi_env_map.insert(std::make_pair("HTTP_" + new_header, (*iter).second));
             }
-                // cgi_env_map.insert(std::make_pair(util::to_upper_string((*iter).first), (*iter).second));
         }
     }
 
@@ -1030,7 +1006,7 @@ public:
         else
             cgi_env_map["PATH_TRANSLATED"] = "";
         // 3. SCRIPT_NAME
-            cgi_env_map["SCRIPT_NAME"] = target.substr(0, dot_pos + this->cgi_file.length());
+        cgi_env_map["SCRIPT_NAME"] = target.substr(0, dot_pos + this->cgi_file.length());
         return (true);
     }
 
@@ -1047,11 +1023,9 @@ public:
             cgi_env_map["CONTENT_TYPE"] = this->request.getHeaders()["Content-Type"];  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
         else
             cgi_env_map["CONTENT_TYPE"] = "";
-        // cgi_env_map["UPLOAD_PATH"] = this->my_loc->root + "new_folder/";
         cgi_env_map["UPLOAD_PATH"] = this->my_loc->root;
         cgi_env_map["GATEWAY_INTERFACE"] = "CGI/1.1";
         cgi_env_map["REQUEST_METHOD"] = this->getRequest().getMethod();
-        // size_t pos = this->getRequest().getTarget().find('?'); // 쿼리가 있다면 넣어주기 (쿼리 테스트 필요함.)
         cgi_env_map["QUERY_STRING"] = target_info.second;
         cgi_env_map["REMOTE_ADDR"] = std::string(get_client_ip());
         cgi_env_map["REMOTE_USER"] = ""; // 인증과정 없으므로 NULL
@@ -1061,8 +1035,7 @@ public:
         cgi_env_map["SERVER_SOFTWARE"] = "soo-je-webserv/1.0";
         if (this->response.get_sid() != 0)
             cgi_env_map["HTTP_COOKIE"] = this->request.getHeaders().find("Cookie")->second;
-        // 1-1 request에 있던 헤더들을 추가해줘야 함. (Connection, Content-type, Content-length 제외)
-        if (this->set_cgi_env_path(cgi_env_map, target_info.first) == false)
+        if (this->set_cgi_env_path(cgi_env_map, target_info.first))
         {
             // set 500 error
             // return
