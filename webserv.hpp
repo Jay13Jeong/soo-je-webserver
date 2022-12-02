@@ -22,7 +22,7 @@
 #define FAIL        -1 //실패를 의미하는 매크로.
 #define RECV_ALL    1 //모두 수신 받음을 의미.
 #define SEND_ALL    1 //모두 수신 받음을 의미.
-#define CHUNKED     "800" //te헤더의 상태.
+// #define CHUNKED     "801" //te헤더의 상태.
 #define LENGTHLESS  "700" //사이즈 부족.
 
 class Webserv
@@ -517,13 +517,13 @@ public:
         kq_fd = kqueue();
         struct timespec timeout;
         timeout.tv_sec = 7;
-        // timeout.tv_nsec = 0;
+        timeout.tv_nsec = 0;
         while ("soo-je-webserv")
         {
             #ifdef TEST
             std::cerr << "================ while start ===================== " << std::endl;
             #endif
-            detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, &timeout);
+            detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, 0);
             #ifdef TEST
             std::cerr << "detect : " << detected_count << std::endl;
             #endif
@@ -617,19 +617,20 @@ public:
                             //////////////////////////////////
                             std::cerr << "aaaa" << std::endl;
                             #endif
-                            if (c.getResponse().getStatus() != LENGTHLESS && c.parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
+                            if (c.getResponse().getStatus() == "" && c.parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
                             {
-                                if (c.getResponse().getStatus() == CHUNKED)
-                                {
-                                    // std::string backup = c.get_read_buf();
-                                    // c.clear_client();
-                                    // c.getResponse().setStatus(CHUNKED);
-                                    // c.revert_read_data(backup);
-                                    #ifdef TEST
-                                    std::cerr << "!" << std::endl;
-                                    #endif
-                                    continue;
-                                }
+                                // Transfer-Encoding
+                                // if (c.getResponse().getStatus() == CHUNKED)
+                                // {
+                                //     // std::string backup = c.get_read_buf();
+                                //     // c.clear_client();
+                                //     // c.getResponse().setStatus(CHUNKED);
+                                //     // c.revert_read_data(backup);
+                                //     #ifdef TEST
+                                //     std::cerr << "!" << std::endl;
+                                //     #endif
+                                //     continue;
+                                // }
                                 add_kq_event(c.getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE); //"읽기가능"감지 끄기.
                                 #ifdef TEST
                                 std::cerr << "bbbbbb" << std::endl;
@@ -640,7 +641,15 @@ public:
                                 #endif
                                 continue;
                             }
-                            if (c.check_bodysize() == LENGTHLESS)
+                            if (c.chunk_done() == false && c.check_chunked() == CHUNKED)
+                            {
+                                // perror("aaa11");
+                                #ifdef TEST
+                                std::cerr << "#$#" << std::endl;
+                                #endif
+                                continue;
+                            }
+                            if (c.chunk_done() == false && c.check_bodysize() == LENGTHLESS)
                             {
                                 // perror("aaa11");
                                 #ifdef TEST
@@ -658,6 +667,11 @@ public:
                             #ifdef TEST
                             std::cerr << "ddddddd" << std::endl;
                             #endif
+                            if (c.getResponse().getStatus() == "400")
+                            {
+                                c.ready_err_response_meta(); //에러응답 준비.
+                                continue;
+                            }
                             c.init_client_location(); //경로가 로케이션 경로중에 해당하면 그 경로로 정보를 변경한다.
                             #ifdef TEST
                             std::cerr << "eeeeeee" << std::endl;
@@ -667,7 +681,7 @@ public:
                                 #ifdef TEST
                                 std::cerr << "fffffff" << std::endl;
                                 #endif
-                                c.ready_err_response_meta(); //에러응답 준비.
+                                c.ready_err_response_meta();
                                 #ifdef TEST
                                 std::cerr << "gggggg" << std::endl;
                                 #endif

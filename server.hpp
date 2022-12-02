@@ -134,6 +134,15 @@ public:
             //**throw
         }
 
+        // struct linger _linger;
+        // _linger.l_onoff = 1;
+        // _linger.l_linger = 0;
+        // if (setsockopt(this->fd, SOL_SOCKET, SO_LINGER , &_linger, sizeof(_linger)) == -1) {
+        //     perror("set_sockopt fail...");
+        //     exit(1);
+        //     //**throw
+        // }
+
         int opt = 1;
         // 예약) 포트가 선점되어 있을 시 강제로 열도록 예약한다.
         if (setsockopt(this->fd, SOL_SOCKET, SO_REUSEADDR , &opt, sizeof(opt)) == -1) {
@@ -141,7 +150,6 @@ public:
             exit(1);
             //**throw
         }
-
         // int addrlen = sizeof(t_address);
         memset(&t_address, 0, sizeof(t_address));
         t_address.sin_family = AF_INET; //주조체계를 ipv4로 초기화한다.
