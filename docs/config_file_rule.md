@@ -14,7 +14,7 @@
 
 - `server`
 - `listen`
-- `host` : 값으로 `"127.0.0.1"`만 갖는다.
+- `host` : 값으로 xxx.xxx.xxx.xxx 형식의 값만 갖는다.
 - `server_name`
 - `root`
 - `index`
