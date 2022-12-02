@@ -6,7 +6,19 @@
 #include <map>
 #include <netinet/in.h> //INADDR_ANY
 #include <fcntl.h> //fcntl
+#include "util.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include "location.hpp"
+
+// Colors
+#define RED "\x1b[0;31m"
+#define BLUE "\x1b[0;34m"
+#define GREEN "\x1b[0;32m"
+#define YELLOW "\x1b[0;33m"
+#define MAGENTA "\x1b[0;35m"
+#define RESET "\x1b[0m"
 
 class Server
 {
@@ -33,8 +45,7 @@ public:
         port = 80;
         host = "127.0.0.1";
         server_name = "soo-je";
-        // root = "";
-        //index = {"index.html"};
+        root = "/";
         index.push_back("index.html");
         autoindex = false;
         client_max_body_size = 100000000;
@@ -144,29 +155,56 @@ public:
         // }
 
         int opt = 1;
+        // time wait포트를 재사용하도록 설정한다.
         if (setsockopt(this->fd, SOL_SOCKET, SO_REUSEADDR , &opt, sizeof(opt)) == -1) {
             perror("set_sockopt fail...");
             exit(1);
             //**throw
         }
-        // int addrlen = sizeof(t_address);
-        memset(&t_address, 0, sizeof(t_address));
-        t_address.sin_family = AF_INET; //주조체계를 ipv4로 초기화한다.
-        t_address.sin_addr.s_addr = htonl(INADDR_ANY); //주조를 localhost로 초기화한다.
-        t_address.sin_port = htons(this->port); //포트를 네트워크형식으로 전환해서 초기화.
-        // // std::cerr << this->port << std::endl;
-        //초기화된 주소구조체로 소켓을 바인드.
-        if (bind(this->fd, (struct sockaddr*)&t_address, sizeof(t_address)) == -1) {
+
+        /////// getaddrinfo
+        struct addrinfo hint; // getaddrinfo의 인자로 들어갈 힌트
+        struct addrinfo *t_info; // 값을 저장할 구조체
+        memset(&hint, 0, sizeof(hint));
+        hint.ai_family = AF_INET; // IPv4
+        hint.ai_socktype = SOCK_STREAM; // TCP Socket
+        int ret = getaddrinfo(this->host.c_str(), util::num_to_string(this->port).c_str(), &hint, &t_info);
+        if (ret != 0)
+        {
+            freeaddrinfo(t_info); // addrinfo 할당 해제
+            std::cerr << gai_strerror(ret) << std::endl;
+            exit(1);
+        }
+        if (bind(this->fd, t_info->ai_addr, sizeof(*(t_info->ai_addr))) == -1) {
             perror("bind failed...");
+            freeaddrinfo(t_info);
             exit(1);
             //**throw
         }
-        //포트열기. 한 서버당 접속대기열을 설정가능.
+
+        freeaddrinfo(t_info);
+        /////// 
+        ///// INADDR_ANY
+        // // int addrlen = sizeof(t_address);
+        // memset(&t_address, 0, sizeof(t_address));
+        // t_address.sin_family = AF_INET; //주조체계를 ipv4로 초기화한다.
+        // t_address.sin_addr.s_addr = htonl(INADDR_ANY); //주조를 localhost로 초기화한다.
+        // t_address.sin_port = htons(this->port); //포트를 네트워크형식으로 전환해서 초기화.
+        // // std::cerr << this->port << std::endl;
+        // //초기화된 주소구조체로 소켓을 바인드.
+        // if (bind(this->fd, (struct sockaddr*)&t_address, sizeof(t_address)) == -1) {
+        //     perror("bind failed...");
+        //     exit(1);
+        //     //**throw
+        // }
+        /////
+        //포트열기. 한 서버당 접속대기열을 접속대기열을 설정.
         if (listen(this->fd, 2000) == -1) {
             perror("listen fail...");
             exit(1);
             //**throw
         }
+        std::cerr << GREEN << "Listen " << this->host << ":" << this->port << RESET << std::endl;
         fcntl(this->fd, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정
         // g_io_infos[this->fd] = IO_manager(this->fd, "server", 0);
         // std::cerr << "fd_num : " << this->fd << std::endl;
