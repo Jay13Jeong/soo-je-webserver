@@ -195,16 +195,17 @@ private:
         {
             if (temp_data[i].size() == 0)
                 break ;
-            temp_str = util::ft_split_s(temp_data[i], ":");
+            temp_str = util::ft_split(temp_data[i], ":");
 //라인폴딩은 아직 처리안함 , 실제 사례를 본 적이 없음
             // perror("[55555");
             if (temp_str.size() == 1)
                 return (status_code = "400", false);
-            else if (util::count_sp(temp_str[0]) != 0)
+            // perror("[uuu");
+            if (util::count_sp(temp_str[0]) != 0)
                 return (status_code = "400", false);
             // perror("[55555]");
-            if (temp_str[0] == "Transfer-Encoding")//청크부분 처리
-                ft_chunk_check(temp_str[1], status_code);
+            // if (temp_str[0] == "Transfer-Encoding")//청크부분 처리
+            //     ft_chunk_check(temp_str[1], status_code);
             temp = temp_str[1];
             for (size_t j = 2; j < temp_str.size(); j++)
                 temp = temp + ":" + temp_str[j];

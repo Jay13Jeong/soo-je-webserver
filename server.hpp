@@ -145,6 +145,15 @@ public:
             //**throw
         }
 
+        // struct linger _linger;
+        // _linger.l_onoff = 1;
+        // _linger.l_linger = 5;
+        // if (setsockopt(this->fd, SOL_SOCKET, SO_LINGER , &_linger, sizeof(_linger)) == -1) {
+        //     perror("set_sockopt fail...");
+        //     exit(1);
+        //     //**throw
+        // }
+
         int opt = 1;
         // time wait포트를 재사용하도록 설정한다.
         if (setsockopt(this->fd, SOL_SOCKET, SO_REUSEADDR , &opt, sizeof(opt)) == -1) {
@@ -172,6 +181,7 @@ public:
             exit(1);
             //**throw
         }
+
         freeaddrinfo(t_info);
         /////// 
         ///// INADDR_ANY
@@ -188,8 +198,8 @@ public:
         //     //**throw
         // }
         /////
-        //포트열기. 한 서버당 접속대기열을 1024개까지 받는다.
-        if (listen(this->fd, 100000) == -1) {
+        //포트열기. 한 서버당 접속대기열을 접속대기열을 설정.
+        if (listen(this->fd, 2000) == -1) {
             perror("listen fail...");
             exit(1);
             //**throw

@@ -18,7 +18,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define BUFFER_SIZE 70000
+#define BUFFER_SIZE 10000
 
 // Colors
 #define RED "\x1b[0;31m"
@@ -52,13 +52,14 @@ private:
     std::string  cgi_body_file; //cgi실행전 사용할 바디 파일 이름.
     int file_pipe[2];//
     int result_pipe[2];
+    bool is_done_chunk;
 
 public:
     Client(std::vector<struct kevent> * cmds, std::map<int,Client*> * files) : socket_fd(-1),read_buf(""), write_buf(""),file_fd(-1)\
     , file_buf(""),write_size(0), my_loc(NULL), \
     // server_fd(-1),
     cgi_mode(false), _ev_cmds(cmds) \
-    ,_file_map(files), my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name(""), cgi_body_file("") {};
+    ,_file_map(files), my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name(""), cgi_body_file(""), is_done_chunk(false) {};
 
     ~Client()
     {
@@ -183,33 +184,145 @@ public:
         }
         else
         {
+            // std::cerr << ":11111" << std::endl;
             if (this->response.getStatus() == LENGTHLESS)
             {
+                 std::cerr << " :? buff" << std::endl;
                 this->request.getBody() += std::string(buffer, size);
                 return 1;
             }
-
+            
+            // std::cerr << ":22" << std::endl;
             this->read_buf += std::string(buffer, size); //1.읽은 데이터 char[] -> string으로 변환해서 저장.
             // std::cerr << this->read_buf.length() << " : buff" << std::endl;
             // // std::cerr << this->socket_fd << " : sock" << std::endl;
             // if (this->read_buf.length() > )
             //     return 1;                
 
+            // if (this->response.getStatus() == CHUNKED)
+            // {
+            //     size_t pos = read_buf.find("\r\n");
+            //     if (pos != std::string::npos)
+            //     {
+            //         if (pos != read_buf.rfind("\r\n"))//이거, pos 다음부터 찾도록 하기, 시작복잡도 때문에
+            //             return 1;
+            //     }
+            // }
+            // std::cerr << "data size : " << this->request.getBody().length() << std::endl;
             if (this->response.getStatus() == CHUNKED)
             {
-                size_t pos = read_buf.find("\r\n");
-                if (pos != std::string::npos)
+                // perror(";11111");
+                const size_t body_size = this->read_buf.length();
+                // std::string & body_data = this->request.getBody();
+                const std::string & body_data = this->read_buf;
+                size_t curr = 0;
+                // std::string pase_body = "";
+                // perror(";11111;");
+                while (body_size > 2)
                 {
-                    if (pos != read_buf.rfind("\r\n"))//이거, pos 다음부터 찾도록 하기, 시작복잡도 때문에
+                    // std::cerr << "??????????????????????????" << std::endl;
+                    // std::cerr << body_data << std::endl;
+                    // std::cerr << "??????????????????????????" << std::endl;
+                    // std::cerr << this->read_buf << std::endl;
+                    // std::cerr << "??????????????????????????" << std::endl;
+                    // perror(";22222");
+                    size_t rn = body_data.find("\r\n", curr);
+                    if (rn == curr)
+                    {
+                        // std::cerr << "rn curr" << std::endl;
+                        this->read_buf.clear();
+                        this->response.setStatus("400");
+                        this->is_done_chunk = true;
+                        // return "400"; //외부에서 에러페이지 만들도록 받아줘야함.
+                        return 1; //외부에서 에러페이지 만들도록 받아줘야함.
+                    }
+                    // perror(";33333");
+                    if (rn == std::string::npos)
+                    {
+                        if (curr != 0)
+                        {
+                            if (curr != body_size)
+                                this->read_buf = this->read_buf.substr(curr);
+                            else
+                                this->read_buf.clear();
+                        }
                         return 1;
+                    }
+                    // std::cerr << body_data.substr(curr, rn) << std::endl;
+                    // perror(";44444");
+                    //알엔까지 값을 16진법으로 디코딩한다. 비
+                    size_t b = strtol(body_data.substr(curr, rn - curr).c_str(), NULL, 16);
+                        
+                    //알엔 플러스 2한 값을 기존 바디사이즈에서 뺀다. 에이
+                    size_t a = body_size - (rn + 2);
+                    //에이 값이 (비 + 2)보다 작으면 브레이크
+                    if (a < (b + 2))
+                    {
+                        if (curr != 0)
+                        {
+                            if (curr != body_size)
+                                this->read_buf = this->read_buf.substr(curr);
+                            else
+                                this->read_buf.clear();
+                        }
+                        return 1;
+                    }
+                    if (b == 0)
+                    {
+                        this->read_buf.clear();
+                        this->response.setStatus("200");
+                        this->is_done_chunk = true;
+                        // std::cerr << "helloi" << std::endl;
+                        // this->response.setBody(pase_body);
+                        // std::cerr << this->response.getStatus() << std::endl;
+                        return 1;
+                    }   
+                    // perror(";55555");
+                    //파스바디에 섭스트링으로 (알엔 플러스 2한 값, 비)
+                    // pase_body += body_data.substr(rn + 2, b);
+                    // std::cerr << "&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
+                    // std::cerr << curr + rn + 2 << std::endl;
+                    // std::cerr << b << std::endl;
+                    // std::cerr << body_size << std::endl;
+                    // std::cerr << "&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
+                    // perror(";wwwww");
+                    this->request.getBody() += body_data.substr(rn + 2, b);
+                    // perror(";ppppp");
+                    if (b != 0)
+                    {
+                        // std::cerr << "$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+                        // std::cerr << "dicode : " << b << std::endl;
+                        // std::cerr << "curr : " << curr << std::endl;
+                        // std::cerr << "num_len (+2) : " << (rn + 2) << std::endl;
+                        // std::cerr << "data len (+2) : " << (b + 2) << std::endl;
+                        // std::cerr << curr + (rn + 2) + (b + 2) << std::endl;
+                        // if (!isnumber(body_data[(rn + 2) + (b + 2)]))
+                        // {
+                        //     std::cerr << body_data.substr((rn + 2) + (b),2) << std::endl;
+                        //     exit(66);
+                        // }
+                            
+                    }
+                    // 컬 += (알엔 + 2) + (비 + 2)
+                    curr = (rn + 2) + (b + 2);
                 }
+                // perror(";6666");
+                // this->response.setBody(pase_body);
+                // this->response.setStatus(CHUNKED);
+                // return CHUNKED;
+                // if ()
+                // this->request.getBody() += pase_body;
+                return 1;
             }
             if (size == BUFFER_SIZE)
                 return 0;
+            // std::cerr << ":33" << std::endl;
             if (this->read_buf.find("\r\n\r\n") != std::string::npos) //모두 읽었다면..
                 return 1;
+            // std::cerr << ":44" << std::endl;
             if (this->read_buf.find("\n\n") != std::string::npos) //모두 읽었다면..
                 return 1;
+
         }
         return 0;
     }
@@ -724,8 +837,9 @@ public:
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
     bool parse_request()
         {
+        // std::cerr << "rere : " << this->response.getStatus() << std::endl;
         if (this->response.getStatus() == "800"){//상태코드 800인지 확인하기
-            //std::cerr << "before data : " << this->read_buf.size() << std::endl;
+            // std::cerr << "before data : " << this->read_buf.size() << std::endl;
             return (this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus()));
             // size_t t = this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus());
             // std::cerr << "after data : " << this->read_buf.size() << std::endl;
@@ -771,6 +885,7 @@ public:
         this->file_pipe[1] = -1;
         this->result_pipe[0] = -1;
         this->result_pipe[1] = -1;
+        this->is_done_chunk = false;
         return true; //문제없으면 true리턴.
     }
 
@@ -853,8 +968,8 @@ public:
         // result_fd = this->result_pipe[1];
         // this->file_fd = this->result_pipe[0];
         /////////////////pipe 2///////////////
-        // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-        // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+        fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
+        add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
         // this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
         int pid = -1;
         if ((pid = fork()) < 0)
@@ -908,6 +1023,8 @@ public:
         }
         else //부모프로세스는 논블럭설정하고 "읽기가능"감지에 등록한다.
         {
+            close(result_fd);
+            close(stdin_fd);
             #ifdef TEST
             std::cerr << "wait pid ..." << this->file_fd << std::endl;
             #endif
@@ -915,10 +1032,8 @@ public:
             waitpid(pid, &status, 0);
             if (status != 0)
                 return (false);
-            close(result_fd);
-            close(stdin_fd);
-            fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-            add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
+            // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
+            // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
             this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
             std::cerr << "?-? : " << this->file_fd << std::endl;
@@ -1099,6 +1214,105 @@ public:
         */
     }
 
+    std::string check_chunked()
+    {
+        if (this->response.getStatus() == CHUNKED)
+        {
+            // perror("[222&");
+            // 바디사이즈가 5이상이고, 맨뒤가 0캐리지 리턴이면 200으로 재설정하고 종종료료한한다다.
+            // size_t body_size = this->request.getBody().length();
+            // if (body_size > 4 && this->request.getBody().substr(body_size - 5, 5) == "0\r\n\r\n")
+            // {
+            //     this->response.setStatus("200");
+            //     return "200";
+            // }
+            return CHUNKED;
+        }
+        if (this->request.getHeaders().find("Transfer-Encoding") != this->request.getHeaders().end())
+        {
+            // perror("[1111&");
+            std::string temp = util::ft_split(this->request.getHeaders().find("Transfer-Encoding")->second, " ")[0];
+            // perror("[1111]");
+            if (temp.find("chunked") != std::string::npos)
+            {
+                // size_t body_size = this->request.getBody().length();
+                // if (body_size > 4 && this->request.getBody().substr(0, 5) == "0\r\n\r\n")
+                // {
+                //     this->response.setStatus("200");
+                //     return "200";
+                // }
+                ///////////////////////////////////
+                // perror("[2222");
+                const size_t body_size = this->request.getBody().length();
+                const std::string & body_data = this->request.getBody();
+                size_t curr = 0;
+                std::string pase_body = "";
+                // perror("[2222]");
+                while (body_size > 2)
+                {
+                    // perror("[33333");
+                    size_t rn = body_data.find("\r\n", curr);
+                    if (rn == curr)
+                    {
+                        this->request.setBody("");
+                        this->response.setStatus("400");
+                        this->is_done_chunk = true;
+                        perror("400 read");
+                        return "400"; //외부에서 에러페이지 만들도록 받아줘야함.
+                    }
+                    if (rn == std::string::npos)
+                    {
+                        this->read_buf = body_data.substr(curr);
+                        break;
+                    }
+                    // perror("[33333]");
+                    //알엔까지 값을 16진법으로 디코딩한다. 비
+                    int b = strtol(body_data.substr(curr, rn).c_str(), NULL, 16);
+                    //알엔 플러스 2한 값을 기존 바디사이즈에서 뺀다. 에이
+                    int a = body_size - (rn + 2);
+                    //에이 값이 (비 + 2)보다 작으면 브레이크
+                    // perror("[44444");
+                    if (a < (b + 2))
+                    {
+                        this->read_buf = body_data.substr(curr);
+                        break;
+                    }
+                    if (b == 0)
+                    {
+                        this->is_done_chunk = true;
+                        this->request.setBody(pase_body);
+                        this->response.setStatus("200");
+                        return "200";
+                    }   
+                    //파스바디에 섭스트링으로 (알엔 플러스 2한 값, 비)
+                    pase_body += body_data.substr(rn + 2, b);
+                    // if (b != 0  && b != 1000)
+                    // {
+                    //     std::cerr << "$$$$$$$$$$$$$$$$$$$$$$$$$" << b << std::endl;
+                    //     std::cerr << "dicode : " << b << std::endl;
+                    //     std::cerr << "curr : " << curr << std::endl;
+                    //     std::cerr << "data[0] : " << (rn + 2) << std::endl;
+                    //     std::cerr << "data size (+2) : " << (b + 2) << std::endl;
+                    //     std::cerr << curr + (rn + 2) + (b + 2) << std::endl;
+                    //     exit(66);
+                    // }
+                    // 컬 += (알엔 + 2) + (비 + 2)
+                    curr = (rn + 2) + (b + 2);
+                    //브레이크로 중지된 데이터는 다시 read_buf에 담는다.
+                    // perror("[44444]");
+                }
+                this->request.setBody(pase_body);
+                /////////////////
+                // this->read_buf = this->request.getBody();
+                // this->request.setBody("");
+                ////////////////
+                this->response.setStatus(CHUNKED);
+                return CHUNKED;
+            }
+        }
+        return ("200");      
+    }
+
     std::string check_bodysize()
     {   
         if (this->response.getStatus() == LENGTHLESS)
@@ -1111,6 +1325,7 @@ public:
                 this->response.setStatus("200");
                 return "200";
             }
+            return LENGTHLESS;
         }
         if (this->request.getHeaders().find("Content-Length") != this->request.getHeaders().end())
         {
@@ -1150,6 +1365,11 @@ public:
             return true;
         }
         return false;
+    }
+
+    bool chunk_done()
+    {
+        return this->is_done_chunk;
     }
 
     void manage_session()
