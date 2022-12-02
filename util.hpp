@@ -62,12 +62,12 @@ namespace util
 		return *p == 0;
 	}
 
-	int count_semicolon(const std::string & str)
+	int count_char(const std::string & str, char c)
 	{
 		int ret = 0;
 		for (size_t i = 0; i < str.length(); i++)
 		{
-			if (str[i] == ';')
+			if (str[i] == c)
 				ret++;
 		}
 		return (ret);
