@@ -8,6 +8,7 @@
 #include <stack>
 #include <unistd.h>
 #include <algorithm>
+#include "util.hpp"
 #include "server.hpp"
 #include "client.hpp"
 #include <sys/socket.h> //socket
@@ -16,7 +17,6 @@
 #include <stdexcept>
 #include <sstream>
 #include <map>
-#include "util.hpp"
 #include <exception>
 #include <cctype>
 
