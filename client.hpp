@@ -799,8 +799,8 @@ public:
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
-        if ((this->file_fd = open(this->cgi_body_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
         // if (pipe(this->file_pipe) == -1)
+        if ((this->file_fd = open(this->cgi_body_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
         {
             // perror("open cgi_ready err");
             this->getResponse().setStatus("500"); //500처리.
@@ -890,7 +890,7 @@ public:
                 arg[1] = NULL;
                 if (execve(arg[0], arg, env) == -1)
                 {
-                    // perror("execve err bla cgi");
+                    perror("execve err bla cgi");
                     exit(1);
                 }
             } else {
@@ -900,7 +900,7 @@ public:
                 arg[2] = NULL;
                 if (execve(arg[0], arg, env) == -1) //cgi 실행.
                 {
-                    // perror("execve err normal cgi");
+                    perror("execve err normal cgi");
                     exit(1);
                 }
             }
