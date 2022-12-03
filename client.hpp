@@ -174,7 +174,7 @@ public:
         size = recv(this->socket_fd, buffer, BUFFER_SIZE, 0);
         if (size == -1)
         {
-            // perror("recv client err");
+            perror("recv client err");
             return -1;
         }
         else if (size == 0)
@@ -695,6 +695,9 @@ public:
                 else //conf에서의 index목록중에 있다면 해당 경로로 대치.
                     path = abs_path;
             }
+            stat(path.c_str(), &sb);
+            if (sb.st_size == 0)
+                return (this->init_response(), true);
             this->file_fd = open(path.c_str(),O_RDONLY, 0644);
             if (this->file_fd == -1) //열기 실패시.
             {

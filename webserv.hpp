@@ -537,13 +537,19 @@ public:
             #ifdef TEST
             std::cerr << "================ while start ===================== " << std::endl;
             #endif
+
+            // perror("weeee");
             detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, &timeout);
+
+            // perror("weeee2");
             #ifdef TEST
             std::cerr << "detect : " << detected_count << std::endl;
             #endif
             _ev_cmds.clear(); //사용한 이벤트명령은 비운다.
             for (int i(0); i < detected_count; i++)
             {
+
+                // perror("weeee3");
                 curr_det = &detecteds[i];
                 if (curr_det->flags & EV_ERROR)
                 {
