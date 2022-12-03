@@ -187,7 +187,7 @@ public:
             // std::cerr << ":11111" << std::endl;
             if (this->response.getStatus() == LENGTHLESS)
             {
-                 std::cerr << " :? buff" << std::endl;
+                //  std::cerr << " :? buff" << std::endl;
                 this->request.getBody() += std::string(buffer, size);
                 return 1;
             }
@@ -1037,7 +1037,6 @@ public:
             this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
             std::cerr << "?-? : " << this->file_fd << std::endl;
-
             #endif
             return true;
         }
