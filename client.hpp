@@ -40,7 +40,6 @@ private:
     std::string file_buf; //파일의 정보가 저장되는 변수.
     size_t write_size; //보낸 데이터 크기.
     Location * my_loc; //요청이 처리될 영역을 지정한 로케이션 구조체.
-    // int server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).`
     bool cgi_mode; // cgi모드여부.
     std::vector<struct kevent> * _ev_cmds; //kq 감지대상 벡터.
     std::map<int, Client*> * _file_map; //파일 맵.
@@ -50,38 +49,17 @@ private:
     std::string  cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")
     std::string  cgi_file_name; //cgi 결과물을 담은 파일 이름.
     std::string  cgi_body_file; //cgi실행전 사용할 바디 파일 이름.
-    int file_pipe[2];//
-    int result_pipe[2];
     bool is_done_chunk;
 
 public:
     Client(std::vector<struct kevent> * cmds, std::map<int,Client*> * files) : socket_fd(-1),read_buf(""), write_buf(""),file_fd(-1)\
     , file_buf(""),write_size(0), my_loc(NULL), \
-    // server_fd(-1),
     cgi_mode(false), _ev_cmds(cmds) \
     ,_file_map(files), my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name(""), cgi_body_file(""), is_done_chunk(false) {};
 
     ~Client()
     {
-        // // perror("close Client!");
-        // std::cout << "cli socket fd :" << this->socket_fd << ", cli file fd : " << this->file_fd << std::endl;
-        // if (this->socket_fd != -1)
-        //     close(this->socket_fd);
     }
-    // void get_client_status()
-    // {
-        //     std::cerr << this->socket_fd << " //클라이언트 소켓 fd." << std::endl;
-        //     std::cerr << this->read_buf<< "//소켓에서 읽어온 비정제 데이터. (추후 파싱필요)" <<std::endl;
-        //     std::cerr << this->write_buf; //응답 클래스로 보낼 데이터.
-        //     std::cerr << this->file_fd; // cgi가 출력한 결과물을 담는 파일의 fd.
-        //     std::cerr << this->file_buf; //파일의 정보가 저장되는 변수.
-        //     std::cerr << this->write_size; //보낸 데이터 크기.
-        //     std::cerr << this->read_size; //파일의 읽은 데이터 크기.
-        //     std::cerr << this->server_fd; //파생해준 서버fd (conf정보 찾을 때 필요).
-        //     std::cerr << this->cgi_mode; // cgi모드여부.
-        //     std::cerr << this->cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")
-        //     std::cerr << this->cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")
-    // }
     std::string & get_read_buf()
     {
         return this->read_buf;
@@ -166,77 +144,43 @@ public:
     //클라이언트 소켓에서 데이터를 읽어서 본인의 read_buf버퍼에 저장하는 메소드. 실패 -1 성공 0 모두받음 1 반환.
     int recv_data( void )
     {
-        int size;
+        size_t size;
         char    buffer[BUFFER_SIZE];
 
-        // if ((this->read_buf.size() + BUFFER_SIZE) < this->read_buf.size()) //string 용량 초과시 예외처리.
-        //     return -1;
         size = recv(this->socket_fd, buffer, BUFFER_SIZE, 0);
-        if (size == -1)
+        if (size == (size_t)-1)
         {
             perror("recv client err");
             return -1;
         }
         else if (size == 0)
         {
-            // std::cerr << this->read_buf << " : buff" << std::endl;
             return -1;
         }
         else
         {
-            // std::cerr << ":11111" << std::endl;
             if (this->response.getStatus() == LENGTHLESS)
             {
-                //  std::cerr << " :? buff" << std::endl;
                 this->request.getBody() += std::string(buffer, size);
                 return 1;
             }
             
-            // std::cerr << ":22" << std::endl;
             this->read_buf += std::string(buffer, size); //1.읽은 데이터 char[] -> string으로 변환해서 저장.
-            // std::cerr << this->read_buf.length() << " : buff" << std::endl;
-            // // std::cerr << this->socket_fd << " : sock" << std::endl;
-            // if (this->read_buf.length() > )
-            //     return 1;                
-
-            // if (this->response.getStatus() == CHUNKED)
-            // {
-            //     size_t pos = read_buf.find("\r\n");
-            //     if (pos != std::string::npos)
-            //     {
-            //         if (pos != read_buf.rfind("\r\n"))//이거, pos 다음부터 찾도록 하기, 시작복잡도 때문에
-            //             return 1;
-            //     }
-            // }
-            // std::cerr << "data size : " << this->request.getBody().length() << std::endl;
             if (this->response.getStatus() == CHUNKED)
             {
-                // perror(";11111");
                 const size_t body_size = this->read_buf.length();
-                // std::string & body_data = this->request.getBody();
                 const std::string & body_data = this->read_buf;
                 size_t curr = 0;
-                // std::string pase_body = "";
-                // perror(";11111;");
                 while (body_size > 2)
                 {
-                    // std::cerr << "??????????????????????????" << std::endl;
-                    // std::cerr << body_data << std::endl;
-                    // std::cerr << "??????????????????????????" << std::endl;
-                    // std::cerr << this->read_buf << std::endl;
-                    // std::cerr << "??????????????????????????" << std::endl;
-                    // perror(";22222");
                     size_t rn = body_data.find("\r\n", curr);
                     if (rn == curr)
                     {
-                        // std::cerr << "rn curr" << std::endl;
                         this->read_buf.clear();
                         this->response.setStatus("400");
                         this->is_done_chunk = true;
-                        // return "400"; //외부에서 에러페이지 만들도록 받아줘야함.
-                        return 1; //외부에서 에러페이지 만들도록 받아줘야함.
+                        return 1;
                     }
-                    // perror(";33333");
                     if (rn == std::string::npos)
                     {
                         if (curr != 0)
@@ -248,14 +192,8 @@ public:
                         }
                         return 1;
                     }
-                    // std::cerr << body_data.substr(curr, rn) << std::endl;
-                    // perror(";44444");
-                    //알엔까지 값을 16진법으로 디코딩한다. 비
                     size_t b = strtol(body_data.substr(curr, rn - curr).c_str(), NULL, 16);
-                        
-                    //알엔 플러스 2한 값을 기존 바디사이즈에서 뺀다. 에이
                     size_t a = body_size - (rn + 2);
-                    //에이 값이 (비 + 2)보다 작으면 브레이크
                     if (a < (b + 2))
                     {
                         if (curr != 0)
@@ -272,54 +210,20 @@ public:
                         this->read_buf.clear();
                         this->response.setStatus("200");
                         this->is_done_chunk = true;
-                        // std::cerr << "helloi" << std::endl;
-                        // this->response.setBody(pase_body);
-                        // std::cerr << this->response.getStatus() << std::endl;
                         return 1;
                     }   
-                    // perror(";55555");
-                    //파스바디에 섭스트링으로 (알엔 플러스 2한 값, 비)
-                    // pase_body += body_data.substr(rn + 2, b);
-                    // std::cerr << "&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
-                    // std::cerr << curr + rn + 2 << std::endl;
-                    // std::cerr << b << std::endl;
-                    // std::cerr << body_size << std::endl;
-                    // std::cerr << "&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
-                    // perror(";wwwww");
                     this->request.getBody() += body_data.substr(rn + 2, b);
-                    // perror(";ppppp");
                     if (b != 0)
                     {
-                        // std::cerr << "$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
-                        // std::cerr << "dicode : " << b << std::endl;
-                        // std::cerr << "curr : " << curr << std::endl;
-                        // std::cerr << "num_len (+2) : " << (rn + 2) << std::endl;
-                        // std::cerr << "data len (+2) : " << (b + 2) << std::endl;
-                        // std::cerr << curr + (rn + 2) + (b + 2) << std::endl;
-                        // if (!isnumber(body_data[(rn + 2) + (b + 2)]))
-                        // {
-                        //     std::cerr << body_data.substr((rn + 2) + (b),2) << std::endl;
-                        //     exit(66);
-                        // }
-                            
                     }
-                    // 컬 += (알엔 + 2) + (비 + 2)
                     curr = (rn + 2) + (b + 2);
                 }
-                // perror(";6666");
-                // this->response.setBody(pase_body);
-                // this->response.setStatus(CHUNKED);
-                // return CHUNKED;
-                // if ()
-                // this->request.getBody() += pase_body;
                 return 1;
             }
             if (size == BUFFER_SIZE)
                 return 0;
-            // std::cerr << ":33" << std::endl;
             if (this->read_buf.find("\r\n\r\n") != std::string::npos) //모두 읽었다면..
                 return 1;
-            // std::cerr << ":44" << std::endl;
             if (this->read_buf.find("\n\n") != std::string::npos) //모두 읽었다면..
                 return 1;
 
@@ -330,28 +234,19 @@ public:
     //지정한 파일에서 데이터를 읽어서 본인의 file_buf버퍼에 저장하는 메소드. 실패 -1 성공 0 모두받음 1 반환.
     int read_file( void )
     {
-        int size;
+        size_t size;
         char    buffer[BUFFER_SIZE];
 
-        // if ((this->file_buf.size() + BUFFER_SIZE) < this->file_buf.size()) //string 용량 초과시 예외처리.
-        // {
-        //     close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
-        //     this->file_fd = -1;
-        //     return -1;
-        // }
         size = read(this->file_fd, buffer, BUFFER_SIZE);
-        if (size == -1)
+        if (size == (size_t)-1)
         {
             close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
             if (this->cgi_mode == true)
                 unlink(this->cgi_file_name.c_str());
             this->_file_map->erase(this->_file_map->find(this->file_fd)); //파일 맵에서 제거.
             this->file_fd = -1;
-            // perror("read file fail...");
             return -1;
         }
-        // if (this->cgi_mode == true && size == 0) //cgi모드인데 읽은 데이터가 없다면 자식프로세스가 작업이 안끝남.
-        //     return 0;
         this->file_buf += std::string(buffer, size);
         if (size < BUFFER_SIZE)
         {
@@ -419,7 +314,6 @@ public:
     {
         this->response.setVersion(this->request.getVersion());
         this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
-
         if (this->response.getHeader_map().find("server") == this->response.getHeader_map().end())
             this->response.setHeader_map("server", "soo-je-webserver");
         if (this->response.getHeader_map().find("Date") == this->response.getHeader_map().end())
@@ -428,15 +322,11 @@ public:
             this->response.setHeader_map("Connection", "keep-alive");
         if (this->response.getHeader_map().find("Accept-Ranges") == this->response.getHeader_map().end())
             this->response.setHeader_map("Accept-Ranges", "bytes");
-
-
         //1. 위와 같이 응답클래스를 초기화한다.
         //2. file_buf의 크기를 헤더필드 Content-Length에 추가한다. 그외에 필요한 정보가 있으면 추가.
         //3. (cgi냐 단순html파일이냐 에따라 다르게 file_buf 컨트롤 필요).
         //4. 맴버변수 write_buf에 하나의 데이터로 저장한다. (시작줄 + 헤더 + file_buf).
         //5. kq에 소켓을 "쓰기가능"감지로 등록.
-
-        //2번내용
         if (this->response.getHeader_map().find("Content-Length") != this->response.getHeader_map().end())
             this->response.getHeader_map().erase("Content-Length");
         if (this->cgi_mode == true && this->file_buf.size() != 0) //cgi일때 바디 사이즈 재측정.
@@ -449,13 +339,9 @@ public:
         }
         else
             this->response.setHeader_map("Content-Length", util::num_to_string(this->file_buf.size()));
-        //1번 내용, cgi 경우로 인해 못 한 것 추가
         if (this->response.getHeader_map().find("content-Type") == this->response.getHeader_map().end())
             this->find_mime_type(this->request.getTarget());
         this->response.setBody(this->file_buf);
-
-        //4번.
-        // std::cerr << "----init_response()->push_write_buf()" << std::endl;
         this->push_write_buf(this->file_buf);
 
         add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓을을 쓰기감지에 예약.
@@ -464,11 +350,8 @@ public:
 
     void push_write_buf(const std::string & response_body)
     {
-        // #ifdef TEST
-        // std::cerr << "status code : " << this->response.getStatus() << std::endl;
         if (this->response.getStatus() == "400")
             exit(9);
-        // #endif
         //스타트라인
         std::cerr << YELLOW << this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() << RESET << std::endl;
         this->write_buf = this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() + "\r\n";
@@ -483,10 +366,6 @@ public:
         //바디 부분
         if (response_body.size() != 0 && request.getMethod() != "HEAD")
             this->write_buf += response_body;
-
-        // // std::cerr << "----push_write_bud()에서 실행, write_buf 출력--------------------" << std::endl;
-        // // std::cerr << write_buf << std::endl;
-        // // std::cerr << "--------------------------------------------------------------" << std::endl;
     }
 
     //오토인데스 응답페이지를 만들고 송신준비를 하는 메소드.
@@ -496,7 +375,6 @@ public:
         std::string temp_body;
         //1.바로 소켓송신이 가능하도록 헤더+바디를 제작한다. -> "this->write_buf에 바로 담는다."
         //2.kq에 "쓰기가능"감지 등록한다.
-
         this->response.setVersion(this->request.getVersion());
         this->response.setStatus("200");
         this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
@@ -506,7 +384,6 @@ public:
         this->response.setHeader_map("content-Type", "text/html");
         this->response.setHeader_map("Connection", "keep-alive");
         this->response.setHeader_map("Accept-Ranges", "bytes");
-
         DIR *dir;
         struct dirent *ent;
         dir = opendir((my_loc->root + this->request.getTarget()).c_str());//해당 경로의 파일및 디렉터리 를 받기 위한 오픈
@@ -519,10 +396,8 @@ public:
         //오토인덱스 html 초기세팅
         temp_body = "<html><head>    <title>Index of ";
         temp_body +=  this->request.getTarget() + "</title></head><body bg color='white'>  <h1> Index of " + this->request.getTarget() + "</h1>  <hr>  <pre>";
-
         while ((ent = readdir(dir)) != NULL)//경로의 파일들 바디에 넣기
         {
-            // .  .. 이건 빼자, 숨긴 파일은 출력을 해보자
             if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
                 continue ;
             temp_body = temp_body + "    <a href= " + ent->d_name + ">" + ent->d_name + "</a><br>";
@@ -531,7 +406,6 @@ public:
         this->response.setBody(temp_body);//바디 입력
         this->response.setHeader_map("Content-Length", util::num_to_string(this->response.getBody().length()));//바디 크기
         closedir(dir);
-        // // std::cerr << "----init_autoindex_response()->push_write_bud()에서 실행--------------------" << std::endl;
         push_write_buf(this->response.getBody());
         add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
     }
@@ -589,7 +463,6 @@ public:
             this->response.setHeader_map("Connection", "close");
             // this->response.setHeader_map("Accept-Ranges", "bytes");
             this->response.setBody(this->response.getStatus() + '\0');
-            //  // std::cerr << "----ready_err_response_meta()->if()->push_write_bud()" << std::endl;
             push_write_buf(this->response.getBody());
             add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
         }
@@ -601,7 +474,6 @@ public:
             std::string err_page = s.get_default_error_page().find(this->response.getStatus())->second;
             #ifdef TEST
             std::cerr << "rrr333 : " << err_page << std::endl;
-            // exit(-1);
             #endif
             struct stat sb;
             if (stat(err_page.c_str(), &sb) != 0)//루트경로 추가할 것
@@ -651,7 +523,7 @@ public:
             this->response.setHeader_map("Connection", "keep-alive");
         if (this->response.getHeader_map().find("Accept-Ranges") == this->response.getHeader_map().end())
             this->response.setHeader_map("Accept-Ranges", "bytes");
-        // // std::cerr << "----init_delete_response()->push_write_bud()" << std::endl;
+
         this->response.setBody("");
         push_write_buf(this->response.getBody());
         //DELETE용 응답데이터 (시작줄 + 헤더 + 바디)만들기....
@@ -707,8 +579,7 @@ public:
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
             add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //파일을 읽기감지에 예약.
             this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
-            // this->find_mime_type()
-            // // std::cerr << "get(post) done : " << this->file_fd << std::endl;
+
         }
         else if (this->request.getMethod() == "DELETE")
         {
@@ -839,31 +710,12 @@ public:
 
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
     bool parse_request()
-        {
-        // std::cerr << "rere : " << this->response.getStatus() << std::endl;
-        if (this->response.getStatus() == "800"){//상태코드 800인지 확인하기
-            // std::cerr << "before data : " << this->read_buf.size() << std::endl;
+    {
+
+        if (this->response.getStatus() == "800")//상태코드 800인지 확인하기
             return (this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus()));
-            // size_t t = this->request.ft_chunk_push_body(this->read_buf, this->response.getStatus());
-            // std::cerr << "after data : " << this->read_buf.size() << std::endl;
-            // std::cerr << "body size : " << this->request.getBody().size() << std::endl;
-            // std::cerr << "status code : " << this->response.getStatus() << std::endl;
-            // return t;
-        }
         else if ((this->request.parse(this->read_buf, this->response.getStatus())) == false) //read_buf 파싱.
             return false;
-        // std::cerr << "~~parse_request()에서 실행 파서 값 출력~~~~~~~~~~~~~~~~" << std::endl;
-        // std::cerr << "Method : " << this->request.getMethod() << std::endl;
-	    // std::cerr << "Target : " << this->request.getTarget() << std::endl;
-	    // std::cerr << "Version : " << this->request.getVersion() << std::endl;
-	    // std::cerr << "Headers: " << std::endl;
-	    // std::map<std::string, std::string> temp = this->request.getHeaders();
-	    // std::map<std::string,std::string>::iterator iter;
-	    // for(iter = temp.begin() ; iter != temp.end(); iter++){
-		//      std::cerr << iter->first << ":"<< iter->second << std::endl;
-	    // }
-	    //  std::cerr << "Body : " << this->request.getBody() << std::endl;
-        //  std::cerr << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
         return true; //문제없이 파싱이 끝나면 true반환.
     }
 
@@ -876,7 +728,7 @@ public:
         this->file_fd = -1;
         this->file_buf.clear();
         this->write_size = 0;
-        this->cgi_mode = false; // ?
+        this->cgi_mode = false;
         this->my_loc = NULL;
         this->cgi_program.clear();
         this->cgi_file.clear();
@@ -884,17 +736,30 @@ public:
         this->request.clear_request();
         this->cgi_file_name.clear();
         this->cgi_body_file.clear();
-        this->file_pipe[0] = -1;
-        this->file_pipe[1] = -1;
-        this->result_pipe[0] = -1;
-        this->result_pipe[1] = -1;
         this->is_done_chunk = false;
-        return true; //문제없으면 true리턴.
+        return true;
     }
 
     //400번대 에러 중 파일을 사용하지 않는 에러가 발생했는지 검사하는 메소드.
     bool check_client_err()
     {
+        std::string uri = this->getRequest().getTarget().substr(0, this->getRequest().getTarget().find('?'));
+        std::string root = this->my_loc->root+ "/";
+        std::string path;
+        path = uri.replace(0, this->my_loc->path.length(), root);
+        size_t pos = path.find("//");
+        while (1)
+        {
+            if (pos == std::string::npos)
+                break;
+            path.replace(pos, 2, "/");
+            pos = path.find("//");
+        }
+        if (this->getRequest().getMethod() != "PUT" && access(path.c_str(), F_OK) == -1)
+            return (this->getResponse().setStatus("404"), true);
+        // 403 : access(path, R_OK) (읽기권한)
+        if (this->getRequest().getMethod() != "PUT" && access(path.c_str(), R_OK) == -1)
+            return (this->getResponse().setStatus("403"), true);
         // 405 : 현재 경로에서 실행할 수 있는 method인지 확인
         if (find(this->my_loc->accept_method.begin(), this->my_loc->accept_method.end(), \
         this->getRequest().getMethod()) == this->my_loc->accept_method.end())
@@ -902,7 +767,7 @@ public:
         // 413 : client_max_body_size 확인
         if (this->getRequest().getBody().length() > this->my_loc->client_max_body_size)
             return (this->getResponse().setStatus("413"), true);
-        return false; //이상 없으면 false반환.
+        return false;
     }
 
     //cgi가 stdin으로 읽을 파일 만드는 메소드.
@@ -914,17 +779,15 @@ public:
         this->cgi_body_file = ".payload/cgi_ready_" + util::num_to_string(this);
         if (util::make_middle_pathes(this->cgi_body_file) == false) //경로의 중간 경로들이 없다면 만든다.
         {
-            this->getResponse().setStatus("500"); //500처리.
-            return false; //바로 에러 페이지 제작 필요.
+            this->getResponse().setStatus("500");
+            return false;
         }
-        // if (pipe(this->file_pipe) == -1)
         if ((this->file_fd = open(this->cgi_body_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
         {
-            // perror("open cgi_ready err");
-            this->getResponse().setStatus("500"); //500처리.
-            return false; //바로 에러 페이지 제작 필요.
+            perror("open cgi_ready err");
+            this->getResponse().setStatus("500");
+            return false;
         }
-        // this->file_fd = this->file_pipe[1];
         #ifdef TEST
         std::cerr << "make body file for cgi...ok" << std::endl;
         #endif
@@ -944,40 +807,28 @@ public:
 
         if ((stdin_fd = open(this->cgi_body_file.c_str(), O_RDONLY, 0644)) == -1)//읽기전용.
         {
-            // perror("open stdin_fd err");
+            perror("open stdin_fd err");
             this->getResponse().setStatus("500"); //500처리.
-            return false; //바로 에러 페이지 제작 필요.
+            return false;
         }
         if ((result_fd = open(this->cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
         {
-            // perror("open cgi_result err");
+            perror("open cgi_result err");
             this->getResponse().setStatus("500"); //500처리.
-            return false; //바로 에러 페이지 제작 필요.
+            return false;
         }
         if ((this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0644)) == -1)//읽기전용.
         {
-            // perror("open cgi_file_fd err");
+            perror("open cgi_file_fd err");
             this->getResponse().setStatus("500"); //500처리.
-            return false; //바로 에러 페이지 제작 필요.
+            return false;
         }
-        /////////////////pipe 1///////////////
-        // if (pipe(this->result_pipe) == -1)//읽기전용.
-        // {
-        //     // perror("open cgi_file_fd err");
-        //     this->getResponse().setStatus("500"); //500처리.
-        //     return false; //바로 에러 페이지 제작 필요.
-        // }
-        // stdin_fd = this->file_pipe[0];
-        // result_fd = this->result_pipe[1];
-        // this->file_fd = this->result_pipe[0];
-        /////////////////pipe 2///////////////
         fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
         add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
-        // this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
         int pid = -1;
         if ((pid = fork()) < 0)
         {
-            // perror("fork err");
+            perror("fork err");
             this->getResponse().setStatus("500"); //500처리.
             return false; //바로 에러 페이지 제작 필요.
         }
@@ -1035,11 +886,9 @@ public:
             waitpid(pid, &status, 0);
             if (status != 0)
                 return (false);
-            // fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-            // add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
             this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
-            std::cerr << "?-? : " << this->file_fd << std::endl;
+            std::cerr << "wait pid ...ok" << this->file_fd << std::endl;
             #endif
             return true;
         }
@@ -1100,7 +949,7 @@ public:
         }
     }
 
-    // CGI 환경변수 (PATH_INFO, PATH_TRANSLATED, SCRIPT_NAME) 설정을 위한 메소드
+    // CGI 환경변수 (PATH_INFO, PATH_TRANSLATED, SCRIPT_NAME) 설정을 위한 메소드1
     bool set_cgi_env_path(std::map<std::string, std::string> &cgi_env_map, std::string & target)
     {
         // PATH_INFO : 스크립트 확장자 이후의 문자열
@@ -1115,7 +964,7 @@ public:
         if (cgi_env_map["PATH_INFO"].length() != 0)
         {
             char *buf = realpath(cgi_env_map["PATH_INFO"].c_str(), NULL);
-            if (buf != NULL) //변환성공 했을 때.
+            if (buf != NULL)
                 cgi_env_map["PATH_TRANSLATED"] = std::string(buf);
             else
                 return (false);
@@ -1152,27 +1001,15 @@ public:
         cgi_env_map["SERVER_SOFTWARE"] = "soo-je-webserv/1.0";
         if (this->response.get_sid() != 0)
             cgi_env_map["HTTP_COOKIE"] = this->request.getHeaders().find("Cookie")->second;
-        if (this->set_cgi_env_path(cgi_env_map, target_info.first))
-        {
-            // set 500 error
-            // return
-        }
+        this->set_cgi_env_path(cgi_env_map, target_info.first);
         this->set_cgi_custom_env(cgi_env_map, this->request.getHeaders());
         char **cgi_env = new char *[sizeof(char *) * cgi_env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
         // 2. 맵의 내용들 2차원 배열로 저장하기
         int i = 0;
-        // // std::cerr << "**** CGI ENV ****\n";
         for(std::map<std::string, std::string>::iterator iter = cgi_env_map.begin(); iter != cgi_env_map.end(); iter++)
         {
-            // // std::cerr << (*iter).first << "=" << (*iter).second << "\n";
-            // cgi_env[i] = strdup(((*iter).first + "=", (*iter).second).c_str());
-            // iter->first.erase(iter->first.find('\0'));
-            // std::string new_str = iter->first + "=" + iter->second + '\0';
-            // std::cerr << "new_str:" << new_str << std::endl;
-            // std::cerr << "new_str.c_str():" << new_str.c_str() << std::endl;
+
             cgi_env[i] = strdup((iter->first + "=" + iter->second).c_str());
-            // cgi_env[i] = strdup(new_str.c_str());
-            // std::cerr << "cgi_env:" << cgi_env[i] << std::endl;
             i++;
         }
         #ifdef TEST
@@ -1183,97 +1020,39 @@ public:
         #endif
         cgi_env[cgi_env_map.size()] = NULL;
         return (cgi_env);
-        //단톡DM방 책갈피의 cgi IBM문서 참조...., https://www.oreilly.com/openbook/cgi/ch02_02.html
-        /*
-        - AUTH_TYPE : 사용자 인증이 사용되는 경우, 이 사용자가 인증된 사용자라면 그 사용자를 인증하기 위해 사용한 메소드. 우리는 인증 과정이 없으므로 NULL
-        - CONTENT_LENGTH : 요청 본문의 길이, 모르면 -1
-        - CONTENT_TYPE : this->response.getHeader_map()["Content-Type"], 모르는 경우가 있다면? null
-        - GATEWAY_INTERFACE : "CGI/1.1" CGI 스펙의 버전
-        - REQUEST_METHOD : 이 요청을 작성할 때 사용된 메소드. this->request.getMethod()
-        - SERVER_PROTOCOL : "HTTP/1.1"
-        - PATH_INFO : CGI 프로그램명 이후의 uri
-        - PATH_TRANSLATED : 서버상의 절대경로
-        - QUERY_STRING : after ?
-        - REMOTE_ADDR : client IP address
-        - REMOTE_HOST : The remote hostname (만약에 서버가 hostname을 모르고, REMOTE_ADDR이 설정되어 있다면 이 변수는 unset 되어도 괜찮다.)
-        - REMOTE_USER : 사용자가 인증된경우 로그인을 넣고, 인증되지 않은 경우 NULL. 우리는 인증 과정이 없으므로 무조건 NULL
-        - SCRIPT_NAME : 프로토콜 이름에서 HTTP 요청의 첫 번째 라인에 있는 조회 문자열까지, URL의 부분을 리턴. this->getRequest().getTarget()
-        - SERVER_NAME : The server's hostname or IP address. this->get_myserver()->get_host + ":" + this->get_myserver()->get_port()
-        - SERVER_PORT : 요청이 수신된 포트번호. this->get_myserver()->get_port();
-        - SERVER_PROTOCOL : 요청이 사용하는 프로토콜 이름과 버전. this->getRequest().getVersion()
-        - SERVER_SOFTWARE : 컨테이너의 이름과 버전을 리턴합니다. format : name/version ? 임의로 적어도 되는듯?
-        - HTTP_COOKIE : ? 필요하다면 추가
-        - WEBTOP_USER : ? 필요하다면 추가
-        - NCHOME : ? 필요하다면 추가
-        */
-        /*
-            * from : https://www.oreilly.com/openbook/cgi/ch02_04.html
-            * http://some.machine/cgi-bin/display.pl/cgi/cgi_doc.txt
-            * Since the server knows that display.pl is the name of the program,
-            * the string "/cgi/cgi_doc.txt" is stored in the environment variable PATH_INFO.
-            * Meanwhile, the variable PATH_TRANSLATED is also set, which maps the information stored in PATH_INFO to the document root directory
-            * (e.g., /usr/local/etc/httpd/ public/cgi/cgi-doc.txt).
-        */
     }
 
     std::string check_chunked()
     {
         if (this->response.getStatus() == CHUNKED)
-        {
-            // perror("[222&");
-            // 바디사이즈가 5이상이고, 맨뒤가 0캐리지 리턴이면 200으로 재설정하고 종종료료한한다다.
-            // size_t body_size = this->request.getBody().length();
-            // if (body_size > 4 && this->request.getBody().substr(body_size - 5, 5) == "0\r\n\r\n")
-            // {
-            //     this->response.setStatus("200");
-            //     return "200";
-            // }
             return CHUNKED;
-        }
         if (this->request.getHeaders().find("Transfer-Encoding") != this->request.getHeaders().end())
         {
-            // perror("[1111&");
             std::string temp = util::ft_split(this->request.getHeaders().find("Transfer-Encoding")->second, " ")[0];
-            // perror("[1111]");
             if (temp.find("chunked") != std::string::npos)
             {
-                // size_t body_size = this->request.getBody().length();
-                // if (body_size > 4 && this->request.getBody().substr(0, 5) == "0\r\n\r\n")
-                // {
-                //     this->response.setStatus("200");
-                //     return "200";
-                // }
-                ///////////////////////////////////
-                // perror("[2222");
                 const size_t body_size = this->request.getBody().length();
                 const std::string & body_data = this->request.getBody();
                 size_t curr = 0;
                 std::string pase_body = "";
-                // perror("[2222]");
                 while (body_size > 2)
                 {
-                    // perror("[33333");
                     size_t rn = body_data.find("\r\n", curr);
                     if (rn == curr)
                     {
                         this->request.setBody("");
                         this->response.setStatus("400");
                         this->is_done_chunk = true;
-                        perror("400 read");
-                        return "400"; //외부에서 에러페이지 만들도록 받아줘야함.
+                        perror("400 generate");
+                        return "400";
                     }
                     if (rn == std::string::npos)
                     {
                         this->read_buf = body_data.substr(curr);
                         break;
                     }
-                    // perror("[33333]");
-                    //알엔까지 값을 16진법으로 디코딩한다. 비
                     int b = strtol(body_data.substr(curr, rn).c_str(), NULL, 16);
-                    //알엔 플러스 2한 값을 기존 바디사이즈에서 뺀다. 에이
                     int a = body_size - (rn + 2);
-                    //에이 값이 (비 + 2)보다 작으면 브레이크
-                    // perror("[44444");
                     if (a < (b + 2))
                     {
                         this->read_buf = body_data.substr(curr);
@@ -1286,28 +1065,10 @@ public:
                         this->response.setStatus("200");
                         return "200";
                     }   
-                    //파스바디에 섭스트링으로 (알엔 플러스 2한 값, 비)
                     pase_body += body_data.substr(rn + 2, b);
-                    // if (b != 0  && b != 1000)
-                    // {
-                    //     std::cerr << "$$$$$$$$$$$$$$$$$$$$$$$$$" << b << std::endl;
-                    //     std::cerr << "dicode : " << b << std::endl;
-                    //     std::cerr << "curr : " << curr << std::endl;
-                    //     std::cerr << "data[0] : " << (rn + 2) << std::endl;
-                    //     std::cerr << "data size (+2) : " << (b + 2) << std::endl;
-                    //     std::cerr << curr + (rn + 2) + (b + 2) << std::endl;
-                    //     exit(66);
-                    // }
-                    // 컬 += (알엔 + 2) + (비 + 2)
                     curr = (rn + 2) + (b + 2);
-                    //브레이크로 중지된 데이터는 다시 read_buf에 담는다.
-                    // perror("[44444]");
                 }
                 this->request.setBody(pase_body);
-                /////////////////
-                // this->read_buf = this->request.getBody();
-                // this->request.setBody("");
-                ////////////////
                 this->response.setStatus(CHUNKED);
                 return CHUNKED;
             }
@@ -1349,11 +1110,8 @@ public:
         this->response.setVersion("HTTP/1.1");
         this->response.setStatus("301");
         this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
-        // // std::cerr << "----init_delete_response()->push_write_bud()" << std::endl;
         this->response.setBody("");
         push_write_buf(this->response.getBody());
-        //...딜리트 메소드 참조..
-        
     }
 
     bool check_redirect()
@@ -1382,7 +1140,6 @@ public:
         std::stringstream sstream;
         if (this->request.getHeaders().find("Cookie") != this->request.getHeaders().end())
         {
-            //1 세션(sid)있는지 체크.. ('; '를 기준으로 값을 스플릿(맵 지역변수 사용))
             std::vector<std::string> c_vec = util::ft_split(this->request.getHeaders().find("Cookie")->second, ";");
             for (std::vector<std::string>::iterator iter(c_vec.begin()); iter != c_vec.end(); iter++)
             {
@@ -1396,7 +1153,7 @@ public:
                 sid = atol(val.c_str());
                 break;
             }
-            //3 세션(sid) 있다면 서버 sid map에 접근
+            //세션(sid) 있다면 서버 sid map에 접근
             if (sid != 0 && (this->my_server->get_sid_map().find(sid) != this->my_server->get_sid_map().end()))
             {
                 this->response.set_sid(sid);
@@ -1404,20 +1161,18 @@ public:
                     return;
                 this->my_server->get_sid_map()[sid] = "old"; //4 재확인 후 정말 있다면 값을 old로 재설정.
                 sstream << sid;
-                // std::string val = "session_id=" + sstream.str() + "\r\nSet-Cookie: status=" + this->my_server->get_sid_map()[sid];
                 std::string val = "status=" + this->my_server->get_sid_map().find(sid)->second + "; Path=/";
                 this->response.setHeader_map("Set-Cookie", val);
                 return ;
             }
-        }   //4 없다면 new로 새로 만들어준다.
-        sid = this->my_server->create_sid(); //서버클래스의 세션map에 "sid=new"형식으로 추가 (반환값을 가진 서버함수로).
+        }   //없다면 new로 새로 만들어준다.
+        sid = this->my_server->create_sid();
         this->response.set_sid(sid);
         sstream << sid;
         std::string val = "session_id=" + sstream.str() + "; Path=/\r\nSet-Cookie: status=" \
         + this->my_server->get_sid_map().find(sid)->second + "; Path=/";
         this->response.setHeader_map("Set-Cookie", val);
     }
-
 };
 
 #endif
