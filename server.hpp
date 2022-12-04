@@ -37,9 +37,6 @@ public:
     std::map<std::string, Location>       loc_map; //로케이션 구조체 맵.
     std::map<long, std::string> sid_map; //세션키=값으로 구성된 맵.
 
-private:
-    struct sockaddr_in          t_address; //포트개방용 변수. 소켓에 이식할 주소구조체.(초기화 안됨)
-
 public:
     Server() : fd(-1) {
         port = 80;
@@ -121,8 +118,9 @@ public:
     int accept_client( void )
     {
         int new_socket(-1);
-
+        struct sockaddr_in  t_address;
         int size = sizeof(t_address);
+
         if ((new_socket = accept(this->fd, (struct sockaddr*)&t_address, (socklen_t*)&size)) < 0)
         {
             perror("accept_fail...");
