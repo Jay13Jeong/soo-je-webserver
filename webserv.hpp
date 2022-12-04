@@ -12,7 +12,6 @@
 #include "server.hpp"
 #include "client.hpp"
 #include <sys/socket.h> //socket
-// #include <sys/un.h>
 #include <sys/event.h> //kqueue
 #include <stdexcept>
 #include <sstream>
@@ -24,7 +23,6 @@
 #define FAIL        -1 //실패를 의미하는 매크로.
 #define RECV_ALL    1 //모두 수신 받음을 의미.
 #define SEND_ALL    1 //모두 수신 받음을 의미.
-#define CHUNKED     "800" //te헤더의 상태.
 #define LENGTHLESS  "700" //사이즈 부족.
 
 // Colors
@@ -461,8 +459,6 @@ public:
     //서버들을 감지목록에 추가하는 메소드.
     void regist_servers_to_kq()
     {
-        // std::cerr << "server_list : " << this->get_server_list().size() << ",," << this->get_server_list().back().get_fd() << std::endl;
-
         for (size_t i(0);i < this->get_server_list().size();i++)
             add_kq_event(this->get_server_list()[i].get_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
     }
@@ -513,16 +509,6 @@ public:
         struct kevent detecteds[DETECT_SIZE]; //감지 된 이벤트벡터.
         struct kevent* curr_det; //현재처리중인 이벤트.
 
-        // struct kevent k_set;
-        /**
-        EV_SET(이벤트구조체 &k_set,
-            감지할fd,
-            감지되면 설정될 플래그 EVFILT_READ 또는 EVFILT_WRITE,
-            "이벤트추가" 및 "이벤트반환"매크로 EV_ADD | EV_ENABLE,
-            필터플레그값 0,
-            필터 데이터값 0,
-            사용자 정의 데이터 NULL);
-        **/
         this->open_ports(); //서버포트 열기
         this->regist_servers_to_kq(); //감지목록에 서버들 추가.
         this->init_servers_map();
@@ -538,6 +524,7 @@ public:
             std::cerr << "================ while start ===================== " << std::endl;
             #endif
             detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, &timeout);
+
             #ifdef TEST
             std::cerr << "detect : " << detected_count << std::endl;
             #endif
@@ -545,31 +532,24 @@ public:
             for (int i(0); i < detected_count; i++)
             {
                 curr_det = &detecteds[i];
-                if (curr_det->flags & EV_ERROR)
+                if (curr_det->flags & EV_ERROR || curr_det->flags & EV_EOF)
                 {
-                    std::cerr << "close : " << curr_det->ident << std::endl;
+                    std::cerr << MAGENTA << "close : " << curr_det->ident << RESET << std::endl;
                     if (this->_server_map.find(curr_det->ident) != this->_server_map.end())
                     {
-                        perror("server_socket_flag_err");
                         this->_server_map.erase(this->_server_map.find(curr_det->ident));
-                        // shutdown(curr_det->ident,SHUT_RDWR);
                         close(curr_det->ident);
                         continue;
                     }
                     if (this->_client_map.find(curr_det->ident) != this->_client_map.end())
                     {
-                        perror("client_socket_flag_err");
                         this->_client_map.erase(this->_client_map.find(curr_det->ident));
-                        // shutdown(curr_det->ident,SHUT_RDWR);
                         close(curr_det->ident);
                         continue;
                     }
-                    perror("file_socket_flag_err");
                     this->_file_map.erase(this->_file_map.find(curr_det->ident));
-                    // shutdown(curr_det->ident,SHUT_RDWR);
                     close(curr_det->ident);
                     continue;
-                    // return ;
                 }
                 if (curr_det->filter == EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
                 {
@@ -585,7 +565,7 @@ public:
                             continue;
                         Client new_client(&(this->_ev_cmds), &(this->_file_map));
                         new_client.setSocket_fd(client_fd); //브라우저의 연결을 수락.
-                        std::cerr << "listen : " << new_client.getSocket_fd() << std::endl;
+                        std::cerr << GREEN << "listen : " << new_client.getSocket_fd() << RESET << std::endl;
                         #ifdef TEST
                         // std::cerr << "listen : " << new_client.getSocket_fd() << std::endl;
                         #endif
@@ -611,42 +591,25 @@ public:
                     {
                         Client & c = this->_client_map.find(curr_det->ident)->second;
                         #ifdef TEST
-                        std::cerr << "---------client start ------------------" << std::endl;
-                        // // std::cerr <<  << std::endl;
                         perror("read client");
-                        // std::cerr << "fd : " << c.getSocket_fd() << std::endl;
                         #endif
                         int result = c.recv_data();
                         if (result == FAIL)
                         {
-                            std::cerr << "close : " << c.getSocket_fd() << std::endl;
+                            std::cerr << MAGENTA << "close : " << c.getSocket_fd() << RESET << std::endl;
                             close(c.getSocket_fd());
                             this->_client_map.erase(this->_client_map.find(curr_det->ident)); //kq에서 읽기가능이라고 했는데도 데이터를 읽을 수 없다면 삭제한다.
                         }
                         else if (result == RECV_ALL) //모두수신받았을 때.
                         {
-                            // std::cerr << c.get_read_buf().length() << " : buff" << std::endl;
                             #ifdef TEST
-                            ///////////////////////////////////
                             std::cerr << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
                             std::cerr << c.get_read_buf() << std::endl;
                             std::cerr << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-                            //////////////////////////////////
                             std::cerr << "aaaa" << std::endl;
                             #endif
-                            if (c.getResponse().getStatus() != LENGTHLESS && c.parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
+                            if (c.getResponse().getStatus() == "" && c.parse_request() == false) //수신받은 request데이터 파싱. 실패시 에러응답준비.
                             {
-                                if (c.getResponse().getStatus() == CHUNKED)
-                                {
-                                    // std::string backup = c.get_read_buf();
-                                    // c.clear_client();
-                                    // c.getResponse().setStatus(CHUNKED);
-                                    // c.revert_read_data(backup);
-                                    #ifdef TEST
-                                    std::cerr << "!" << std::endl;
-                                    #endif
-                                    continue;
-                                }
                                 add_kq_event(c.getSocket_fd(), EVFILT_READ, EV_DELETE | EV_DISABLE); //"읽기가능"감지 끄기.
                                 #ifdef TEST
                                 std::cerr << "bbbbbb" << std::endl;
@@ -657,9 +620,15 @@ public:
                                 #endif
                                 continue;
                             }
-                            if (c.check_bodysize() == LENGTHLESS)
+                            if (c.chunk_done() == false && c.check_chunked() == CHUNKED)
                             {
-                                // perror("aaa11");
+                                #ifdef TEST
+                                std::cerr << "#$#" << std::endl;
+                                #endif
+                                continue;
+                            }
+                            if (c.chunk_done() == false && c.check_bodysize() == LENGTHLESS)
+                            {
                                 #ifdef TEST
                                 std::cerr << "@" << std::endl;
                                 #endif
@@ -675,6 +644,11 @@ public:
                             #ifdef TEST
                             std::cerr << "ddddddd" << std::endl;
                             #endif
+                            if (c.getResponse().getStatus() == "400")
+                            {
+                                c.ready_err_response_meta(); //에러응답 준비.
+                                continue;
+                            }
                             c.init_client_location(); //경로가 로케이션 경로중에 해당하면 그 경로로 정보를 변경한다.
                             #ifdef TEST
                             std::cerr << "eeeeeee" << std::endl;
@@ -684,7 +658,7 @@ public:
                                 #ifdef TEST
                                 std::cerr << "fffffff" << std::endl;
                                 #endif
-                                c.ready_err_response_meta(); //에러응답 준비.
+                                c.ready_err_response_meta();
                                 #ifdef TEST
                                 std::cerr << "gggggg" << std::endl;
                                 #endif
@@ -719,9 +693,6 @@ public:
                                 #endif
                             }
                         }
-                        #ifdef TEST
-                        // std::cerr << "--------- client end ------------------" << std::endl;
-                        #endif
                         continue;
                     }
                     //감지된 fd가 파일쪽 일 때.
@@ -769,7 +740,7 @@ public:
                         #endif
                         if (result == FAIL)
                         {
-                            std::cerr << "close : " << c.getSocket_fd() << std::endl;
+                            std::cerr << MAGENTA << "close : " << c.getSocket_fd() << RESET << std::endl;
                             close(c.getSocket_fd());
                             _client_map.erase(this->_client_map.find(curr_det->ident)); //이 클라이언트 소켓 제거.
                             #ifdef TEST
