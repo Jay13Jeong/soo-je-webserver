@@ -839,6 +839,11 @@ public:
             file_path = this->my_loc->root + file_path;
             if (file_path.rfind('?') != std::string::npos)
                 file_path = file_path.substr(0,file_path.rfind('?'));
+            /////
+            // char *tmp = NULL;
+            // if ((tmp = realpath(file_path.c_str(), NULL)) != NULL) //상대경로를 절대경로로 변경.
+            //     file_path = std::string(tmp);
+            ////////
             // char buf[PATH_MAX],buf2[PATH_MAX];
             // realpath(file_path.c_str(), buf); //상대경로를 절대경로로 변경.
             // file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
