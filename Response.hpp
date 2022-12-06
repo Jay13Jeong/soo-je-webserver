@@ -71,15 +71,6 @@ public:
         this->body = body;
     }
 
-    //응답클래스의 멤버변수를 조합하여 최종 전송 할 데이터를 만드는 메소드
-    std::string make_send_data()
-    {
-        std::string send_data;
-
-        //정보를 조합해서 send_data를 만들어 반환. 
-        return send_data;
-    }
-
     void clear_response()
     {
         this->body.clear();

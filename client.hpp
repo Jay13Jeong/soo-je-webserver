@@ -890,10 +890,12 @@ public:
             #ifdef TEST
             std::cerr << "wait pid ..." << this->file_fd << std::endl;
             #endif
-            // int status;
-            // waitpid(pid, &status, 0);
-            // if (status != 0)
-            //     return (false);
+            #ifdef PARROT
+            int status;
+            waitpid(pid, &status, 0);
+            if (status != 0)
+                return (false);
+            #endif
             this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
             std::cerr << "wait pid ...ok" << this->file_fd << std::endl;
@@ -960,10 +962,6 @@ public:
     // CGI 환경변수 (PATH_INFO, PATH_TRANSLATED, SCRIPT_NAME) 설정을 위한 메소드1
     bool set_cgi_env_path(std::map<std::string, std::string> &cgi_env_map, std::string & target)
     {
-        // PATH_INFO : 스크립트 확장자 이후의 문자열
-        // PATH_TRANSLATED : 스크립트 확장자 이후의 절대경로 (PATH_INFO의 절대경로)
-        // SCRIPT_NAME : 요청의 시작부터 스크립트 확장자까지의 문자열
-
         // 1. PATH_INFO
         size_t dot_pos = target.rfind(this->cgi_file);
         // cgi_env_map["PATH_INFO"] = std::string(target, dot_pos + this->cgi_file.length());
