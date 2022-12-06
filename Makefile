@@ -28,4 +28,10 @@ test : main.cpp *.hpp
 cookie : .main_cookie.o
 	c++ $(W3FLAG) -o $@ $< -O2 -DCOOKIE=1 -O2
 
+.main_parrot.o : main.cpp *.hpp
+	c++ $(W3FLAG)  -c -o $@ $< -DPARROT=1 -O2
+
+parrot : .main_parrot.o
+	c++ $(W3FLAG) -o $@ $< -DPARROT=1 -O2
+
 .PHONY : all clean fclean re

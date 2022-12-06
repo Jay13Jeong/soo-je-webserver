@@ -18,7 +18,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define BUFFER_SIZE 10000
+#define BUFFER_SIZE 70000
 
 // Colors
 #define RED "\x1b[0;31m"
@@ -350,8 +350,8 @@ public:
 
     void push_write_buf(const std::string & response_body)
     {
-        if (this->response.getStatus() == "400")
-            exit(9);
+        // if (this->response.getStatus() == "400")
+        //     exit(9);
         //스타트라인
         std::cerr << YELLOW << this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() << RESET << std::endl;
         this->write_buf = this->response.getVersion() + " " + this->response.getStatus() + " " + this->response.getStatus_msg() + "\r\n";
@@ -452,7 +452,6 @@ public:
             std::cerr << "errrrrr22" << std::endl;
             std::cerr << "rrrr22 : " + response.getStatus()  << std::endl;
             #endif
-            // perror("no default err page");
             this->response.setVersion("HTTP/1.1");
             this->response.setStatus_msg((*(this->status_msg)).find(this->response.getStatus())->second);
             //헤더도 넣기
@@ -840,9 +839,18 @@ public:
             file_path = this->my_loc->root + file_path;
             if (file_path.rfind('?') != std::string::npos)
                 file_path = file_path.substr(0,file_path.rfind('?'));
-            char *buf = realpath(file_path.c_str(), NULL); //상대경로를 절대경로로 변경.
-            if (buf != NULL) //변환성공 했을 때.
-                file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
+            /////
+            // char *tmp = NULL;
+            // if ((tmp = realpath(file_path.c_str(), NULL)) != NULL) //상대경로를 절대경로로 변경.
+            //     file_path = std::string(tmp);
+            ////////
+            // char buf[PATH_MAX],buf2[PATH_MAX];
+            // realpath(file_path.c_str(), buf); //상대경로를 절대경로로 변경.
+            // file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
+            // realpath(this->cgi_program.c_str(), buf2);
+            // this->cgi_program = std::string(buf2);
+            // std::cerr << "program path : " << std::string(buf2) << std::endl;
+            // std::cerr << "file_path : " << file_path << std::endl;
             #ifdef TEST
             std::cerr << "!!!!!!!!!! cgi program : " << this->cgi_program << std::endl;
             #endif
@@ -882,10 +890,12 @@ public:
             #ifdef TEST
             std::cerr << "wait pid ..." << this->file_fd << std::endl;
             #endif
+            #ifdef PARROT
             int status;
             waitpid(pid, &status, 0);
             if (status != 0)
                 return (false);
+            #endif
             this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
             std::cerr << "wait pid ...ok" << this->file_fd << std::endl;
@@ -952,10 +962,6 @@ public:
     // CGI 환경변수 (PATH_INFO, PATH_TRANSLATED, SCRIPT_NAME) 설정을 위한 메소드1
     bool set_cgi_env_path(std::map<std::string, std::string> &cgi_env_map, std::string & target)
     {
-        // PATH_INFO : 스크립트 확장자 이후의 문자열
-        // PATH_TRANSLATED : 스크립트 확장자 이후의 절대경로 (PATH_INFO의 절대경로)
-        // SCRIPT_NAME : 요청의 시작부터 스크립트 확장자까지의 문자열
-
         // 1. PATH_INFO
         size_t dot_pos = target.rfind(this->cgi_file);
         // cgi_env_map["PATH_INFO"] = std::string(target, dot_pos + this->cgi_file.length());

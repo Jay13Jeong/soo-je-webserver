@@ -86,6 +86,16 @@ private:
             return data.size();
         return num;
     }
+
+private:
+    bool ft_header_key_check(std::string &status_code)
+    {
+        if (this->headers.find("host") == this->headers.end())
+            return (status_code = "400", false);
+
+        return (true);
+    }
+
 public:
     std::string & getMethod()
     {
