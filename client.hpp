@@ -29,11 +29,6 @@
 #define MAGENTA "\x1b[0;35m"
 #define RESET "\x1b[0m"
 
-// CGI_STATUS
-#define CGI_END 0
-#define CGI_ERROR 1
-#define CGI_RUNNING 2
-
 class Client
 {
 private:
@@ -56,14 +51,12 @@ private:
     std::string  cgi_file_name; //cgi 결과물을 담은 파일 이름.
     std::string  cgi_body_file; //cgi실행전 사용할 바디 파일 이름.
     bool is_done_chunk;
-    int cgi_pid;
-    int cgi_status;
 
 public:
     Client(std::vector<struct kevent> * cmds, std::map<int,Client*> * files) : socket_fd(-1),read_buf(""), write_buf(""),file_fd(-1)\
     , file_buf(""),write_size(0), my_loc(NULL), \
     cgi_mode(false), _ev_cmds(cmds) \
-    ,_file_map(files), my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name(""), cgi_body_file(""), is_done_chunk(false), cgi_pid(-1), cgi_status(CGI_END){};
+    ,_file_map(files), my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""), cgi_file_name(""), cgi_body_file(""), is_done_chunk(false) {};
 
     ~Client()
     {
@@ -804,26 +797,6 @@ public:
         return true;
     }
 
-    int get_cgi_status()
-    {
-        if (this->cgi_mode == false)
-            return (this->cgi_status = CGI_END, this->cgi_status);
-        if (this->cgi_status == CGI_RUNNING)
-        {
-            int status, ret;
-            ret = waitpid(this->cgi_pid, &status, WNOHANG);
-            if (ret == this->cgi_pid)
-                this->cgi_status = CGI_END;
-            else if (ret == -1)
-            {
-                std::cerr << "hello?\n";
-                this->response.setStatus("500");
-                this->cgi_status = CGI_ERROR;
-            }
-        }
-        return (this->cgi_status);
-    }
-
     //cgi를 실행하는 메소드.
     bool excute_cgi()
     {
@@ -898,8 +871,6 @@ public:
         }
         else //부모프로세스는 논블럭설정하고 "읽기가능"감지에 등록한다.
         {
-            this->cgi_pid = pid;
-            this->cgi_status = CGI_RUNNING;
             close(result_fd);
             close(stdin_fd);
             #ifdef TEST
@@ -911,15 +882,6 @@ public:
             if (status != 0)
                 return (false);
             #endif
-            int status, ret;
-            ret = waitpid(pid, &status, WNOHANG);
-            if (ret == -1)
-            {
-                this->cgi_status = CGI_ERROR;
-                return (false);
-            }
-            else if (ret == pid)
-                this->cgi_status = CGI_END;
             this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
             std::cerr << "wait pid ...ok" << this->file_fd << std::endl;
