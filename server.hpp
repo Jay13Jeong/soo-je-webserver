@@ -126,6 +126,12 @@ public:
             perror("accept_fail...");
             return -1;
         }
+        struct linger _linger;
+        _linger.l_onoff = 1;
+        _linger.l_linger = 0;
+        if (setsockopt(new_socket, SOL_SOCKET, SO_LINGER , &_linger, sizeof(_linger)) == -1) {
+            perror("set_sockopt fail...");
+        }
         fcntl(new_socket, F_SETFL, O_NONBLOCK); //NON-BLOCKING설정
         return new_socket;
     }
@@ -139,14 +145,6 @@ public:
             exit(1);
             //**throw
         }
-
-        // struct linger _linger;
-        // _linger.l_onoff = 1;
-        // _linger.l_linger = 0;
-        // if (setsockopt(this->fd, SOL_SOCKET, SO_LINGER , &_linger, sizeof(_linger)) == -1) {
-        //     perror("set_sockopt fail...");
-        //     exit(1);
-        // }
 
         int opt = 1;
         // time wait포트를 재사용하도록 설정한다.
