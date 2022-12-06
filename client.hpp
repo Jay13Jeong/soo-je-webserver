@@ -878,8 +878,7 @@ public:
             #endif
             #ifdef PARROT
             int status;
-            waitpid(pid, &status, 0);
-            if (status != 0)
+            if (waitpid(pid, &status, 0) != pid)
                 return (false);
             #endif
             this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
