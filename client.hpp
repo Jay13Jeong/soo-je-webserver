@@ -878,8 +878,12 @@ public:
             #endif
             #ifdef PARROT
             int status;
-            if (waitpid(pid, &status, 0) != pid)
+            int ret = waitpid(pid, &status, 0);
+            if (ret != pid || WEXITSTATUS(status) != 0)
+            {
+                this->getResponse().setStatus("500");
                 return (false);
+            }
             #endif
             this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
