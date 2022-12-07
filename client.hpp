@@ -17,8 +17,9 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <limits.h>
 
-#define BUFFER_SIZE 70000
+#define BUFFER_SIZE 10000
 
 // Colors
 #define RED "\x1b[0;31m"
@@ -801,7 +802,7 @@ public:
     {
         int stdin_fd;
         int result_fd;
-
+        
         this->cgi_file_name = ".payload/cgi_result_" + util::num_to_string(this);
 
         if ((stdin_fd = open(this->cgi_body_file.c_str(), O_RDONLY, 0644)) == -1)//읽기전용.
@@ -839,18 +840,11 @@ public:
             file_path = this->my_loc->root + file_path;
             if (file_path.rfind('?') != std::string::npos)
                 file_path = file_path.substr(0,file_path.rfind('?'));
-            /////
-            // char *tmp = NULL;
-            // if ((tmp = realpath(file_path.c_str(), NULL)) != NULL) //상대경로를 절대경로로 변경.
-            //     file_path = std::string(tmp);
-            ////////
-            // char buf[PATH_MAX],buf2[PATH_MAX];
-            // realpath(file_path.c_str(), buf); //상대경로를 절대경로로 변경.
-            // file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
-            // realpath(this->cgi_program.c_str(), buf2);
-            // this->cgi_program = std::string(buf2);
-            // std::cerr << "program path : " << std::string(buf2) << std::endl;
-            // std::cerr << "file_path : " << file_path << std::endl;
+            char buf[PATH_MAX],buf2[PATH_MAX];
+            realpath(file_path.c_str(), buf); //상대경로를 절대경로로 변경.
+            file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
+            realpath(this->cgi_program.c_str(), buf2);
+            this->cgi_program = std::string(buf2);
             #ifdef TEST
             std::cerr << "!!!!!!!!!! cgi program : " << this->cgi_program << std::endl;
             #endif
@@ -860,26 +854,18 @@ public:
             #endif
             dup2(stdin_fd, 0); //입력 리다이렉트.
             dup2(result_fd, 1); //출력 리다이렉트.
-            if (file_path.substr(file_path.rfind('.')) == ".bla") //인트라 cgi테스터용 특별처리.
-            {   //(인트라 cgi프로그램은 인자를 직접 받지않고 환경변수로 받는다.)
-                char **arg = (char **)malloc(sizeof(char *) * 2);
-                arg[0] = strdup("./cgi-bin/cgi_tester");
-                arg[1] = NULL;
-                if (execve(arg[0], arg, env) == -1)
-                {
-                    perror("execve err bla cgi");
-                    exit(1);
-                }
-            } else {
-                char **arg = new char *[sizeof(char *) * 3];
-                arg[0] = strdup(this->cgi_program.c_str()); //예시 "/usr/bin/python"
-                arg[1] = strdup(file_path.c_str()); //실행할 파일의 절대경로.
-                arg[2] = NULL;
-                if (execve(arg[0], arg, env) == -1) //cgi 실행.
-                {
-                    perror("execve err normal cgi");
-                    exit(1);
-                }
+            char **arg = new char *[sizeof(char *) * 3];
+            arg[0] = strdup(this->cgi_program.c_str()); //예시 "/usr/bin/python"
+            arg[1] = strdup(file_path.c_str()); //실행할 파일의 절대경로.
+            arg[2] = NULL;
+            if (execve(arg[0], arg, env) == -1) //cgi 실행.
+            {
+                perror("execve cgi fail");
+                close(result_fd);
+                result_fd = open(this->cgi_file_name.c_str(), O_WRONLY | O_TRUNC, 0644);
+                dup2(result_fd, 1);
+                std::cout << "Content-type:text/html\r\n\r\nCGI ERROR";
+                exit(1);
             }
             exit(0);
         }
@@ -892,9 +878,12 @@ public:
             #endif
             #ifdef PARROT
             int status;
-            waitpid(pid, &status, 0);
-            if (status != 0)
+            int ret = waitpid(pid, &status, 0);
+            if (ret != pid || WEXITSTATUS(status) != 0)
+            {
+                this->getResponse().setStatus("500");
                 return (false);
+            }
             #endif
             this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
@@ -964,6 +953,7 @@ public:
     {
         // 1. PATH_INFO
         size_t dot_pos = target.rfind(this->cgi_file);
+        // std::string path_info = std::string(target, dot_pos + this->cgi_file.length());
         // cgi_env_map["PATH_INFO"] = std::string(target, dot_pos + this->cgi_file.length());
         cgi_env_map["PATH_INFO"] = this->request.getTarget();
         // 2. PATH_TRANSLATED

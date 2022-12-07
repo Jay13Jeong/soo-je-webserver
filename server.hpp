@@ -174,7 +174,7 @@ public:
 
         freeaddrinfo(t_info);
         //포트열기. 한 서버당 접속대기열을 접속대기열을 설정.
-        if (listen(this->fd, 2000) == -1) {
+        if (listen(this->fd, 128) == -1) {
             perror("listen fail...");
             exit(1);
         }

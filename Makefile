@@ -12,10 +12,13 @@ all : $(NAME)
 clean :
 	rm -rf .main.o
 	rm -rf .main_cookie.o
+	rm -rf .main_parrot.o
 
 fclean : clean
 	rm -rf $(NAME)
 	rm -rf cookie
+	rm -rf parrot
+	rm -rf test
 
 re : fclean all
 
