@@ -702,6 +702,21 @@ public:
                         #ifdef TEST
                         perror("read file");
                         #endif
+                        if (c.isCgi_mode() == true)
+                        {
+                            int cgi_status = c.get_cgi_status();
+                            if (cgi_status == CGI_RUNNING)
+                            {
+                                add_kq_event(c.getFile_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
+                                _file_map.insert(std::make_pair(c.getFile_fd(), &c));//파일 맵에 추가.
+                                continue;
+                            }
+                            else if (cgi_status == CGI_ERROR)
+                            {
+                                c.ready_err_response_meta();
+                                continue;
+                            }
+                        }
                         int result = c.read_file(); //클라이언트객체는 파일을 읽는다.
                         #ifdef TEST
                         perror("z1111111");
