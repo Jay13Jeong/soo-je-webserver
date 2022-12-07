@@ -802,7 +802,7 @@ public:
     {
         int stdin_fd;
         int result_fd;
-
+        
         this->cgi_file_name = ".payload/cgi_result_" + util::num_to_string(this);
 
         if ((stdin_fd = open(this->cgi_body_file.c_str(), O_RDONLY, 0644)) == -1)//읽기전용.
@@ -878,9 +878,12 @@ public:
             #endif
             #ifdef PARROT
             int status;
-            waitpid(pid, &status, 0);
-            if (status != 0)
+            int ret = waitpid(pid, &status, 0);
+            if (ret != pid || WEXITSTATUS(status) != 0)
+            {
+                this->getResponse().setStatus("500");
                 return (false);
+            }
             #endif
             this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
             #ifdef TEST
@@ -950,6 +953,7 @@ public:
     {
         // 1. PATH_INFO
         size_t dot_pos = target.rfind(this->cgi_file);
+        // std::string path_info = std::string(target, dot_pos + this->cgi_file.length());
         // cgi_env_map["PATH_INFO"] = std::string(target, dot_pos + this->cgi_file.length());
         cgi_env_map["PATH_INFO"] = this->request.getTarget();
         // 2. PATH_TRANSLATED
