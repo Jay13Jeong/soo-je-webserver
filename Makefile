@@ -1,4 +1,4 @@
-gitNAME = webserv
+NAME = webserv
 W3FLAG = -Wall -Wextra -Werror -std=c++98
 
 .main.o : main.cpp *.hpp
@@ -18,6 +18,7 @@ fclean : clean
 	rm -rf $(NAME)
 	rm -rf cookie
 	rm -rf parrot
+	rm -rf test
 
 re : fclean all
 
