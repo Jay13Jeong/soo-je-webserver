@@ -4,8 +4,7 @@
 
 <hr>
 
-![webserver drawio](https://user-images.githubusercontent.com/63899204/201680135-0c19da6d-e505-4baa-8ee8-dbad0956de8a.png)
-
+![d2](https://user-images.githubusercontent.com/63899204/206655660-dab373fe-9105-4f99-8e24-138ca12445e5.png)
 
 ## Usage
 
