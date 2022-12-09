@@ -4,8 +4,7 @@
 
 <hr>
 
-![webserver drawio](https://user-images.githubusercontent.com/63899204/201680135-0c19da6d-e505-4baa-8ee8-dbad0956de8a.png)
-
+![d2](https://user-images.githubusercontent.com/63899204/206655660-dab373fe-9105-4f99-8e24-138ca12445e5.png)
 
 ## Usage
 
@@ -30,6 +29,15 @@ Then connect to the browser with the open port printed on the terminal (Enter "l
 ## Browser Support
 This server has been tested in a Chrome environment.<br>
 
-## Scenes tested with server tester
+## Reference
+https://www.freebsd.org/cgi/man.cgi?kqueue
+<br>
+https://www.rfc-editor.org/rfc/rfc7230
+<br>
+https://www.rfc-editor.org/rfc/rfc7231
+
+## Scenes tested with server tester (siege -b test, parrot test)
+
+![testtt](https://user-images.githubusercontent.com/63899204/206649410-06704daf-8e62-455a-b545-33cd06d329f8.gif)
 
 ![a2](https://user-images.githubusercontent.com/63899204/205376751-c971d989-a67c-4b06-9ea1-ac6e6241b247.gif)
