@@ -1,6 +1,7 @@
 #ifndef CLIENT_CLASS_HPP
 # define CLIENT_CLASS_HPP
 #include "client_base.hpp"
+#include "cgi_controller.hpp"
 
 // Colors
 #define RED "\x1b[0;31m"
@@ -10,11 +11,6 @@
 #define MAGENTA "\x1b[0;35m"
 #define RESET "\x1b[0m"
 
-// CGI_STATUS
-#define CGI_END 0
-#define CGI_ERROR 1
-#define CGI_RUNNING 2
-
 class Client : public Client_base
 {
 private:
@@ -23,15 +19,16 @@ private:
     std::map<int, Client*> * _file_map; //파일 맵.
     Server * my_server; //현재 클라이언트의 서버.(conf 데이터 불러오기 가능).
     std::map<std::string, std::string> * status_msg;
-    std::string  cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")
-    std::string  cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")
-    std::string  cgi_body_file; //cgi실행전 사용할 바디 파일 이름.
-    int cgi_pid;
-    int cgi_status;
+    std::string  cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")	// cgi_controller.hpp로 이동
+    std::string  cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")	// cgi_controller.hpp로 이동
+    std::string  cgi_body_file; //cgi실행전 사용할 바디 파일 이름.	// cgi_controller.hpp로 이동
+    int cgi_pid;	// cgi_controller.hpp로 이동
+    int cgi_status;	// cgi_controller.hpp로 이동
+	CgiController cgi_controller;
 
 public:
     Client(std::vector<struct kevent> * cmds, std::map<int,Client*> * files) : my_loc(NULL), _ev_cmds(cmds) ,_file_map(files) \
-    , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""),  cgi_body_file(""),  cgi_pid(-1), cgi_status(CGI_END)
+    , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""),  cgi_body_file(""),  cgi_pid(-1), cgi_status(END)
     {
         socket_fd = -1;
         read_buf = "";
@@ -443,32 +440,6 @@ public:
             this->my_loc = &loc_map["/"]; //기본값으로 루트경로 구조체로 초기화.
     }
 
-    //cgi실행이 필요한지 여부를 반환하는 메소드. cgi가 필요없으면 false반환. 있으면 cgi 정보를 설정하고 true반환.
-    bool check_need_cgi()
-    {
-        Server s = *this->my_server;
-        std::map<std::string, std::string> & cgi_infos = this->my_loc->cgi_map;
-        size_t offset = this->getRequest().getTarget().find('.'); //확장자를 암시하는 부분을 찾는다.
-        if (offset == std::string::npos) //없다면 검사종료.
-            return (false);
-        size_t curr = offset;
-        while (curr != this->getRequest().getTarget().length()) //확장자의 문자열을 하나하나검사.
-            if (this->getRequest().getTarget()[curr] != '/' && this->getRequest().getTarget()[curr] != '?') //문자열에 '/'또는'?'가 있다면 검사중단.
-                curr++;
-            else
-                break;
-        std::string pure_exe = this->getRequest().getTarget().substr(offset, curr - offset); //순수 확장자만 파싱해서 뽑는다.
-        std::map<std::string, std::string>::const_iterator match_cgi = cgi_infos.find(pure_exe); //지원하는 cgi가 있는지 검사.
-        if (match_cgi == cgi_infos.end()) //지원하는 cgi가 없다면 false반환
-            return (false);
-        else    //지원한다면 값을 맴버변수에 할당.
-            this->cgi_program = match_cgi->second;
-        while (this->getRequest().getTarget()[offset] != '/') //현재 확장자의 파일이름이 있는 곳으로 포인터를 옮긴다.
-            offset--;
-        this->cgi_file = this->getRequest().getTarget().substr(offset + 1, curr - offset - 1); //파일이름 + 확장자 형식의 순수 파일명을 뽑기.
-        return true;
-    }
-
     //비정제 data를 파싱해서 맴버변수"request"를 채우는 메소드.
     bool parse_request()
     {
@@ -499,7 +470,7 @@ public:
         this->cgi_body_file.clear();
         this->is_done_chunk = false;
         this->cgi_pid = -1;
-        this->cgi_status = CGI_END;
+        this->cgi_status = END;
         return true;
     }
 
@@ -533,290 +504,79 @@ public:
         return false;
     }
 
-    //cgi가 stdin으로 읽을 파일 만드는 메소드.
-    bool ready_body_file()
+	// ANCHOR CGI
+
+	bool check_need_cgi()
     {
-        #ifdef TEST
-        std::cerr << "make body file for cgi..." << std::endl;
-        #endif
-        this->cgi_body_file = ".payload/cgi_ready_" + util::num_to_string(this);
-        if (util::make_middle_pathes(this->cgi_body_file) == false) //경로의 중간 경로들이 없다면 만든다.
-        {
-            this->getResponse().setStatus("500");
-            return false;
-        }
-        if ((this->file_fd = open(this->cgi_body_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
-        {
-            perror("open cgi_ready err");
-            this->getResponse().setStatus("500");
-            return false;
-        }
-        #ifdef TEST
-        std::cerr << "make body file for cgi...ok" << std::endl;
-        #endif
-        fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-        add_kq_event(this->file_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //"쓰기감지"등록.
-        this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
+        Server s = *this->my_server;
+        std::map<std::string, std::string> & cgi_infos = this->my_loc->cgi_map;
+        size_t offset = this->getRequest().getTarget().find('.'); //확장자를 암시하는 부분을 찾는다.
+        if (offset == std::string::npos) //없다면 검사종료.
+            return (false);
+        size_t curr = offset;
+        while (curr != this->getRequest().getTarget().length()) //확장자의 문자열을 하나하나검사.
+            if (this->getRequest().getTarget()[curr] != '/' && this->getRequest().getTarget()[curr] != '?') //문자열에 '/'또는'?'가 있다면 검사중단.
+                curr++;
+            else
+                break;
+        std::string pure_exe = this->getRequest().getTarget().substr(offset, curr - offset); //순수 확장자만 파싱해서 뽑는다.
+        std::map<std::string, std::string>::const_iterator match_cgi = cgi_infos.find(pure_exe); //지원하는 cgi가 있는지 검사.
+        std::string program;
+        if (match_cgi == cgi_infos.end()) //지원하는 cgi가 없다면 false반환
+            return (false);
+        else    //지원한다면 값을 맴버변수에 할당.
+            program = match_cgi->second;
+        offset = this->request.getTarget().find(this->my_loc->path);
+        std::string script = this->request.getTarget().substr((offset + this->my_loc->path.length()), curr - offset - 1);
+        this->cgi_mode = true;
+        this->cgi_controller.initialize(program, script, this->request.getTarget(), this->my_loc->root, this->request.getHeaders(), this->request.getMethod(), this->socket_fd, this->my_server->get_host(), this->my_server->get_port(), this->request.getVersion(), this->response.get_sid());
         return true;
     }
 
-    int get_cgi_status()
+	bool ready_body_file()
     {
-        if (this->cgi_mode == false)
-            return (this->cgi_status = CGI_END, this->cgi_status);
-        if (this->cgi_status == CGI_RUNNING)
-        {
-            int status, ret;
-            ret = waitpid(this->cgi_pid, &status, WNOHANG);
-            if (ret == this->cgi_pid)
-                this->cgi_status = CGI_END;
-            else if (ret == -1)
-            {
-                this->response.setStatus("500");
-                this->cgi_status = CGI_ERROR;
-            }
-        }
-        return (this->cgi_status);
-    }
-
-    //cgi를 실행하는 메소드.
-    bool excute_cgi()
-    {
-        int stdin_fd;
-        int result_fd;
-        
-        this->cgi_file_name = ".payload/cgi_result_" + util::num_to_string(this);
-
-        if ((stdin_fd = open(this->cgi_body_file.c_str(), O_RDONLY, 0644)) == -1)//읽기전용.
-        {
-            perror("open stdin_fd err");
-            this->getResponse().setStatus("500"); //500처리.
-            return false;
-        }
-        if ((result_fd = open(this->cgi_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)//쓰기, 없으면만듬, 덮어쓰기.
-        {
-            perror("open cgi_result err");
-            this->getResponse().setStatus("500"); //500처리.
-            return false;
-        }
-        if ((this->file_fd = open(this->cgi_file_name.c_str(), O_RDONLY, 0644)) == -1)//읽기전용.
-        {
-            perror("open cgi_file_fd err");
-            this->getResponse().setStatus("500"); //500처리.
-            return false;
-        }
-        fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭으로 설정.
-        add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
-        int pid = -1;
-        if ((pid = fork()) < 0)
-        {
-            perror("fork err");
-            this->getResponse().setStatus("500"); //500처리.
-            return false; //바로 에러 페이지 제작 필요.
-        }
-        if (pid == 0) //자식프로세스 일 때.
-        {
-            close(this->file_fd);
-            std::string file_path = this->request.getTarget(); //실행 할 상대경로 제작.
-            file_path = file_path.substr(this->my_loc->path.length());
-            file_path = this->my_loc->root + file_path;
-            if (file_path.rfind('?') != std::string::npos)
-                file_path = file_path.substr(0,file_path.rfind('?'));
-            char buf[PATH_MAX],buf2[PATH_MAX];
-            realpath(file_path.c_str(), buf); //상대경로를 절대경로로 변경.
-            file_path = std::string(buf); //실행할 경로를 절대경로로 재지정.
-            realpath(this->cgi_program.c_str(), buf2);
-            this->cgi_program = std::string(buf2);
-            #ifdef TEST
-            std::cerr << "!!!!!!!!!! cgi program : " << this->cgi_program << std::endl;
-            #endif
-            char **env = this->init_cgi_env(); //환경변수 준비.
-            #ifdef TEST
-            std::cerr << "!!!!!!!!!! cgi file_path : " << file_path << std::endl;
-            #endif
-            dup2(stdin_fd, 0); //입력 리다이렉트.
-            dup2(result_fd, 1); //출력 리다이렉트.
-            char **arg = new char *[sizeof(char *) * 3];
-            arg[0] = strdup(this->cgi_program.c_str()); //예시 "/usr/bin/python"
-            arg[1] = strdup(file_path.c_str()); //실행할 파일의 절대경로.
-            arg[2] = NULL;
-            if (execve(arg[0], arg, env) == -1) //cgi 실행.
-            {
-                perror("execve cgi fail");
-                close(result_fd);
-                result_fd = open(this->cgi_file_name.c_str(), O_WRONLY | O_TRUNC, 0644);
-                dup2(result_fd, 1);
-                std::cout << "Content-type:text/html\r\n\r\nCGI ERROR";
-                exit(1);
-            }
-            exit(0);
-        }
-        else //부모프로세스는 논블럭설정하고 "읽기가능"감지에 등록한다.
-        {
-            this->cgi_pid = pid;
-            this->cgi_status = CGI_RUNNING;
-            close(result_fd);
-            close(stdin_fd);
-            #ifdef TEST
-            std::cerr << "wait pid ..." << this->file_fd << std::endl;
-            #endif
-            #ifdef PARROT
-            int status;
-            int ret = waitpid(pid, &status, 0);
-            if (ret != pid || WEXITSTATUS(status) != 0)
-            {
-                this->getResponse().setStatus("500");
-                return (false);
-            }
-            #endif
-
-            int status, ret;
-            ret = waitpid(pid, &status, WNOHANG);
-            if (ret == pid && WEXITSTATUS(status) != 0)
-            {
-                this->cgi_status = CGI_ERROR;
-                this->getResponse().setStatus("500");
-                return (false);
-            }
-            else if (ret == pid)
-                this->cgi_status = CGI_END;
-            else if (ret == -1)
-            {
-                this->cgi_status = CGI_ERROR;
-                this->getResponse().setStatus("500");
-                return (false);
-            }
-            this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
-            #ifdef TEST
-            std::cerr << "wait pid ...ok" << this->file_fd << std::endl;
-            #endif
-            return true;
-        }
-    }
-
-    // request target에서 ?를 기준으로 url과 query를 분리해주는 메소드 (first : url, second : query)
-    std::pair<std::string, std::string> get_target_info(std::string & target)
-    {
-        size_t qmark_pos = target.find('?');
-        if (qmark_pos == std::string::npos)
-            return (std::make_pair(target, ""));
-        else if (qmark_pos == target.length())
-            return (std::make_pair(target.substr(0, target.length() - 1), ""));
+        bool result = this->cgi_controller.ready_body_file();
+        if (result == false)
+            this->response.setStatus("500");
         else
-            return (std::make_pair(target.substr(0, qmark_pos), target.substr(qmark_pos + 1)));
-    }
-
-    // 요청한 클라이언트의 ip를 char형 문자열로 받아오는 메소드
-    char *get_client_ip(void)
-    {
-        struct sockaddr_in client_sockaddr;
-        socklen_t client_sockaddr_len = sizeof(client_sockaddr);
-        getsockname(this->socket_fd, (struct sockaddr *)&client_sockaddr, &client_sockaddr_len);
-        return (inet_ntoa(client_sockaddr.sin_addr));
-    }
-
-    void remove_lr_space(std::string &s)
-    {
-        // erase right space
-        s.erase(s.find_last_not_of(' ') + 1);
-        // erase left space
-        s.erase(0, s.find_first_not_of(' '));
-    }
-
-    static char to_custom_header_format(char c)
-    {
-        if (c == '-')
-            return ('_');
-        if (std::islower(c))
-            return (::toupper(c));
-        return (c);
-    }
-
-    // request의 X-header들을 CGI 환경변수에 추가하는 메소드
-    void set_cgi_custom_env(std::map<std::string, std::string> &cgi_env_map, std::map<std::string, std::string> &request_headers)
-    {
-        std::map<std::string, std::string>::iterator iter;
-        for(iter = request_headers.begin(); iter != request_headers.end(); iter++)
         {
-            if ((*iter).first.compare(0, 2, "X-") == 0)
-            {
-                // custom header format으로 변경
-                std::string new_header = std::string((*iter).first.length(), '\0');
-                std::transform((*iter).first.begin(), (*iter).first.end(), new_header.begin(), to_custom_header_format);
-                remove_lr_space((*iter).second);
-                cgi_env_map.insert(std::make_pair("HTTP_" + new_header, (*iter).second));
-            }
+            fcntl(this->cgi_controller.get_file_fd(), F_SETFL, O_NONBLOCK);
+            add_kq_event(this->cgi_controller.get_file_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE);
+            this->_file_map->insert(std::make_pair(this->cgi_controller.get_file_fd(), this));
         }
+        this->file_fd = this->cgi_controller.get_file_fd();
+        return result;
+    };
+
+	int check_cgi_status()
+    {
+        int status = this->cgi_controller.get_status();
+        if (status == RUNNING)
+        {
+            add_kq_event(this->cgi_controller.get_file_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
+            this->_file_map->insert(std::make_pair(this->cgi_controller.get_file_fd(), this));
+        }
+        else if (status == ERROR)
+        {
+            this->response.setStatus("500");
+            this->ready_err_response_meta();
+        }
+        return status;
     }
 
-    // CGI 환경변수 (PATH_INFO, PATH_TRANSLATED, SCRIPT_NAME) 설정을 위한 메소드1
-    bool set_cgi_env_path(std::map<std::string, std::string> &cgi_env_map, std::string & target)
+	bool excute_cgi()
     {
-        // 1. PATH_INFO
-        size_t dot_pos = target.rfind(this->cgi_file);
-        // std::string path_info = std::string(target, dot_pos + this->cgi_file.length());
-        // cgi_env_map["PATH_INFO"] = std::string(target, dot_pos + this->cgi_file.length());
-        cgi_env_map["PATH_INFO"] = this->request.getTarget();
-        // 2. PATH_TRANSLATED
-        if (cgi_env_map["PATH_INFO"].length() != 0)
-        {
-            char *buf = realpath(cgi_env_map["PATH_INFO"].c_str(), NULL);
-            if (buf != NULL)
-                cgi_env_map["PATH_TRANSLATED"] = std::string(buf);
-            else
-                return (false);
-        }
+        bool result = this->cgi_controller.execute();
+        if (result == false)
+            this->response.setStatus("500");
         else
-            cgi_env_map["PATH_TRANSLATED"] = "";
-        // 3. SCRIPT_NAME
-        cgi_env_map["SCRIPT_NAME"] = target.substr(0, dot_pos + this->cgi_file.length());
-        return (true);
-    }
-
-    //cgi자식프로세스가 사용할 환경변수 목록을 2차원포인터로 제작하는 메소드.
-    char **init_cgi_env()
-    {
-        // 0. file_path : 서버 상 절대 경로
-        // 1. 일단 필요한 정보들 가공해서 map 에 넣기
-        std::map<std::string, std::string> cgi_env_map;
-        std::pair<std::string, std::string> target_info = get_target_info(this->request.getTarget());
-        cgi_env_map["AUTH_TYPE"] = ""; // 인증과정 없으므로 NULL
-        cgi_env_map["CONTENT_LENGTH"] = "-1"; // 길이 모른다면 -1
-        if (this->request.getHeaders().find("Content-Type") != this->request.getHeaders().end())
-            cgi_env_map["CONTENT_TYPE"] = this->request.getHeaders()["Content-Type"];  // 빈 경우 혹은 모르는 경우가 있는지 확인해야 함. (그 경우 NULL)
-        else
-            cgi_env_map["CONTENT_TYPE"] = "";
-        cgi_env_map["UPLOAD_PATH"] = this->my_loc->root;
-        cgi_env_map["GATEWAY_INTERFACE"] = "CGI/1.1";
-        cgi_env_map["REQUEST_METHOD"] = this->getRequest().getMethod();
-        cgi_env_map["QUERY_STRING"] = target_info.second;
-        cgi_env_map["REMOTE_ADDR"] = std::string(get_client_ip());
-        cgi_env_map["REMOTE_USER"] = ""; // 인증과정 없으므로 NULL
-        cgi_env_map["SERVER_NAME"] = this->get_myserver()->get_host() + ":" + util::num_to_string(this->get_myserver()->get_port());
-        cgi_env_map["SERVER_PORT"] = util::num_to_string(this->get_myserver()->get_port());
-        cgi_env_map["SERVER_PROTOCOL"] = this->getRequest().getVersion();
-        cgi_env_map["SERVER_SOFTWARE"] = "soo-je-webserv/1.0";
-        if (this->response.get_sid() != 0)
-            cgi_env_map["HTTP_COOKIE"] = this->request.getHeaders().find("Cookie")->second;
-        this->set_cgi_env_path(cgi_env_map, target_info.first);
-        this->set_cgi_custom_env(cgi_env_map, this->request.getHeaders());
-        char **cgi_env = new char *[sizeof(char *) * cgi_env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
-        // 2. 맵의 내용들 2차원 배열로 저장하기
-        int i = 0;
-        for(std::map<std::string, std::string>::iterator iter = cgi_env_map.begin(); iter != cgi_env_map.end(); iter++)
         {
-
-            cgi_env[i] = strdup((iter->first + "=" + iter->second).c_str());
-            i++;
+            fcntl(this->cgi_controller.get_file_fd(), F_SETFL, O_NONBLOCK);
+            add_kq_event(this->cgi_controller.get_file_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
+            this->_file_map->insert(std::make_pair(this->cgi_controller.get_file_fd(), this));
+            this->file_fd = this->cgi_controller.get_file_fd();
         }
-        #ifdef TEST
-        std::cerr << "**** CGI ENV ****\n";
-        for(size_t i = 0; i < cgi_env_map.size(); i++)
-            std::cerr << cgi_env[i] << std::endl;
-        std::cerr << "*****************\n";
-        #endif
-        cgi_env[cgi_env_map.size()] = NULL;
-        return (cgi_env);
+        return result;
     }
 
     std::string check_chunked()
