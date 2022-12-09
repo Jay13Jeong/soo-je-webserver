@@ -28,6 +28,7 @@ Then connect to the browser with the open port printed on the terminal (Enter "l
 
 ## Browser Support
 This server has been tested in a Chrome environment.<br>
+Only HTTP 1.1 is supported.<br>
 
 ## Reference
 https://www.freebsd.org/cgi/man.cgi?kqueue
