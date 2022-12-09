@@ -36,8 +36,6 @@ https://www.freebsd.org/cgi/man.cgi?kqueue
 https://www.rfc-editor.org/rfc/rfc7230
 <br>
 https://www.rfc-editor.org/rfc/rfc7231
-<br>
-https://www.linkedin.com/pulse/nginx-web-server-manoj-g-t
 
 ## Scenes tested with server tester (siege -b test, parrot test)
 
