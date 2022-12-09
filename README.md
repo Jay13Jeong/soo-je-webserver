@@ -14,18 +14,18 @@ The setup of the conf file is based on nginx.<br>
 Then connect to the browser with the open port printed on the terminal (Enter "localhost:8011")<br>
 
 ## Conf file setting
-listen  : Specify a port.<br>
-host    : Specify a host.<br>
-server_name : Specify server name.<br>
-root    : Directory on the server that connects to URI.<br>
-index   : Default files in the corresponding URI directory.<br>
-cgi     : The extension of the cgi to use and the location of the launcher. (ex: cgi .py /usr/bin/python3)<br>
-default_error_pages : override the error page to display if an error occurs.<br>
-location : override the behavior of the server based on the path of URI.<br>
-accept_method : Only allowed methods can be handled by the server with the current path.<br>
-autoindex : If this option is "on", the 404 page will not pop up, and the list of files in the destination folder will be listed.<br>
-client_max_body_size : Maximum acceptable payload size.<br>
-return : 301 permanently moved.<br>
+<b>listen  :</b> Specify a port.<br>
+<b>host    :</b> Specify a host.<br>
+<b>server_name :</b> Specify server name.<br>
+<b>root    :</b> Directory on the server that connects to URI.<br>
+<b>index   :</b> Default files in the corresponding URI directory.<br>
+<b>cgi     :</b> The extension of the cgi to use and the location of the launcher. (ex: cgi .py /usr/bin/python3)<br>
+<b>default_error_pages :</b> override the error page to display if an error occurs.<br>
+<b>location :</b> override the behavior of the server based on the path of URI.<br>
+<b>accept_method :</b> Only allowed methods can be handled by the server with the current path.<br>
+<b>autoindex :</b> If this option is "on", the 404 page will not pop up, and the list of files in the destination folder will be listed.<br>
+<b>client_max_body_size :</b> Maximum acceptable payload size.<br>
+<b>return :</b> 301 permanently moved.<br>
 
 ## Browser Support
 This server has been tested in a Chrome environment.<br>
