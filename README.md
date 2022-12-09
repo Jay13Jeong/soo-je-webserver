@@ -30,6 +30,15 @@ Then connect to the browser with the open port printed on the terminal (Enter "l
 ## Browser Support
 This server has been tested in a Chrome environment.<br>
 
+## Reference
+https://www.freebsd.org/cgi/man.cgi?kqueue
+<br>
+https://www.rfc-editor.org/rfc/rfc7230
+<br>
+https://www.rfc-editor.org/rfc/rfc7231
+<br>
+https://www.linkedin.com/pulse/nginx-web-server-manoj-g-t
+
 ## Scenes tested with server tester
 
 ![a2](https://user-images.githubusercontent.com/63899204/205376751-c971d989-a67c-4b06-9ea1-ac6e6241b247.gif)
