@@ -1,4 +1,4 @@
-# handmade_webserver
+# Handmade webserver "Soo-Je"
 ### Handmade webserver made of CPP.<br>
 ### This webserver was created by referring to NGINX.
 
@@ -13,6 +13,23 @@ This program can receive a single arg, and if there is no arg, it runs "default.
 The setup of the conf file is based on nginx.<br>
 Then connect to the browser with the open port printed on the terminal (Enter "localhost:8011")<br>
 
-## Scenes scanned by the server tester
+## Conf file setting
+listen  : Specify a port.<br>
+host    : Specify a host.<br>
+server_name : Specify server name.<br>
+root    : Directory on the server that connects to URI.<br>
+index   : Default files in the corresponding URI directory.<br>
+cgi     : The extension of the cgi to use and the location of the launcher. (ex: cgi .py /usr/bin/python3)<br>
+default_error_pages : override the error page to display if an error occurs.<br>
+location : override the behavior of the server based on the path of URI.<br>
+accept_method : Only allowed methods can be handled by the server with the current path.<br>
+autoindex : If this option is "on", the 404 page will not pop up, and the list of files in the destination folder will be listed.<br>
+client_max_body_size : Maximum acceptable payload size.<br>
+return : 301 permanently moved.<br>
+
+## Browser Support
+This server has been tested in a Chrome environment.<br>
+
+## Scenes tested with server tester
 
 ![a2](https://user-images.githubusercontent.com/63899204/205376751-c971d989-a67c-4b06-9ea1-ac6e6241b247.gif)
