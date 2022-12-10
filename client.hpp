@@ -13,21 +13,8 @@
 
 class Client : public Client_base
 {
-private:
-    Location * my_loc; //요청이 처리될 영역을 지정한 로케이션 구조체.
-    std::vector<struct kevent> * _ev_cmds; //kq 감지대상 벡터.
-    std::map<int, Client*> * _file_map; //파일 맵.
-    Server * my_server; //현재 클라이언트의 서버.(conf 데이터 불러오기 가능).
-    std::map<std::string, std::string> * status_msg;
-    std::string  cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")	// cgi_controller.hpp로 이동
-    std::string  cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")	// cgi_controller.hpp로 이동
-    std::string  cgi_body_file; //cgi실행전 사용할 바디 파일 이름.	// cgi_controller.hpp로 이동
-    int cgi_pid;	// cgi_controller.hpp로 이동
-    int cgi_status;	// cgi_controller.hpp로 이동
-	CgiController cgi_controller;
-
 public:
-    Client(std::vector<struct kevent> * cmds, std::map<int,Client*> * files) : my_loc(NULL), _ev_cmds(cmds) ,_file_map(files) \
+    Client(std::vector<struct kevent> * cmds, std::map<int,Client*> * files) : my_loc(NULL), ev_cmds(cmds) ,file_map(files) \
     , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""),  cgi_body_file(""),  cgi_pid(-1), cgi_status(END)
     {
         socket_fd = -1;
@@ -65,7 +52,7 @@ public:
         struct kevent new_event;
 
         EV_SET(&new_event, ident, filter, flags, 0, 0, NULL);
-        this->_ev_cmds->push_back(new_event);
+        this->ev_cmds->push_back(new_event);
     }
 
     //응답클래스를 제작하는 메소드.
@@ -243,7 +230,7 @@ public:
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
             //헤더 내용은 뒤에 다른 함수에서 추가
             add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //파일을 읽기감지에 예약.
-            this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
+            this->file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
         }
         #ifdef TEST
         std::cerr << "errrrrr444" << std::endl;
@@ -336,7 +323,7 @@ public:
             }
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
             add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE); //파일을 읽기감지에 예약.
-            this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
+            this->file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
 
         }
         else if (this->request.get_method() == "DELETE")
@@ -389,7 +376,7 @@ public:
             }
             fcntl(this->file_fd, F_SETFL, O_NONBLOCK); //논블럭 설정.
             add_kq_event(this->file_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE); //"쓰기감지"등록.
-            this->_file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
+            this->file_map->insert(std::make_pair(this->file_fd, this));//파일 맵에 추가.
         }
         else
             return (this->get_response().set_status("501"), false); //501처리. 지원하지않는 메소드.
@@ -454,7 +441,7 @@ public:
     //소켓fd만 제외하고 모두 깡통으로만드는 메소드.
     bool clear_client()
     {
-        //socket_fd,server_fd,_ev_cmds,my_server,status_msg빼고 모두 초기상태로 초기화한다...
+        //socket_fd,server_fd,ev_cmds,my_server,status_msg빼고 모두 초기상태로 초기화한다...
         this->read_buf.clear();
         this->write_buf.clear();
         this->file_fd = -1;
@@ -542,7 +529,7 @@ public:
         {
             fcntl(this->cgi_controller.get_file_fd(), F_SETFL, O_NONBLOCK);
             add_kq_event(this->cgi_controller.get_file_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE);
-            this->_file_map->insert(std::make_pair(this->cgi_controller.get_file_fd(), this));
+            this->file_map->insert(std::make_pair(this->cgi_controller.get_file_fd(), this));
         }
         this->file_fd = this->cgi_controller.get_file_fd();
         return result;
@@ -554,7 +541,7 @@ public:
         if (status == RUNNING)
         {
             add_kq_event(this->cgi_controller.get_file_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
-            this->_file_map->insert(std::make_pair(this->cgi_controller.get_file_fd(), this));
+            this->file_map->insert(std::make_pair(this->cgi_controller.get_file_fd(), this));
         }
         else if (status == ERROR)
         {
@@ -573,7 +560,7 @@ public:
         {
             fcntl(this->cgi_controller.get_file_fd(), F_SETFL, O_NONBLOCK);
             add_kq_event(this->cgi_controller.get_file_fd(), EVFILT_READ, EV_ADD | EV_ENABLE);
-            this->_file_map->insert(std::make_pair(this->cgi_controller.get_file_fd(), this));
+            this->file_map->insert(std::make_pair(this->cgi_controller.get_file_fd(), this));
             this->file_fd = this->cgi_controller.get_file_fd();
         }
         return result;
@@ -730,6 +717,18 @@ public:
         + this->my_server->get_sid_map().find(sid)->second + "; Path=/";
         this->response.set_header_map("Set-Cookie", val);
     }
+private:
+    Location * my_loc; //요청이 처리될 영역을 지정한 로케이션 구조체.
+    std::vector<struct kevent> * ev_cmds; //kq 감지대상 벡터.
+    std::map<int, Client*> * file_map; //파일 맵.
+    Server * my_server; //현재 클라이언트의 서버.(conf 데이터 불러오기 가능).
+    std::map<std::string, std::string> * status_msg;
+    std::string  cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")	// cgi_controller.hpp로 이동
+    std::string  cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")	// cgi_controller.hpp로 이동
+    std::string  cgi_body_file; //cgi실행전 사용할 바디 파일 이름.	// cgi_controller.hpp로 이동
+    int cgi_pid;	// cgi_controller.hpp로 이동
+    int cgi_status;	// cgi_controller.hpp로 이동
+	CgiController cgi_controller;
 };
 
 #endif

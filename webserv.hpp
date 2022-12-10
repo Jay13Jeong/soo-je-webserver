@@ -35,24 +35,16 @@
 
 class Webserv
 {
-private:
-    std::vector<Server> _server_list;
-    std::vector<struct kevent> _ev_cmds; //kq 감지대상 벡터.
-    std::map<int, Server> _server_map; //서버 맵.
-    std::map<int, Client> _client_map; //클라이언트 맵.
-    std::map<int, Client*> _file_map; //파일 맵.
-    std::map<std::string, std::string> status_map;
-
 public:
     Webserv(/* args */){};
     ~Webserv(){};
     std::vector<Server> &get_server_list()
     {
-        return this->_server_list;
+        return this->server_list;
     };
     void set_server_list(Server & new_server)
     {
-        this->_server_list.push_back(new_server);
+        this->server_list.push_back(new_server);
     };
 
     //서버포트들을 개방하는 메소드.
@@ -70,7 +62,7 @@ public:
         struct kevent new_event;
 
         EV_SET(&new_event, ident, filter, flags, 0, 0, NULL);
-        this->_ev_cmds.push_back(new_event);
+        this->ev_cmds.push_back(new_event);
     }
 
     //서버들을 감지목록에 추가하는 메소드.
@@ -84,9 +76,9 @@ public:
     {
         for (size_t i(0);i < this->get_server_list().size();i++)
         {
-            this->_server_map[this->_server_list[i].fd] = this->_server_list[i];
-            this->_server_map[this->_server_list[i].fd].init_location_map(); //로케이션 맵도 같이 초기화.
-            this->_server_map[this->_server_list[i].fd].init_default_location(); //로케이션 초기화대상이없으면 하나 만들어주기.
+            this->server_map[this->server_list[i].get_fd()] = this->server_list[i];
+            this->server_map[this->server_list[i].get_fd()].init_location_map(); //로케이션 맵도 같이 초기화.
+            this->server_map[this->server_list[i].get_fd()].init_default_location(); //로케이션 초기화대상이없으면 하나 만들어주기.
         }
 
     }
@@ -140,47 +132,47 @@ public:
             #ifdef TEST
             std::cerr << "================ while start ===================== " << std::endl;
             #endif
-            detected_count = kevent(kq_fd, &_ev_cmds[0], _ev_cmds.size(), detecteds, DETECT_SIZE, &timeout);
+            detected_count = kevent(kq_fd, &ev_cmds[0], ev_cmds.size(), detecteds, DETECT_SIZE, &timeout);
 
             #ifdef TEST
             std::cerr << "detect : " << detected_count << std::endl;
             #endif
-            _ev_cmds.clear(); //사용한 이벤트명령은 비운다.
+            ev_cmds.clear(); //사용한 이벤트명령은 비운다.
             for (int i(0); i < detected_count; i++)
             {
                 curr_det = &detecteds[i];
                 if (curr_det->flags & EV_ERROR || curr_det->flags & EV_EOF)
                 {
                     std::cerr << MAGENTA << "close : " << curr_det->ident << RESET << std::endl;
-                    if (this->_server_map.find(curr_det->ident) != this->_server_map.end())
+                    if (this->server_map.find(curr_det->ident) != this->server_map.end())
                     {
-                        this->_server_map.erase(this->_server_map.find(curr_det->ident));
+                        this->server_map.erase(this->server_map.find(curr_det->ident));
                         close(curr_det->ident);
                         continue;
                     }
-                    if (this->_client_map.find(curr_det->ident) != this->_client_map.end())
+                    if (this->client_map.find(curr_det->ident) != this->client_map.end())
                     {
-                        this->_client_map.erase(this->_client_map.find(curr_det->ident));
+                        this->client_map.erase(this->client_map.find(curr_det->ident));
                         close(curr_det->ident);
                         continue;
                     }
-                    this->_file_map.erase(this->_file_map.find(curr_det->ident));
+                    this->file_map.erase(this->file_map.find(curr_det->ident));
                     close(curr_det->ident);
                     continue;
                 }
                 if (curr_det->filter == EVFILT_READ) //감지된 이벤트가 "읽기가능"일 때.
                 {
                     //감지된 fd가 서버일 때.
-                    if (this->_server_map.find(curr_det->ident) != this->_server_map.end())
+                    if (this->server_map.find(curr_det->ident) != this->server_map.end())
                     {
-                        Server & s = this->_server_map.find(curr_det->ident)->second;
+                        Server & s = this->server_map.find(curr_det->ident)->second;
                         #ifdef TEST
                         perror("read server");
                         #endif
                         int client_fd = s.accept_client();
                         if (client_fd == -1)
                             continue;
-                        Client new_client(&(this->_ev_cmds), &(this->_file_map));
+                        Client new_client(&(this->ev_cmds), &(this->file_map));
                         new_client.set_socket_fd(client_fd); //브라우저의 연결을 수락.
                         std::cerr << GREEN << "listen : " << new_client.get_socket_fd() << RESET << std::endl;
                         #ifdef TEST
@@ -190,7 +182,7 @@ public:
                         #ifdef TEST
                         // std::cerr << "111 " << std::endl;
                         #endif
-                        new_client.set_myserver(&(this->_server_map[curr_det->ident])); //클라이언트클래스에서 서버클래스에 접근 할 수 있도록.
+                        new_client.set_myserver(&(this->server_map[curr_det->ident])); //클라이언트클래스에서 서버클래스에 접근 할 수 있도록.
                         #ifdef TEST
                         // std::cerr << "222 " << std::endl;
                         #endif
@@ -198,15 +190,15 @@ public:
                         #ifdef TEST
                         // std::cerr << "333 " << std::endl;
                         #endif
-                        this->_client_map.insert(std::make_pair(client_fd, new_client));
+                        this->client_map.insert(std::make_pair(client_fd, new_client));
                         #ifdef TEST
                         // std::cerr << "444 " << std::endl;
                         #endif
                         continue;
                     }
-                    if (this->_client_map.find(curr_det->ident) != this->_client_map.end())
+                    if (this->client_map.find(curr_det->ident) != this->client_map.end())
                     {
-                        Client & c = this->_client_map.find(curr_det->ident)->second;
+                        Client & c = this->client_map.find(curr_det->ident)->second;
                         #ifdef TEST
                         perror("read client");
                         #endif
@@ -215,7 +207,7 @@ public:
                         {
                             std::cerr << MAGENTA << "close : " << c.get_socket_fd() << RESET << std::endl;
                             close(c.get_socket_fd());
-                            this->_client_map.erase(this->_client_map.find(curr_det->ident)); //kq에서 읽기가능이라고 했는데도 데이터를 읽을 수 없다면 삭제한다.
+                            this->client_map.erase(this->client_map.find(curr_det->ident)); //kq에서 읽기가능이라고 했는데도 데이터를 읽을 수 없다면 삭제한다.
                         }
                         else if (result == RECV_ALL) //모두수신받았을 때.
                         {
@@ -313,9 +305,9 @@ public:
                         continue;
                     }
                     //감지된 fd가 파일쪽 일 때.
-                    if (this->_file_map.find(curr_det->ident) != this->_file_map.end())
+                    if (this->file_map.find(curr_det->ident) != this->file_map.end())
                     {
-                        Client & c = *this->_file_map.find(curr_det->ident)->second;
+                        Client & c = *this->file_map.find(curr_det->ident)->second;
                         #ifdef TEST
                         perror("read file");
                         #endif
@@ -332,7 +324,7 @@ public:
                         if (result == FAIL || result == RECV_ALL)
                         {
                             add_kq_event(c.get_socket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비.
-                            this->_file_map.erase(this->_file_map.find(c.get_file_fd())); 
+                            this->file_map.erase(this->file_map.find(c.get_file_fd())); 
                             c.set_file_fd(-1);
                         }
                         #ifdef TEST
@@ -353,9 +345,9 @@ public:
                     #ifdef TEST
                     perror("write something");
                     #endif
-                    if (this->_client_map.find(curr_det->ident) != this->_client_map.end())
+                    if (this->client_map.find(curr_det->ident) != this->client_map.end())
                     {
-                        Client & c = this->_client_map.find(curr_det->ident)->second;
+                        Client & c = this->client_map.find(curr_det->ident)->second;
                         #ifdef TEST
                         perror("send socket 1");
                         #endif
@@ -369,7 +361,7 @@ public:
                         {
                             std::cerr << MAGENTA << "close : " << c.get_socket_fd() << RESET << std::endl;
                             close(c.get_socket_fd());
-                            _client_map.erase(this->_client_map.find(curr_det->ident)); //이 클라이언트 소켓 제거.
+                            this->client_map.erase(this->client_map.find(curr_det->ident)); //이 클라이언트 소켓 제거.
                             #ifdef TEST
                             perror("send client fail");
                             #endif
@@ -383,14 +375,14 @@ public:
                         continue;
                     }
                     //감지된 fd가 파일쪽 일 때. (PUT, POST(stdin)).
-                    if (this->_file_map.find(curr_det->ident) != this->_file_map.end())
+                    if (this->file_map.find(curr_det->ident) != this->file_map.end())
                     {
-                        Client & c = *this->_file_map.find(curr_det->ident)->second;
+                        Client & c = *this->file_map.find(curr_det->ident)->second;
                         int result = c.write_file(); //클라이언트객체는 파일을 작성한다.
                         if (result == FAIL || result == SEND_ALL)
                         {
                             add_kq_event(c.get_socket_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE); //소켓에 response 쓸 준비. (리스폰스제작과 연계)
-                            this->_file_map.erase(this->_file_map.find(c.get_file_fd())); 
+                            this->file_map.erase(this->file_map.find(c.get_file_fd())); 
                             c.set_file_fd(-1);
                         }
                         if (result == FAIL) //파일 쓰기 오류났을 때.
@@ -430,6 +422,13 @@ public:
             #endif
         }
     }
+private:
+    std::vector<Server> server_list;
+    std::vector<struct kevent> ev_cmds; //kq 감지대상 벡터.
+    std::map<int, Server> server_map; //서버 맵.
+    std::map<int, Client> client_map; //클라이언트 맵.
+    std::map<int, Client*> file_map; //파일 맵.
+    std::map<std::string, std::string> status_map;
 };
 
 #endif

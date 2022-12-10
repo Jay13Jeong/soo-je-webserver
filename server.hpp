@@ -23,21 +23,6 @@
 class Server
 {
 public:
-    int                                 port; //서버포트. (기본값 있음)
-    std::string                         host; // host (기본적으로 127.0.0.1);
-    std::string                         server_name; //서버이름. (기본값 있음)
-    std::string                         root; //실행되는 최상위 폴더. (기본값 있음)
-    std::vector<std::string>            index; //인덱스 파일목록. (기본값 있음 - index.html)
-    std::vector<Location>               loc; //로케이션 구조체 배열
-    bool                                autoindex; //오토인덱스. (기본값 있음 - off)
-    size_t                              client_max_body_size; //서버가 수신가능한 최대 데이터 크기.
-    std::map<std::string, std::string>  default_error_pages; // 키:status code 값:에러페이지
-    int                                 fd; //linsten용 서버 fd.
-    std::map<std::string,std::string>   cgi_map; // 키:확장자, 값:확장자 경로(python,java)
-    std::map<std::string, Location>       loc_map; //로케이션 구조체 맵.
-    std::map<long, std::string> sid_map; //세션키=값으로 구성된 맵.
-
-public:
     Server() : fd(-1) {
         port = 80;
         host = "127.0.0.1";
@@ -53,6 +38,10 @@ public:
     std::map<long, std::string> & get_sid_map()
     {
         return this->sid_map;
+    }
+    void    set_client_max_body_size(size_t size)
+    {
+        this->client_max_body_size = size;
     }
     void    set_host(std::string host)
     {
@@ -74,6 +63,10 @@ public:
     {
         return this->port;
     }
+    void set_port(int port)
+    {
+        this->port = port;
+    }
     std::vector<std::string> & get_index()
     {
         return this->index;
@@ -85,6 +78,10 @@ public:
     std::vector<Location> & get_loc()
     {
         return this->loc;
+    }
+    void set_autoindex(bool on)
+    {
+        this->autoindex = on;
     }
     bool get_autoindex()
     {
@@ -199,6 +196,20 @@ public:
         this->sid_map[++new_id] = "new";
         return new_id;
     }
+private:
+    int                                 port; //서버포트. (기본값 있음)
+    std::string                         host; // host (기본적으로 127.0.0.1);
+    std::string                         server_name; //서버이름. (기본값 있음)
+    std::string                         root; //실행되는 최상위 폴더. (기본값 있음)
+    std::vector<std::string>            index; //인덱스 파일목록. (기본값 있음 - index.html)
+    std::vector<Location>               loc; //로케이션 구조체 배열
+    bool                                autoindex; //오토인덱스. (기본값 있음 - off)
+    size_t                              client_max_body_size; //서버가 수신가능한 최대 데이터 크기.
+    std::map<std::string, std::string>  default_error_pages; // 키:status code 값:에러페이지
+    int                                 fd; //linsten용 서버 fd.
+    std::map<std::string,std::string>   cgi_map; // 키:확장자, 값:확장자 경로(python,java)
+    std::map<std::string, Location>       loc_map; //로케이션 구조체 맵.
+    std::map<long, std::string> sid_map; //세션키=값으로 구성된 맵.
 };
 
 #endif

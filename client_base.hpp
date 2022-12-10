@@ -23,19 +23,6 @@
 
 class Client_base
 {
-protected:
-    int socket_fd; //클라이언트 소켓 fd.
-    std::string read_buf; //소켓에서 읽어온 비정제 데이터. (추후 파싱필요)
-    std::string write_buf; //응답 클래스로 보낼 데이터.
-    Request request; //비정제데이터를 파싱해서 만든 request클래스.
-    Response response; //response를 제작하는 클래스.
-    int file_fd; // cgi가 출력한 결과물을 담는 파일의 fd.
-    std::string file_buf; //파일의 정보가 저장되는 변수.
-    size_t write_size; //보낸 데이터 크기.
-    bool cgi_mode; // cgi모드여부.
-    std::string  cgi_file_name; //cgi 결과물을 담은 파일 이름.
-    bool is_done_chunk;
-
 public:
     Client_base(){}
     ~Client_base(){}
@@ -251,6 +238,18 @@ public:
         //전송중이면 (다 못보냈을 때)
         return 0;
     }
+protected:
+    int socket_fd; //클라이언트 소켓 fd.
+    std::string read_buf; //소켓에서 읽어온 비정제 데이터. (추후 파싱필요)
+    std::string write_buf; //응답 클래스로 보낼 데이터.
+    Request request; //비정제데이터를 파싱해서 만든 request클래스.
+    Response response; //response를 제작하는 클래스.
+    int file_fd; // cgi가 출력한 결과물을 담는 파일의 fd.
+    std::string file_buf; //파일의 정보가 저장되는 변수.
+    size_t write_size; //보낸 데이터 크기.
+    bool cgi_mode; // cgi모드여부.
+    std::string  cgi_file_name; //cgi 결과물을 담은 파일 이름.
+    bool is_done_chunk;
 };
 
 #endif

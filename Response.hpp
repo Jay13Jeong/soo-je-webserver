@@ -10,14 +10,6 @@
 
 class Response
 {
-private:
-    std::string version; //http버전
-    std::string status; //상태코드 (ex "505").
-    std::string status_msg; //상태코드 해석 메세지.
-    std::map<std::string,std::string> header_map; //헤더필드의 키=값.
-    std::string body; //바디.
-    long sid; //세션 id
-
 public:
     Response(/* args */) : status(""), body(""), sid(0) {};
     ~Response(){};
@@ -80,6 +72,13 @@ public:
         this->status.clear();
         this->sid = 0;
     }
+private:
+    std::string version; //http버전
+    std::string status; //상태코드 (ex "505").
+    std::string status_msg; //상태코드 해석 메세지.
+    std::map<std::string,std::string> header_map; //헤더필드의 키=값.
+    std::string body; //바디.
+    long sid; //세션 id
 };
 
 #endif

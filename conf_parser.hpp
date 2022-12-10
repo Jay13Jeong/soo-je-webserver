@@ -232,20 +232,20 @@ public:
                     int port = util::string_to_num<int>(split_result[1]);
                     for(size_t i = 0; i < webserv.get_server_list().size() - 1; i++)
                     {
-                        if (webserv.get_server_list()[i].port == port)
+                        if (webserv.get_server_list()[i].get_port() == port)
                             throw (Parser::InvalidConfigFile());
                     }
-                    webserv.get_server_list().back().port = port;
+                    webserv.get_server_list().back().set_port(port);
                 }
                 else if (split_result[0] == "server_name")
                 {
                     util::remove_last_semicolon(split_result[1]);
-                    webserv.get_server_list().back().server_name = split_result[1];
+                    webserv.get_server_list().back().get_server_name() = split_result[1];
                 }
                 else if (split_result[0] == "root")
                 {
                     util::remove_last_semicolon(split_result[1]);
-                    webserv.get_server_list().back().root = split_result[1];
+                    webserv.get_server_list().back().get_root() = split_result[1];
                 }
                 else if (split_result[0] == "index")
                 {
@@ -255,24 +255,24 @@ public:
                         if (split_result[i] == ";")
                             break;
                         util::remove_last_semicolon(split_result[i]);
-                        webserv.get_server_list().back().index.push_back(split_result[i]);
+                        webserv.get_server_list().back().get_index().push_back(split_result[i]);
                     }
                 }
                 else if (split_result[0] == "autoindex")
                 {
                     util::remove_last_semicolon(split_result[1]);
-                    webserv.get_server_list().back().autoindex = (split_result[1] == "on");
+                    webserv.get_server_list().back().set_autoindex(split_result[1] == "on");
                 }
                 else if (split_result[0] == "client_max_body_size")
                 {
                     util::remove_last_semicolon(split_result[1]);
-                    webserv.get_server_list().back().client_max_body_size = util::string_to_num<size_t>(split_result[1]);
+                    webserv.get_server_list().back().set_client_max_body_size(util::string_to_num<size_t>(split_result[1]));
                 }
                 else if (split_result[0] == "default_error_pages")
                 {
                     util::remove_last_semicolon(split_result[1]);
                     util::remove_last_semicolon(split_result[2]);
-                    webserv.get_server_list().back().default_error_pages.insert(std::make_pair(split_result[1], split_result[2]));
+                    webserv.get_server_list().back().get_default_error_page().insert(std::make_pair(split_result[1], split_result[2]));
                 }
                 else if (split_result[0] == "cgi")
                 {
@@ -280,7 +280,7 @@ public:
                     {
                         util::remove_last_semicolon(split_result[1]);
                         util::remove_last_semicolon(split_result[2]);
-                        webserv.get_server_list().back().cgi_map.insert(std::make_pair(split_result[1],split_result[2]));
+                        webserv.get_server_list().back().get_cgi_map().insert(std::make_pair(split_result[1],split_result[2]));
                     }
                 }
                 else if (split_result[0] == "location")
@@ -300,7 +300,7 @@ public:
                         if (split_result.size() == 0 || split_result[0][0] == '#')
                             continue;
                         if (split_result[0] == "}"){
-                            webserv.get_server_list().back().loc.push_back(loc_temp);
+                            webserv.get_server_list().back().get_loc().push_back(loc_temp);
                             break ;
                         }
                         else if (split_result[0] == "return")
