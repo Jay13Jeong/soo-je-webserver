@@ -10,14 +10,6 @@
 
 class Response
 {
-private:
-    std::string version; //http버전
-    std::string status; //상태코드 (ex "505").
-    std::string status_msg; //상태코드 해석 메세지.
-    std::map<std::string,std::string> header_map; //헤더필드의 키=값.
-    std::string body; //바디.
-    long sid; //세션 id
-
 public:
     Response(/* args */) : status(""), body(""), sid(0) {};
     ~Response(){};
@@ -30,43 +22,43 @@ public:
     {
         return this->sid;
     }
-    std::string & getVersion()
+    std::string & get_version()
     {
         return this->version;
     }
-    void setVersion(std::string version)
+    void set_version(std::string version)
     {
         this->version = version;
     }
-    std::string & getStatus()
+    std::string & get_status()
     {
         return this->status;
     }
-    void setStatus(std::string status)
+    void set_status(std::string status)
     {
         this->status = status;
     }
-    std::string & getStatus_msg()
+    std::string & get_status_msg()
     {
         return this->status_msg;
     }
-    void setStatus_msg(const std::string & status_msg)
+    void set_status_msg(const std::string & status_msg)
     {
         this->status_msg = status_msg;
     }
-    std::map<std::string, std::string> & getHeader_map()
+    std::map<std::string, std::string> & get_header_map()
     {
         return this->header_map;
     }
-    void setHeader_map(const std::string & key, const std::string & value)
+    void set_header_map(const std::string & key, const std::string & value)
     {
         this->header_map.insert(std::make_pair(key, value));
     }
-    std::string & getBody()
+    std::string & get_body()
     {
         return this->body;
     }
-    void setBody(const std::string & body)
+    void set_body(const std::string & body)
     {
         this->body = body;
     }
@@ -80,6 +72,13 @@ public:
         this->status.clear();
         this->sid = 0;
     }
+private:
+    std::string version; //http버전
+    std::string status; //상태코드 (ex "505").
+    std::string status_msg; //상태코드 해석 메세지.
+    std::map<std::string,std::string> header_map; //헤더필드의 키=값.
+    std::string body; //바디.
+    long sid; //세션 id
 };
 
 #endif

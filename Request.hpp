@@ -17,13 +17,6 @@
 class Request
 {
 private:
-    std::string method; //메소드.
-    std::string target; //대상파일(또는 폴더)의 경로.
-    std::string version; //프로토콜버전. http1.1고정이기 때문에 float보다 string.
-    std::map<std::string,std::string> headers; //콜론을 기준으로 나눈 헤더 키:값 들.
-    std::string body; //바디부분 데이터.
-
-private:
     void ft_chunk_check(std::string & temp_str, std::string &status_code)
     {
         std::vector<std::string> temp = util::ft_split(temp_str, ", ");
@@ -61,13 +54,13 @@ public:
             i += 2;//\r\n건너띄기
 
             if (chunk_count != 0 && (i + count != data.find("\r\n", i)))//추가로 받는 청크데이터가 아직 덜 받은 상태이라면..
-                return (setBody(getBody() + temp), data = data.substr((i - cr - 2)), status_code = "800", false);
+                return (set_body(get_body() + temp), data = data.substr((i - cr - 2)), status_code = "800", false);
 
             temp += data.substr(i, count);//바디 추가
             i += count + 2;//다음 청크데이터 시작 위치
             chunk_count++;
         }
-        setBody(getBody() + temp);
+        set_body(get_body() + temp);
         if (count == 0)//뒤에 \r\n\r\n오는 건 확인을 해야하긴 하는데....
             return (data = "", status_code = "200", true);
 
@@ -97,61 +90,61 @@ private:
     }
 
 public:
-    std::string & getMethod()
+    std::string & get_method()
     {
         return this->method;
     }
 
 public:
-    void setMethod(std::string method)
+    void set_method(std::string method)
     {
         this->method = method;
     }
 
 public:
-    std::string &getTarget()
+    std::string &get_target()
     {
         return this->target;
     }
 
 public:
-    void setTarget(std::string target)
+    void set_target(std::string target)
     {
         this->target = target;
     }
 
 public:
-    std::string & getVersion()
+    std::string & get_version()
     {
         return this->version;
     }
 
 public:
-    void setVersion(std::string version)
+    void set_version(std::string version)
     {
         this->version = version;
     }
 
 public:
-    std::map<std::string, std::string> & getHeaders()
+    std::map<std::string, std::string> & get_headers()
     {
         return this->headers;
     }
 
 public:
-    void setHeaders(const std::string & key,const std::string & value)
+    void set_headers(const std::string & key,const std::string & value)
     {
         this->headers.insert(std::make_pair(key, value));
     }
 
 public:
-    std::string &getBody()
+    std::string &get_body()
     {
         return this->body;
     }
 
 public:
-    void setBody(const std::string & body)
+    void set_body(const std::string & body)
     {
         this->body = body;
     }
@@ -171,16 +164,16 @@ private:
         if (temp_str.size() != 3)//스타트라인 규격 체크
             return (status_code = "400", false);
         else if (temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT" || temp_str[0] == "HEAD")
-            setMethod(temp_str[0]);
+            set_method(temp_str[0]);
         else if (!(temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT" || temp_str[0] == "HEAD"))
             return (status_code = "405", false);
         if (temp_str[2] == "HTTP/1.1")
-            setVersion(temp_str[2]);
+            set_version(temp_str[2]);
         else if (!(temp_str[2] == "HTTP/1.1"))//HTTP/1.1만 지원
             return (status_code = "505", false);
         else
             return (status_code = "400", false);
-        setTarget(temp_str[1]);//414에러는 uri길이 기준이 현재 없음
+        set_target(temp_str[1]);//414에러는 uri길이 기준이 현재 없음
         return (true);
     }
 
@@ -203,12 +196,12 @@ private:
             temp = temp_str[1];
             for (size_t j = 2; j < temp_str.size(); j++)
                 temp = temp + ":" + temp_str[j];
-            setHeaders(temp_str[0], temp);
+            set_headers(temp_str[0], temp);
             i++;
         }
         if (i == 1)//헤더가 없는 경우,temp_data.size()==i아니면 헤더 파싱 다 된 것 아님.
             return (status_code = "400", false);
-        else if ((getMethod() == "GET" || getMethod() == "DELETE" || getMethod() == "HEAD") && !(header_end_point >= (data.size() - 4)))//-4는 올수 있는CRLF의 최대값
+        else if ((get_method() == "GET" || get_method() == "DELETE" || get_method() == "HEAD") && !(header_end_point >= (data.size() - 4)))//-4는 올수 있는CRLF의 최대값
             return (status_code = "400", false);
         return (true);
     }
@@ -225,12 +218,12 @@ private:
         if (data.size() > 0)//바디 시작부분이 요청값 전체 사이즈 보다 작아야 한다.
             temp = data;
 
-        if (this->getHeaders().find("Content-Length") == this->getHeaders().end())//"Content-Length"없음
-            setBody(temp);
-        else if (strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10) >= (long)temp.size())//"Content-Length"길이가 더 큼
-            setBody(temp);
-        else if (strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10) < (long)temp.size())//바디 크기가 더크면 잘라서 넣기
-            setBody(temp.substr(0, strtol(this->getHeaders()["Content-Length"].c_str(), NULL, 10)));
+        if (this->get_headers().find("Content-Length") == this->get_headers().end())//"Content-Length"없음
+            set_body(temp);
+        else if (strtol(this->get_headers()["Content-Length"].c_str(), NULL, 10) >= (long)temp.size())//"Content-Length"길이가 더 큼
+            set_body(temp);
+        else if (strtol(this->get_headers()["Content-Length"].c_str(), NULL, 10) < (long)temp.size())//바디 크기가 더크면 잘라서 넣기
+            set_body(temp.substr(0, strtol(this->get_headers()["Content-Length"].c_str(), NULL, 10)));
 
         return (true);
     }
@@ -292,6 +285,12 @@ public:
 public:
     Request(/* args */){};
     ~Request(){};
+private:
+    std::string method; //메소드.
+    std::string target; //대상파일(또는 폴더)의 경로.
+    std::string version; //프로토콜버전. http1.1고정이기 때문에 float보다 string.
+    std::map<std::string,std::string> headers; //콜론을 기준으로 나눈 헤더 키:값 들.
+    std::string body; //바디부분 데이터.
 };
 
 #endif

@@ -1,5 +1,6 @@
 #include <signal.h>
 #include "webserv.hpp"
+#include "conf_parser.hpp"
 
 // Colors
 #define RED "\x1b[0;31m"
@@ -18,17 +19,18 @@ int main(int ac, char* av[])
 {
     signal(SIGPIPE, ignore_sigpipe);
     Webserv webserv;
+    Parser  parser(webserv);
 
     if (ac == 1)
     {
-        if (!webserv.parsing("default.conf")) //웹서브 클래스에 인자의 파일을 넣음
+        if (!parser.parsing("default.conf")) //웹서브 클래스에 인자의 파일을 넣음
             return(-1);
         else
             std::cerr << GREEN << "[*] Config validation check pass!" << RESET << std::endl;
     }
     else if (ac == 2)
     {
-        if (!webserv.parsing(av[1])) //웹서브 클래스에 인자의 파일을 넣음
+        if (!parser.parsing(av[1])) //웹서브 클래스에 인자의 파일을 넣음
             return(-1);
         else
             std::cerr << GREEN << "[*] Config validation check pass!" << RESET << std::endl;
