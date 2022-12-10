@@ -23,23 +23,23 @@ void	testFunc(std::string & data, std::string &status, std::string resultStatus)
 			std::cerr << "test OK!! " << std::endl;
 			return ;
 		}
-		std::cerr << "Body : " << request.getBody() << std::endl;
+		std::cerr << "Body : " << request.get_body() << std::endl;
 		std::cerr << "data : " << data << std::endl;
 		std::cerr << "errer!!  status : resultStatus = " << status << " : " << resultStatus << std::endl << std::endl;
 	}
 	else
 		std::cerr << "errer!!  status : resultStatus = " << status << " : " << resultStatus << std::endl << std::endl;
 
-	std::cerr << "Method : " << request.getMethod() << std::endl;
-	std::cerr << "Target : " << request.getTarget() << std::endl;
-	std::cerr << "Version : " << request.getVersion() << std::endl;
+	std::cerr << "Method : " << request.get_method() << std::endl;
+	std::cerr << "Target : " << request.get_target() << std::endl;
+	std::cerr << "Version : " << request.get_versionnn() << std::endl;
 	std::cerr << "Headers: " << std::endl;
-	std::map<std::string, std::string> temp = request.getHeaders();
+	std::map<std::string, std::string> temp = request.get_headers();
 	std::map<std::string,std::string>::iterator iter;
 	for(iter = temp.begin() ; iter != temp.end(); iter++){
 		 std::cerr << iter->first << ":"<< iter->second << std::endl;
 	}
-	std::cerr << "Body : " << request.getBody() << std::endl;
+	std::cerr << "Body : " << request.get_body() << std::endl;
 }
 
 int main(void)

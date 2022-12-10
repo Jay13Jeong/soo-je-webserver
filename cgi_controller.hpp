@@ -82,9 +82,6 @@ class CgiController
 				this->status = ERROR;
 				return (false);
 			}
-			// nonblock으로 설정
-			// fcntl(this->file_fd, F_SETFL, O_NONBLOCK);
-			// add_kq_event(this->file_fd, EVFILT_READ, EV_ADD | EV_ENABLE);
 			int cgi_pid = -1;
 			if ((cgi_pid = fork()) < 0)
 			{
@@ -133,7 +130,6 @@ class CgiController
 					this->status = ERROR;
 					return (false);
 				}
-				// true를 반환하는 경우에 클라이언트에서 파일 맵에 추가하는 작업 필요함
 				return (true);
 			}
 		}
@@ -143,7 +139,7 @@ class CgiController
 		std::string script;			// cgi를 실행할 파일 경로 (my_loc.path 이후) (예시 "hello.py")	// cgi_file
 		std::string result_file;	// cgi가 출력한 결과물을 담은 파일 이름.	// cgi_file_name
 		std::string body_file;		// cgi 실행전 사용할 바디 파일 이름.		// cgi_body_file
-		int file_fd;			// cgi가 출력한 결과물을 담는 파일의 fd.	// file_fd
+		int file_fd;				// cgi가 출력한 결과물을 담는 파일의 fd.	// file_fd
 		int pid;					// cgi가 실행되고 있는 자식프로세스의 pid	// cgi_pid
 		int status;					// cgi가 실행되고 있는 자식프로세스의 상태 (END, ERROR, RUNNING)	// cgi_status
 
@@ -303,8 +299,7 @@ class CgiController
 				env_map["HTTP_COOKIE"] = this->req_info.header_map->find("Cookie")->second;
 			this->set_cgi_env_path(env_map, this->target_info.url);
 			this->set_cgi_custom_env(env_map, *(this->req_info.header_map));
-			char **cgi_env = new char *[sizeof(char *) * env_map.size() + 1]; // 환경변수의 개수 + 1 만큼 할당
-			// 2. 맵의 내용들 2차원 배열로 저장하기
+			char **cgi_env = new char *[sizeof(char *) * env_map.size() + 1];
 			int i = 0;
 			for(std::map<std::string, std::string>::iterator iter = env_map.begin(); iter != env_map.end(); iter++)
 			{

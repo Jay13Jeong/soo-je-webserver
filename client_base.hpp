@@ -43,51 +43,51 @@ public:
     {
         return this->read_buf;
     }
-    bool isCgi_mode()
+    bool is_cgi_mode()
     {
         return this->cgi_mode;
     }
-    void setCgi_mode(bool cgi_mode)
+    void set_cgi_mode(bool cgi_mode)
     {
         this->cgi_mode = cgi_mode;
     }
-    std::string & getFile_buf()
+    std::string & get_file_buf()
     {
         return this->file_buf;
     }
-    void setFile_buf(std::string & file_buf)
+    void set_file_buf(std::string & file_buf)
     {
         this->file_buf = file_buf;
     }
-    int & getFile_fd()
+    int & get_file_fd()
     {
         return this->file_fd;
     }
-    void setFile_fd(int file_fd)
+    void set_file_fd(int file_fd)
     {
         this->file_fd = file_fd;
     }
-    int getSocket_fd()
+    int get_socket_fd()
     {
         return this->socket_fd;
     }
-    void setSocket_fd(int socket_fd)
+    void set_socket_fd(int socket_fd)
     {
         this->socket_fd = socket_fd;
     }
-    Request & getRequest()
+    Request & get_request()
     {
         return this->request;
     }
-    void setRequest(Request & request)
+    void set_request(Request & request)
     {
         this->request = request;
     }
-    Response & getResponse()
+    Response & get_response()
     {
         return this->response;
     }
-    void setResponse(Response & response)
+    void set_response(Response & response)
     {
         this->response = response;
     }
@@ -110,14 +110,14 @@ public:
         }
         else
         {
-            if (this->response.getStatus() == LENGTHLESS)
+            if (this->response.get_status() == LENGTHLESS)
             {
-                this->request.getBody() += std::string(buffer, size);
+                this->request.get_body() += std::string(buffer, size);
                 return 1;
             }
             
             this->read_buf += std::string(buffer, size); //1.읽은 데이터 char[] -> string으로 변환해서 저장.
-            if (this->response.getStatus() == CHUNKED)
+            if (this->response.get_status() == CHUNKED)
             {
                 const size_t body_size = this->read_buf.length();
                 const std::string & body_data = this->read_buf;
@@ -128,7 +128,7 @@ public:
                     if (rn == curr)
                     {
                         this->read_buf.clear();
-                        this->response.setStatus("400");
+                        this->response.set_status("400");
                         this->is_done_chunk = true;
                         return 1;
                     }
@@ -159,11 +159,11 @@ public:
                     if (b == 0)
                     {
                         this->read_buf.clear();
-                        this->response.setStatus("200");
+                        this->response.set_status("200");
                         this->is_done_chunk = true;
                         return 1;
                     }   
-                    this->request.getBody() += body_data.substr(rn + 2, b);
+                    this->request.get_body() += body_data.substr(rn + 2, b);
                     if (b != 0)
                     {
                     }
@@ -212,7 +212,7 @@ public:
     {
         size_t size;
 
-        size = write(this->getFile_fd(), request.getBody().c_str() + (this->write_size), request.getBody().length() - (this->write_size));
+        size = write(this->get_file_fd(), request.get_body().c_str() + (this->write_size), request.get_body().length() - (this->write_size));
         if (size == (size_t)-1)
         {
             close(this->file_fd);
@@ -220,7 +220,7 @@ public:
             return -1;
         }
         this->write_size += size;
-        if (this->write_size >= request.getBody().length())
+        if (this->write_size >= request.get_body().length())
         {
             close(this->file_fd);
             this->write_size = 0;

@@ -4,9 +4,6 @@
 
 class Parser
 {
-private:
-    Webserv & webserv;
-
 public:
     Parser(Webserv & webserv_) : webserv(webserv_) {};
     ~Parser(){};
@@ -384,6 +381,9 @@ public:
         config_fs.close();
         return (true);
     }
+    
+private:
+    Webserv & webserv;
 };
 
 #endif
