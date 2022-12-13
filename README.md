@@ -1,5 +1,6 @@
 # Handmade webserver "Soo-Je"
 ### Handmade webserver made of CPP.<br>
+### This server acts as a single thread for all but cgi.<br>
 ### This webserver was created by referring to NGINX.
 
 <hr>
