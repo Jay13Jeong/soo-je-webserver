@@ -16,24 +16,90 @@
 
 class Request
 {
-private:
-    void ft_chunk_check(std::string & temp_str, std::string &status_code)
-    {
-        std::vector<std::string> temp = util::ft_split(temp_str, ", ");
-
-        for (size_t i = 0; i < temp.size(); i++)
-        {
-            if (temp[i] == "chunked")
-            {
-                status_code = "800";
-                break ;
-            }
-        }
-        if (status_code != "800")// 청크가 아닐 경우
-            status_code = "200";
-    }
 public:
-    bool ft_chunk_push_body(std::string &data, std::string &status_code)
+    Request(/* args */){};
+    ~Request(){};
+    std::string & get_method()
+    {
+        return this->method;
+    }
+
+    void set_method(std::string method)
+    {
+        this->method = method;
+    }
+
+    std::string &get_target()
+    {
+        return this->target;
+    }
+
+    void set_target(std::string target)
+    {
+        this->target = target;
+    }
+
+    std::string & get_version()
+    {
+        return this->version;
+    }
+
+    void set_version(std::string version)
+    {
+        this->version = version;
+    }
+
+    std::map<std::string, std::string> & get_headers()
+    {
+        return this->headers;
+    }
+
+    void set_headers(const std::string & key,const std::string & value)
+    {
+        this->headers.insert(std::make_pair(key, value));
+    }
+
+    std::string &get_body()
+    {
+        return this->body;
+    }
+
+    void set_body(const std::string & body)
+    {
+        this->body = body;
+    }
+
+    //데이터를 받아서 파싱하는 메소드. 200,400,405,505......414에러는 길이 기준이 현재 없음
+    bool parse(std::string &data, std::string &status_code)
+    {
+        size_t data_header_end_point;
+
+        if (!find_header_end(data, data_header_end_point))
+            return (status_code = "400", false);
+
+        std::vector<std::string> temp_data = util::ft_split_s(data.substr(0, data_header_end_point), "\r\n");
+        std::vector<std::string> temp_str;
+        std::string temp = "";
+
+        if (!push_start_line(temp_data[0], status_code))//스타트라인
+            return (false);
+
+        if (!push_headers(data, temp_data, status_code, data_header_end_point))//헤더 부분
+            return (false);
+
+        if (status_code == "800")
+            data_set(data, data_header_end_point);
+
+        if (status_code == "800")
+            return (ft_chunk_push_body(data, status_code));
+
+        if (!push_body(data, status_code, data_header_end_point))
+            return (false);
+
+        return (status_code = "200", true);
+    }
+
+	bool ft_chunk_push_body(std::string &data, std::string &status_code)
     {
         std::string temp = "";
         size_t i = 0;
@@ -67,117 +133,54 @@ public:
         data = data.substr(i);//다음 청크 위치, 여기가 문제인가?
         return (status_code = "800", false);
     }
-private:
-    size_t ft_find_header_end(std::string & data)
-    {
-        size_t num = data.find("\r\n\r\n");//헤더와 바디 사이의 공백 찾기, 헤더의 마지막 부분.
 
-        if (num != std::string::npos)
-            return num;
-        num = data.rfind("\r\n");//\r\n이 중간에 없으면 끝에서 부터 찾기 시작, 바디가 없다고 추측, 헤더가 \r\n으로 끝날때
-        if (num != data.size() - 2)//끝에 \r\n 이 없는 경우
-            return data.size();
-        return num;
+    void clear_request()
+    {
+        this->body.clear();
+        this->headers.clear();
+        this->method.clear();
+        this->target.clear();
+        this->version.clear();
     }
 
 private:
-    bool ft_header_key_check(std::string &status_code)
+    void data_set(std::string &data, size_t & end_point)
+    {//end_point에서 CRLF없을 수 있음, 최대 2번 올 수 있음
+        data = data.substr(end_point);
+
+        if (data[0] == '\r'){
+            if (data.find("\r\n") == 0)
+                data = data.substr(2);
+        }
+        if (data[0] == '\r'){
+            if (data.find("\r\n") == 0)
+                data = data.substr(2);
+        }
+    }
+
+    bool push_body(std::string &data, std::string &status_code, size_t & data_header_end_point)
     {
-        if (this->headers.find("host") == this->headers.end())
-            return (status_code = "400", false);
+        std::string temp = "";
+        if (data.size() >= data_header_end_point + 4)
+            data = data.substr(data_header_end_point + 4);//바디 부분 시작지점.+4 "\r\n\r\n"이후 바디 첫번쨰 값.
+        //바디부분
+        if (status_code == "800")
+            return (ft_chunk_push_body(data, status_code));//바디 처음부터 시작
+
+        if (data.size() > 0)//바디 시작부분이 요청값 전체 사이즈 보다 작아야 한다.
+            temp = data;
+
+        if (this->get_headers().find("Content-Length") == this->get_headers().end())//"Content-Length"없음
+            set_body(temp);
+        else if (strtol(this->get_headers()["Content-Length"].c_str(), NULL, 10) >= (long)temp.size())//"Content-Length"길이가 더 큼
+            set_body(temp);
+        else if (strtol(this->get_headers()["Content-Length"].c_str(), NULL, 10) < (long)temp.size())//바디 크기가 더크면 잘라서 넣기
+            set_body(temp.substr(0, strtol(this->get_headers()["Content-Length"].c_str(), NULL, 10)));
 
         return (true);
     }
 
-public:
-    std::string & get_method()
-    {
-        return this->method;
-    }
-
-public:
-    void set_method(std::string method)
-    {
-        this->method = method;
-    }
-
-public:
-    std::string &get_target()
-    {
-        return this->target;
-    }
-
-public:
-    void set_target(std::string target)
-    {
-        this->target = target;
-    }
-
-public:
-    std::string & get_version()
-    {
-        return this->version;
-    }
-
-public:
-    void set_version(std::string version)
-    {
-        this->version = version;
-    }
-
-public:
-    std::map<std::string, std::string> & get_headers()
-    {
-        return this->headers;
-    }
-
-public:
-    void set_headers(const std::string & key,const std::string & value)
-    {
-        this->headers.insert(std::make_pair(key, value));
-    }
-
-public:
-    std::string &get_body()
-    {
-        return this->body;
-    }
-
-public:
-    void set_body(const std::string & body)
-    {
-        this->body = body;
-    }
-private:
-    bool find_header_end(std::string & data, size_t &data_header_end_point)
-    {
-        data_header_end_point = ft_find_header_end(data);//헤더 마지막 부분 찾기
-        if (data_header_end_point == 0)
-            return (false);
-        return (true);
-    }
-
-    bool push_start_line(std::string & temp_data, std::string &status_code)
-    {
-        std::cerr << BLUE << temp_data << RESET << std::endl;
-        std::vector<std::string> temp_str = util::ft_split_s(temp_data, " ");
-        if (temp_str.size() != 3)//스타트라인 규격 체크
-            return (status_code = "400", false);
-        else if (temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT" || temp_str[0] == "HEAD")
-            set_method(temp_str[0]);
-        else if (!(temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT" || temp_str[0] == "HEAD"))
-            return (status_code = "405", false);
-        if (temp_str[2] == "HTTP/1.1")
-            set_version(temp_str[2]);
-        else if (!(temp_str[2] == "HTTP/1.1"))//HTTP/1.1만 지원
-            return (status_code = "505", false);
-        else
-            return (status_code = "400", false);
-        set_target(temp_str[1]);//414에러는 uri길이 기준이 현재 없음
-        return (true);
-    }
-
-    bool push_headers(std::string & data, std::vector<std::string> & temp_data, std::string &status_code, size_t & header_end_point)
+	bool push_headers(std::string & data, std::vector<std::string> & temp_data, std::string &status_code, size_t & header_end_point)
     {
         std::vector<std::string> temp_str;
         std::string temp = "";
@@ -206,86 +209,70 @@ private:
         return (true);
     }
 
-    bool push_body(std::string &data, std::string &status_code, size_t & data_header_end_point)
+    bool push_start_line(std::string & temp_data, std::string &status_code)
     {
-        std::string temp = "";
-        if (data.size() >= data_header_end_point + 4)
-            data = data.substr(data_header_end_point + 4);//바디 부분 시작지점.+4 "\r\n\r\n"이후 바디 첫번쨰 값.
-        //바디부분
-        if (status_code == "800")
-            return (ft_chunk_push_body(data, status_code));//바디 처음부터 시작
+        std::cerr << BLUE << temp_data << RESET << std::endl;
+        std::vector<std::string> temp_str = util::ft_split_s(temp_data, " ");
+        if (temp_str.size() != 3)//스타트라인 규격 체크
+            return (status_code = "400", false);
+        else if (temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT" || temp_str[0] == "HEAD")
+            set_method(temp_str[0]);
+        else if (!(temp_str[0] == "GET" || temp_str[0] == "DELETE" || temp_str[0] == "POST" || temp_str[0] == "PUT" || temp_str[0] == "HEAD"))
+            return (status_code = "405", false);
+        if (temp_str[2] == "HTTP/1.1")
+            set_version(temp_str[2]);
+        else if (!(temp_str[2] == "HTTP/1.1"))//HTTP/1.1만 지원
+            return (status_code = "505", false);
+        else
+            return (status_code = "400", false);
+        set_target(temp_str[1]);//414에러는 uri길이 기준이 현재 없음
+        return (true);
+    }
 
-        if (data.size() > 0)//바디 시작부분이 요청값 전체 사이즈 보다 작아야 한다.
-            temp = data;
+    bool find_header_end(std::string & data, size_t &data_header_end_point)
+    {
+        data_header_end_point = ft_find_header_end(data);//헤더 마지막 부분 찾기
+        if (data_header_end_point == 0)
+            return (false);
+        return (true);
+    }
 
-        if (this->get_headers().find("Content-Length") == this->get_headers().end())//"Content-Length"없음
-            set_body(temp);
-        else if (strtol(this->get_headers()["Content-Length"].c_str(), NULL, 10) >= (long)temp.size())//"Content-Length"길이가 더 큼
-            set_body(temp);
-        else if (strtol(this->get_headers()["Content-Length"].c_str(), NULL, 10) < (long)temp.size())//바디 크기가 더크면 잘라서 넣기
-            set_body(temp.substr(0, strtol(this->get_headers()["Content-Length"].c_str(), NULL, 10)));
+    bool ft_header_key_check(std::string &status_code)
+    {
+        if (this->headers.find("host") == this->headers.end())
+            return (status_code = "400", false);
 
         return (true);
     }
 
-    void data_set(std::string &data, size_t & end_point)
-    {//end_point에서 CRLF없을 수 있음, 최대 2번 올 수 있음
-        data = data.substr(end_point);
-
-        if (data[0] == '\r'){
-            if (data.find("\r\n") == 0)
-                data = data.substr(2);
-        }
-        if (data[0] == '\r'){
-            if (data.find("\r\n") == 0)
-                data = data.substr(2);
-        }
-    }
-
-public:
-    //데이터를 받아서 파싱하는 메소드. 200,400,405,505......414에러는 길이 기준이 현재 없음
-    bool parse(std::string &data, std::string &status_code)
+    size_t ft_find_header_end(std::string & data)
     {
-        size_t data_header_end_point;
+        size_t num = data.find("\r\n\r\n");//헤더와 바디 사이의 공백 찾기, 헤더의 마지막 부분.
 
-        if (!find_header_end(data, data_header_end_point))
-            return (status_code = "400", false);
-
-        std::vector<std::string> temp_data = util::ft_split_s(data.substr(0, data_header_end_point), "\r\n");
-        std::vector<std::string> temp_str;
-        std::string temp = "";
-
-        if (!push_start_line(temp_data[0], status_code))//스타트라인
-            return (false);
-
-        if (!push_headers(data, temp_data, status_code, data_header_end_point))//헤더 부분
-            return (false);
-
-        if (status_code == "800")
-            data_set(data, data_header_end_point);
-
-        if (status_code == "800")
-            return (ft_chunk_push_body(data, status_code));
-
-        if (!push_body(data, status_code, data_header_end_point))
-            return (false);
-
-        return (status_code = "200", true);
+        if (num != std::string::npos)
+            return num;
+        num = data.rfind("\r\n");//\r\n이 중간에 없으면 끝에서 부터 찾기 시작, 바디가 없다고 추측, 헤더가 \r\n으로 끝날때
+        if (num != data.size() - 2)//끝에 \r\n 이 없는 경우
+            return data.size();
+        return num;
     }
 
-    void clear_request()
+	void ft_chunk_check(std::string & temp_str, std::string &status_code)
     {
-        this->body.clear();
-        this->headers.clear();
-        this->method.clear();
-        this->target.clear();
-        this->version.clear();
+        std::vector<std::string> temp = util::ft_split(temp_str, ", ");
+
+        for (size_t i = 0; i < temp.size(); i++)
+        {
+            if (temp[i] == "chunked")
+            {
+                status_code = "800";
+                break ;
+            }
+        }
+        if (status_code != "800")// 청크가 아닐 경우
+            status_code = "200";
     }
 
-public:
-    Request(/* args */){};
-    ~Request(){};
-private:
     std::string method; //메소드.
     std::string target; //대상파일(또는 폴더)의 경로.
     std::string version; //프로토콜버전. http1.1고정이기 때문에 float보다 string.
