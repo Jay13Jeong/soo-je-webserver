@@ -72,6 +72,40 @@ public:
         this->status.clear();
         this->sid = 0;
     }
+
+    void init_headers()
+    {
+        if (this->get_header_map().find("server") == this->get_header_map().end())
+            this->set_header_map("server", "soo-je-webserver");
+        if (this->get_header_map().find("Date") == this->get_header_map().end())
+            this->set_header_map("Date", util::get_date());
+        if (this->get_header_map().find("Connection") == this->get_header_map().end())
+            this->set_header_map("Connection", "keep-alive");
+        if (this->get_header_map().find("Accept-Ranges") == this->get_header_map().end())
+            this->set_header_map("Accept-Ranges", "bytes");
+    }
+
+    void find_mime_type(std::string &path)
+    {
+        std::string temp = "";
+        //값"text/html",text/css, images/png, jpeg, gif
+        //헤더파일형식 Content-Type: text/html;
+
+        if (util::ft_split(path, "./").size() != 0)
+            temp = util::ft_split_s(util::ft_split_s(path, "/").back(), ".").back();//파일 확장자만 반환하기
+
+        if (temp == "css")
+            this->set_header_map("Content-Type", "text/css");
+        else if (temp == "png")
+            this->set_header_map("Content-Type", "image/png");
+        else if (temp == "jpeg")
+            this->set_header_map("Content-Type", "image/jpeg");
+        else if (temp == "gif")
+            this->set_header_map("Content-Type", "image/gif");
+        else
+            this->set_header_map("Content-Type", "text/html");// ; charset=UTF-8");
+    }
+
 private:
     std::string version; //http버전
     std::string status; //상태코드 (ex "505").

@@ -60,14 +60,7 @@ public:
     {
         this->response.set_version(this->request.get_version());
         this->response.set_status_msg((*(this->status_msg)).find(this->response.get_status())->second);
-        if (this->response.get_header_map().find("server") == this->response.get_header_map().end())
-            this->response.set_header_map("server", "soo-je-webserver");
-        if (this->response.get_header_map().find("Date") == this->response.get_header_map().end())
-            this->response.set_header_map("Date", util::get_date());
-        if (this->response.get_header_map().find("Connection") == this->response.get_header_map().end())
-            this->response.set_header_map("Connection", "keep-alive");
-        if (this->response.get_header_map().find("Accept-Ranges") == this->response.get_header_map().end())
-            this->response.set_header_map("Accept-Ranges", "bytes");
+        this->response.init_headers();
         //1. 위와 같이 응답클래스를 초기화한다.
         //2. file_buf의 크기를 헤더필드 Content-Length에 추가한다. 그외에 필요한 정보가 있으면 추가.
         //3. (cgi냐 단순html파일이냐 에따라 다르게 file_buf 컨트롤 필요).
@@ -86,7 +79,7 @@ public:
         else
             this->response.set_header_map("Content-Length", util::num_to_string(this->file_buf.size()));
         if (this->response.get_header_map().find("content-Type") == this->response.get_header_map().end())
-            this->find_mime_type(this->request.get_target());
+            this->response.find_mime_type(this->request.get_target());
         this->response.set_body(this->file_buf);
         this->push_write_buf(this->file_buf);
 
@@ -94,10 +87,8 @@ public:
         return true; //문제없이 응답클래스를 초기화했으면 true반환
     }
 
-    void push_write_buf(const std::string & response_body)
+    void push_write_buf(const std::string &response_body)
     {
-        // if (this->response.get_status() == "400")
-        //     exit(9);
         //스타트라인
         std::cerr << YELLOW << this->response.get_version() + " " + this->response.get_status() + " " + this->response.get_status_msg() << RESET << std::endl;
         this->write_buf = this->response.get_version() + " " + this->response.get_status() + " " + this->response.get_status_msg() + "\r\n";
@@ -115,9 +106,8 @@ public:
     }
 
     //오토인데스 응답페이지를 만들고 송신준비를 하는 메소드.
-    void init_autoindex_response(std::string & path)
+    void init_autoindex_response(std::string &path)
     {
-        (void)path;
         std::string temp_body;
         //1.바로 소켓송신이 가능하도록 헤더+바디를 제작한다. -> "this->write_buf에 바로 담는다."
         //2.kq에 "쓰기가능"감지 등록한다.
@@ -125,28 +115,26 @@ public:
         this->response.set_status("200");
         this->response.set_status_msg((*(this->status_msg)).find(this->response.get_status())->second);
         //헤더도 넣기
-        this->response.set_header_map("server", "soo-je-webserver");
-        this->response.set_header_map("Date", util::get_date());
+        this->response.init_headers();
         this->response.set_header_map("content-Type", "text/html");
-        this->response.set_header_map("Connection", "keep-alive");
-        this->response.set_header_map("Accept-Ranges", "bytes");
         DIR *dir;
         struct dirent *ent;
-        dir = opendir((my_loc->root + this->request.get_target()).c_str());//해당 경로의 파일및 디렉터리 를 받기 위한 오픈
+        dir = opendir(path.c_str());//해당 경로의 파일및 디렉터리 를 받기 위한 오픈
         if (dir == NULL)
         {
             this->response.set_status("500");//서버 에러
             this->ready_err_response_meta();//기본 세팅 보내기
             return ;
         }
+        std::string path_base = "/" + path.substr((this->my_loc->root).size());
         //오토인덱스 html 초기세팅
         temp_body = "<html><head>    <title>Index of ";
-        temp_body +=  this->request.get_target() + "</title></head><body bg color='white'>  <h1> Index of " + this->request.get_target() + "</h1>  <hr>  <pre>";
+        temp_body +=  path_base + "</title></head><body bg color='white'>  <h1> Index of " + path_base + "</h1>  <hr>  <pre>";
         while ((ent = readdir(dir)) != NULL)//경로의 파일들 바디에 넣기
         {
             if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
                 continue ;
-            temp_body = temp_body + "    <a href= " + ent->d_name + ">" + ent->d_name + "</a><br>";
+            temp_body = temp_body + "    <a href= " + path_base + ent->d_name + ">" + ent->d_name + "</a><br>";
         }
         temp_body += "</pre>  <hr></body></html>";
         this->response.set_body(temp_body);//바디 입력
@@ -156,26 +144,6 @@ public:
         add_kq_event(this->socket_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
     }
 
-    void find_mime_type(std::string & path)
-    {
-        std::string temp = "";
-        //값"text/html",text/css, images/png, jpeg, gif
-        //헤더파일형식 Content-Type: text/html;
-
-        if (util::ft_split(path, "./").size() != 0)
-            temp = util::ft_split_s(util::ft_split_s(path, "/").back(), ".").back();//파일 확장자만 반환하기
-
-        if (temp == "css")
-            this->response.set_header_map("Content-Type", "text/css");
-        else if (temp == "png")
-            this->response.set_header_map("Content-Type", "image/png");
-        else if (temp == "jpeg")
-            this->response.set_header_map("Content-Type", "image/jpeg");
-        else if (temp == "gif")
-            this->response.set_header_map("Content-Type", "image/gif");
-        else
-            this->response.set_header_map("Content-Type", "text/html");// ; charset=UTF-8");
-    }
     //에러 응답데이터를 만들기전에 필요한 준비를 지시하는 메소드.
     bool ready_err_response_meta()
     {
@@ -187,7 +155,7 @@ public:
         //  2. 설정된 파일이 있고, 열리면 논블로킹 설정하고, 현 클라객체 file fd에 등록.
         //  3. 열린파일fd를 "읽기 가능"감지에 등록.  288에서 read 로 변경하기
 
-        Server & s = *this->my_server;
+        Server &s = *this->my_server;
         //경로에서 확장자를 확인하고 해당하는 헤더를 반환하는
         #ifdef TEST
         std::cerr << "errrrrr11" << std::endl;
@@ -260,15 +228,7 @@ public:
         this->response.set_status("204");
         this->response.set_status_msg((*(this->status_msg)).find(this->response.get_status())->second);
 
-        if (this->response.get_header_map().find("server") == this->response.get_header_map().end())
-            this->response.set_header_map("server", "soo-je-webserver");
-        if (this->response.get_header_map().find("Date") == this->response.get_header_map().end())
-            this->response.set_header_map("Date", util::get_date());
-        if (this->response.get_header_map().find("Connection") == this->response.get_header_map().end())
-            this->response.set_header_map("Connection", "keep-alive");
-        if (this->response.get_header_map().find("Accept-Ranges") == this->response.get_header_map().end())
-            this->response.set_header_map("Accept-Ranges", "bytes");
-
+        this->response.init_headers();
         this->response.set_body("");
         push_write_buf(this->response.get_body());
         //DELETE용 응답데이터 (시작줄 + 헤더 + 바디)만들기....
@@ -608,7 +568,7 @@ public:
                         this->request.set_body(pase_body);
                         this->response.set_status("200");
                         return "200";
-                    }   
+                    }
                     pase_body += body_data.substr(rn + 2, b);
                     curr = (rn + 2) + (b + 2);
                 }
@@ -617,11 +577,11 @@ public:
                 return CHUNKED;
             }
         }
-        return ("200");      
+        return ("200");
     }
 
     std::string check_bodysize()
-    {   
+    {
         if (this->response.get_status() == LENGTHLESS)
         {
             std::string temp = util::ft_split(this->request.get_headers().find("Content-Length")->second, " ")[0];
