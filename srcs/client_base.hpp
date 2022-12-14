@@ -179,16 +179,12 @@ public:
         if (size == (size_t)-1)
         {
             close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
-            if (this->cgi_mode == true)
-                unlink(this->cgi_file_name.c_str());
             return -1;
         }
         this->file_buf += std::string(buffer, size);
         if (size < BUFFER_SIZE)
         {
             close(this->file_fd); //파일을 닫는다. (자동으로 감지목록에서 사라짐).
-            if (this->cgi_mode == true)
-                unlink(this->cgi_file_name.c_str());
             return 1;
         }
         return 0;

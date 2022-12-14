@@ -55,6 +55,7 @@ class CgiController
 		// void initialize(std::string program, std::string script, Client &client);
 		void initialize(std::string program, std::string script, std::string target, std::string root, std::map<std::string, std::string> &headers, std::string req_method, int sock_fd, std::string host, int port, std::string version, long sid)
 		{
+			this->client_fd = sock_fd;
 			this->program = program;
 			this->script = script;
 			make_target_info(target, root);
@@ -62,7 +63,7 @@ class CgiController
 		}
 		bool ready_body_file(void)
 		{
-			this->body_file = ".payload/cgi_ready_" + util::num_to_string(this);
+			this->body_file = ".payload/cgi_ready_" + util::num_to_string(this->client_fd);
 			if (util::make_middle_pathes(this->body_file) == false)
 				return false;
 			if ((this->file_fd = open(this->body_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1)
@@ -73,7 +74,7 @@ class CgiController
 		{
 			int stdin_fd, result_fd;
 
-			this->result_file = ".payload/cgi_result_" + util::num_to_string(this);
+			this->result_file = ".payload/cgi_result_" + util::num_to_string(this->client_fd);
 			// 필요한 파일들 open
 			stdin_fd = open(this->body_file.c_str(), O_RDONLY, 0644);
 			result_fd = open(this->result_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -117,7 +118,6 @@ class CgiController
 				this->status = RUNNING;
 				close(result_fd);
 				close(stdin_fd);
-				unlink(this->body_file.c_str());
 				int status, ret;
 				ret = waitpid(cgi_pid, &status, WNOHANG);
 				if (ret == pid && WEXITSTATUS(status) != 0)
@@ -144,6 +144,7 @@ class CgiController
 		int file_fd;				// cgi가 출력한 결과물을 담는 파일의 fd.	// file_fd
 		int pid;					// cgi가 실행되고 있는 자식프로세스의 pid	// cgi_pid
 		int status;					// cgi가 실행되고 있는 자식프로세스의 상태 (END, ERROR, RUNNING)	// cgi_status
+		int client_fd;
 
 		typedef struct s_target_info
 		{

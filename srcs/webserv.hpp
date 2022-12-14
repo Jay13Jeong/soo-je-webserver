@@ -122,7 +122,6 @@ public:
         this->regist_servers_to_kq(); //감지목록에 서버들 추가.
         this->init_servers_map();
         this->init_status_map();
-        util::rm_sub_files(".payload/"); //cgi전송용 payload 폴더 비우기.
         kq_fd = kqueue();
         struct timespec timeout;
         timeout.tv_sec = 7;
@@ -357,6 +356,11 @@ public:
                         #ifdef TEST
                         perror("send socket 2");
                         #endif
+                        if (result == SEND_ALL || result == FAIL)
+                        {
+                            unlink((".payload/cgi_ready_" + util::num_to_string(c.get_socket_fd())).c_str());
+                            unlink((".payload/cgi_result_" + util::num_to_string(c.get_socket_fd())).c_str());
+                        }
                         if (result == FAIL)
                         {
                             std::cerr << MAGENTA << "close : " << c.get_socket_fd() << RESET << std::endl;
