@@ -23,7 +23,7 @@ int main(int ac, char* av[])
 
     if (ac == 1)
     {
-        if (!parser.parsing("default.conf")) //웹서브 클래스에 인자의 파일을 넣음
+        if (!parser.parsing("conf/default.conf")) //웹서브 클래스에 인자의 파일을 넣음
             return(-1);
         else
             std::cerr << GREEN << "[*] Config validation check pass!" << RESET << std::endl;
