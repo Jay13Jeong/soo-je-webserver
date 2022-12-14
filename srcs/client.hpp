@@ -15,7 +15,7 @@ class Client : public Client_base
 {
 public:
     Client(std::vector<struct kevent> * cmds, std::map<int,Client*> * files) : my_loc(NULL), ev_cmds(cmds) ,file_map(files) \
-    , my_server(NULL), status_msg(NULL), cgi_program(""), cgi_file(""),  cgi_body_file(""),  cgi_pid(-1), cgi_status(END)
+    , my_server(NULL), status_msg(NULL), cgi_file(""), cgi_pid(-1), cgi_status(END)
     {
         socket_fd = -1;
         read_buf = "";
@@ -40,10 +40,6 @@ public:
     void set_myserver(Server * server)
     {
         this->my_server = server;
-    }
-    std::string &get_cgi_program()
-    {
-        return this->cgi_program;
     }
 
     //fd와 "감지할 행동", kevent지시문을 인자로 받아서 감지목록에 추가하는 메소드.
@@ -409,12 +405,10 @@ public:
         this->write_size = 0;
         this->cgi_mode = false;
         this->my_loc = NULL;
-        this->cgi_program.clear();
         this->cgi_file.clear();
         this->response.clear_response();
         this->request.clear_request();
         this->cgi_file_name.clear();
-        this->cgi_body_file.clear();
         this->is_done_chunk = false;
         this->cgi_pid = -1;
         this->cgi_status = END;
@@ -455,7 +449,6 @@ public:
 
 	bool check_need_cgi()
     {
-        Server s = *this->my_server;
         std::map<std::string, std::string> & cgi_infos = this->my_loc->cgi_map;
         size_t offset = this->get_request().get_target().find('.'); //확장자를 암시하는 부분을 찾는다.
         if (offset == std::string::npos) //없다면 검사종료.
@@ -683,9 +676,7 @@ private:
     std::map<int, Client*> * file_map; //파일 맵.
     Server * my_server; //현재 클라이언트의 서버.(conf 데이터 불러오기 가능).
     std::map<std::string, std::string> * status_msg;
-    std::string  cgi_program; //cgi를 실행할 프로그램 경로 (예시 "/usr/bin/python")	// cgi_controller.hpp로 이동
     std::string  cgi_file; //cgi를 실행할 파일 경로 (예시 "hello.py")	// cgi_controller.hpp로 이동
-    std::string  cgi_body_file; //cgi실행전 사용할 바디 파일 이름.	// cgi_controller.hpp로 이동
     int cgi_pid;	// cgi_controller.hpp로 이동
     int cgi_status;	// cgi_controller.hpp로 이동
 	CgiController cgi_controller;

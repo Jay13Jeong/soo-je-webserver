@@ -11,6 +11,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <algorithm>
+#include <limits.h>
 #include "util.hpp"
 
 
@@ -116,6 +117,7 @@ class CgiController
 				this->status = RUNNING;
 				close(result_fd);
 				close(stdin_fd);
+				unlink(this->body_file.c_str());
 				int status, ret;
 				ret = waitpid(cgi_pid, &status, WNOHANG);
 				if (ret == pid && WEXITSTATUS(status) != 0)
