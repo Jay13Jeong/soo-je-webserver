@@ -13,6 +13,9 @@ This program can receive a single arg, and if there is no arg, it runs "default.
 The setup of the conf file is based on nginx.<br>
 Then connect to the browser with the open port printed on the terminal (Enter "localhost:8011")<br>
 
+## Method Support
+GET, HEAD, POST, PUT, DELETE
+
 ## Conf file setting
 <b>listen  :</b> Specify a port.<br>
 <b>host    :</b> Specify a host.<br>
